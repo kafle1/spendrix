@@ -173,6 +173,27 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   bool _isBalanceVisible = true;
+  bool _showLending = true;
+  bool _isLendFeatureEnabled = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLendFeatureSetting();
+  }
+
+  Future<void> _loadLendFeatureSetting() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _isLendFeatureEnabled = prefs.getBool('isLendFeatureEnabled') ?? true;
+        // If lend feature is disabled globally, force _showLending to false
+        if (!_isLendFeatureEnabled) {
+          _showLending = false;
+        }
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -218,14 +239,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
           final startOfMonth = DateTime(now.year, now.month, 1);
           final endOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
 
-          final monthlyIncome = dataProvider.getTotalIncome(
-            startDate: startOfMonth,
-            endDate: endOfMonth,
-          );
-          final monthlyExpense = dataProvider.getTotalExpense(
-            startDate: startOfMonth,
-            endDate: endOfMonth,
-          );
+          // Calculate monthly income and expense, optionally excluding lending
+          double monthlyIncome = 0;
+          double monthlyExpense = 0;
+          
+          for (var transaction in dataProvider.transactions) {
+            if (transaction.date.isBefore(startOfMonth) || transaction.date.isAfter(endOfMonth)) {
+              continue;
+            }
+            
+            if (transaction.type == 'income' || 
+                (_showLending && (transaction.type == 'lend_taken' || transaction.type == 'lend_returned_income'))) {
+              monthlyIncome += transaction.amount;
+            } else if (transaction.type == 'expense' || 
+                       (_showLending && (transaction.type == 'lend_given' || transaction.type == 'lend_returned_expense'))) {
+              monthlyExpense += transaction.amount;
+            }
+          }
 
           final totalLendGiven = dataProvider.getTotalLendGiven();
           final totalLendTaken = dataProvider.getTotalLendTaken();
@@ -262,17 +292,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.account_balance_wallet_outlined,
-                              color: Colors.white,
-                              size: 18,
-                            ),
+                          Row(
+                            children: [
+                              if (_isLendFeatureEnabled)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.swap_horiz_rounded,
+                                        color: Colors.white.withOpacity(0.7),
+                                        size: 14,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Lending',
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.7),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      SizedBox(
+                                        height: 20,
+                                        child: Switch(
+                                          value: _showLending,
+                                          onChanged: (value) {
+                                            setState(() {
+                                              _showLending = value;
+                                            });
+                                          },
+                                          activeColor: AppColors.success,
+                                          inactiveThumbColor: Colors.white.withOpacity(0.5),
+                                          inactiveTrackColor: Colors.white.withOpacity(0.2),
+                                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              if (_isLendFeatureEnabled)
+                                const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.account_balance_wallet_outlined,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -288,7 +367,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           letterSpacing: -1,
                         ),
                       ),
-                      if (totalLendGiven > 0 || totalLendTaken > 0) ...[
+                      if (_showLending && (totalLendGiven > 0 || totalLendTaken > 0)) ...[
                         const SizedBox(height: 24),
                         Container(
                           padding: const EdgeInsets.all(16),
@@ -619,12 +698,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const SizedBox(height: 12),
                 ...dataProvider.accounts.map((account) {
+                  final isDark = Theme.of(context).brightness == Brightness.dark;
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     decoration: BoxDecoration(
-                      color: AppColors.surface,
+                      color: isDark ? AppColors.darkSurface : AppColors.surface,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.border),
+                      border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.02),
@@ -649,18 +729,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       title: Text(
                         account.name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 16,
+                          color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
                         ),
                       ),
                       subtitle: Text(
                         account.type.toUpperCase(),
                         style: TextStyle(
                           fontSize: 12,
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? AppColors.darkTextSecondary
-                              : AppColors.textSecondary,
+                          color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
                         ),
                       ),
                       trailing: Text(
@@ -670,9 +749,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? AppColors.darkTextPrimary
-                              : AppColors.textPrimary,
+                          color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
                         ),
                       ),
                     ),
@@ -690,20 +767,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                ...dataProvider.transactions.take(10).map((transaction) {
+                ...dataProvider.transactions
+                    .where((transaction) {
+                      if (_showLending) return true;
+                      // Exclude lending transactions when toggle is off
+                      return transaction.type != 'lend_taken' &&
+                             transaction.type != 'lend_given' &&
+                             transaction.type != 'lend_returned_income' &&
+                             transaction.type != 'lend_returned_expense';
+                    })
+                    .take(10)
+                    .map((transaction) {
                   final account = dataProvider.accounts.firstWhere(
                     (a) => a.id == transaction.accountId,
                     orElse: () => Account(name: 'Unknown', balance: 0, type: 'other'),
                   );
                   
-                  final categories = transaction.type == 'income'
-                      ? dataProvider.incomeCategories
-                      : dataProvider.expenseCategories;
+                  // Determine if transaction is income-type or expense-type
+                  final isIncome = transaction.type == 'income' || 
+                                   transaction.type == 'lend_taken' || 
+                                   transaction.type == 'lend_returned_income';
                   
-                  final category = categories.firstWhere(
-                    (c) => c.id == transaction.categoryId,
-                    orElse: () => app_models.Category(name: 'Unknown', type: transaction.type),
-                  );
+                  // Get display name for transaction
+                  String displayName;
+                  if (transaction.type == 'lend_taken') {
+                    displayName = 'Lend Taken${transaction.personName != null ? " - ${transaction.personName}" : ""}';
+                  } else if (transaction.type == 'lend_given') {
+                    displayName = 'Lend Given${transaction.personName != null ? " - ${transaction.personName}" : ""}';
+                  } else if (transaction.type == 'lend_returned_income') {
+                    displayName = 'Lend Returned${transaction.personName != null ? " - ${transaction.personName}" : ""}';
+                  } else if (transaction.type == 'lend_returned_expense') {
+                    displayName = 'Lend Returned${transaction.personName != null ? " - ${transaction.personName}" : ""}';
+                  } else {
+                    final categories = isIncome
+                        ? dataProvider.incomeCategories
+                        : dataProvider.expenseCategories;
+                    
+                    final category = categories.firstWhere(
+                      (c) => c.id == transaction.categoryId,
+                      orElse: () => app_models.Category(name: 'Unknown', type: transaction.type),
+                    );
+                    displayName = category.name;
+                  }
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
@@ -723,26 +828,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       leading: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: transaction.type == 'income'
+                          color: isIncome
                               ? AppColors.income.withOpacity(0.1)
                               : AppColors.expense.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Icon(
-                          transaction.type == 'income'
+                          isIncome
                               ? Icons.arrow_downward_rounded
                               : Icons.arrow_upward_rounded,
-                          color: transaction.type == 'income'
+                          color: isIncome
                               ? AppColors.income
                               : AppColors.expense,
                           size: 20,
                         ),
                       ),
                       title: Text(
-                        category.name,
-                        style: const TextStyle(
+                        displayName,
+                        style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 16,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? AppColors.darkTextPrimary
+                              : AppColors.textPrimary,
                         ),
                       ),
                       subtitle: Padding(
@@ -759,18 +867,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       trailing: Text(
                         _isBalanceVisible
-                            ? '${transaction.type == 'income' ? '+' : '-'} ${FormatUtils.formatCurrency(transaction.amount)}'
+                            ? '${isIncome ? '+' : '-'} ${FormatUtils.formatCurrency(transaction.amount)}'
                             : '••••••',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: transaction.type == 'income'
+                          color: isIncome
                               ? AppColors.income
                               : AppColors.expense,
                         ),
                       ),
                       onTap: () {
-                        _showTransactionDetails(context, transaction, account, category);
+                        _showTransactionDetails(context, transaction, account, app_models.Category(name: displayName, type: transaction.type));
                       },
                     ),
                   );

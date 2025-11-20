@@ -458,6 +458,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 if (value == null || value.trim().isEmpty) {
                   return 'Please enter person name';
                 }
+                
+                // For lend returns, check if person has outstanding amount
+                if (_selectedLendType == 'lend_returned_income' || _selectedLendType == 'lend_returned_expense') {
+                  final dataProvider = Provider.of<DataProvider>(context, listen: false);
+                  final outstanding = _selectedLendType == 'lend_returned_income'
+                      ? dataProvider.getOutstandingLendTaken(value.trim())
+                      : dataProvider.getOutstandingLendGiven(value.trim());
+                  
+                  if (outstanding <= 0) {
+                    return 'No outstanding amount for this person';
+                  }
+                }
+                
                 return null;
               },
               onChanged: (value) {
@@ -524,6 +537,28 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               if (amount <= 0) {
                 return 'Amount must be greater than 0';
               }
+              
+              // Check if user has sufficient balance for expense or lend_given
+              if (_selectedAccount != null && 
+                  (_selectedType == 'expense' || _selectedLendType == 'lend_given' || _selectedLendType == 'lend_returned_expense')) {
+                if (amount > _selectedAccount!.balance) {
+                  return 'Insufficient balance (Available: ${FormatUtils.formatCurrency(_selectedAccount!.balance)})';
+                }
+              }
+              
+              // Check if returning more than outstanding amount
+              if ((_selectedLendType == 'lend_returned_income' || _selectedLendType == 'lend_returned_expense') && 
+                  _personNameController.text.trim().isNotEmpty) {
+                final dataProvider = Provider.of<DataProvider>(context, listen: false);
+                final outstanding = _selectedLendType == 'lend_returned_income'
+                    ? dataProvider.getOutstandingLendTaken(_personNameController.text.trim())
+                    : dataProvider.getOutstandingLendGiven(_personNameController.text.trim());
+                
+                if (amount > outstanding) {
+                  return 'Cannot return more than outstanding (${FormatUtils.formatCurrency(outstanding)})';
+                }
+              }
+              
               return null;
             },
           ),
@@ -552,7 +587,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<Account>(
-            value: _selectedAccount,
+            value: _selectedAccount != null
+                ? dataProvider.accounts.firstWhere(
+                    (a) => a.id == _selectedAccount!.id,
+                    orElse: () => _selectedAccount!,
+                  )
+                : null,
             decoration: InputDecoration(
               hintText: 'Select account',
               hintStyle: const TextStyle(color: AppColors.textHint),

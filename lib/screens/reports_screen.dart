@@ -268,8 +268,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 if (_startDate != null && _endDate != null)
                   _buildPeriodCard(_startDate!, _endDate!),
                 const SizedBox(height: 16),
-                _buildBalanceCard(balance),
-                const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(

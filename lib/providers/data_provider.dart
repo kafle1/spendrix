@@ -120,15 +120,25 @@ class DataProvider with ChangeNotifier {
         final account = _accounts[accountIndex];
         double balanceAdjustment = 0;
         
-        if (oldTransaction.type == 'income') {
+        // Reverse old transaction
+        if (oldTransaction.type == 'income' || 
+            oldTransaction.type == 'lend_taken' || 
+            oldTransaction.type == 'lend_returned_income') {
           balanceAdjustment -= oldTransaction.amount;
-        } else {
+        } else if (oldTransaction.type == 'expense' || 
+                   oldTransaction.type == 'lend_given' || 
+                   oldTransaction.type == 'lend_returned_expense') {
           balanceAdjustment += oldTransaction.amount;
         }
         
-        if (newTransaction.type == 'income') {
+        // Apply new transaction
+        if (newTransaction.type == 'income' || 
+            newTransaction.type == 'lend_taken' || 
+            newTransaction.type == 'lend_returned_income') {
           balanceAdjustment += newTransaction.amount;
-        } else {
+        } else if (newTransaction.type == 'expense' || 
+                   newTransaction.type == 'lend_given' || 
+                   newTransaction.type == 'lend_returned_expense') {
           balanceAdjustment -= newTransaction.amount;
         }
         
@@ -140,17 +150,37 @@ class DataProvider with ChangeNotifier {
       
       if (oldAccountIndex != -1) {
         final oldAccount = _accounts[oldAccountIndex];
-        final oldBalance = oldTransaction.type == 'income'
-            ? oldAccount.balance - oldTransaction.amount
-            : oldAccount.balance + oldTransaction.amount;
+        double oldBalance = oldAccount.balance;
+        
+        // Reverse old transaction
+        if (oldTransaction.type == 'income' || 
+            oldTransaction.type == 'lend_taken' || 
+            oldTransaction.type == 'lend_returned_income') {
+          oldBalance -= oldTransaction.amount;
+        } else if (oldTransaction.type == 'expense' || 
+                   oldTransaction.type == 'lend_given' || 
+                   oldTransaction.type == 'lend_returned_expense') {
+          oldBalance += oldTransaction.amount;
+        }
+        
         await updateAccount(oldAccount.copyWith(balance: oldBalance));
       }
       
       if (newAccountIndex != -1) {
         final newAccount = _accounts[newAccountIndex];
-        final newBalance = newTransaction.type == 'income'
-            ? newAccount.balance + newTransaction.amount
-            : newAccount.balance - newTransaction.amount;
+        double newBalance = newAccount.balance;
+        
+        // Apply new transaction
+        if (newTransaction.type == 'income' || 
+            newTransaction.type == 'lend_taken' || 
+            newTransaction.type == 'lend_returned_income') {
+          newBalance += newTransaction.amount;
+        } else if (newTransaction.type == 'expense' || 
+                   newTransaction.type == 'lend_given' || 
+                   newTransaction.type == 'lend_returned_expense') {
+          newBalance -= newTransaction.amount;
+        }
+        
         await updateAccount(newAccount.copyWith(balance: newBalance));
       }
     }
@@ -163,9 +193,19 @@ class DataProvider with ChangeNotifier {
     final accountIndex = _accounts.indexWhere((a) => a.id == transaction.accountId);
     if (accountIndex != -1) {
       final account = _accounts[accountIndex];
-      final newBalance = transaction.type == 'income'
-          ? account.balance - transaction.amount
-          : account.balance + transaction.amount;
+      double newBalance = account.balance;
+      
+      // Reverse the transaction
+      if (transaction.type == 'income' || 
+          transaction.type == 'lend_taken' || 
+          transaction.type == 'lend_returned_income') {
+        newBalance = account.balance - transaction.amount;
+      } else if (transaction.type == 'expense' || 
+                 transaction.type == 'lend_given' || 
+                 transaction.type == 'lend_returned_expense') {
+        newBalance = account.balance + transaction.amount;
+      }
+      
       await updateAccount(account.copyWith(balance: newBalance));
     }
     
