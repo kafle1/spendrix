@@ -709,19 +709,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   List<Widget> _buildSpendingLimitsList(DataProvider dataProvider) {
     return dataProvider.spendingLimits.map((limit) {
-      final category = dataProvider.expenseCategories
-          .firstWhere((c) => c.id == limit.categoryId, orElse: () => null as app_models.Category);
+      // Calculate total spent across all categories in this limit
+      double spent = 0.0;
+      for (final categoryId in limit.categoryIds) {
+        spent += dataProvider.getCategoryExpenses(
+          categoryId: categoryId,
+          startDate: _startDate,
+          endDate: _endDate,
+        );
+      }
       
-      if (category == null) return const SizedBox.shrink();
-      
-      final spent = dataProvider.getCategoryExpenses(
-        categoryId: limit.categoryId,
-        startDate: _startDate,
-        endDate: _endDate,
-      );
-      
-      final percentage = (spent / limit.amount * 100).clamp(0.0, 100.0);
-      final isOverLimit = spent > limit.amount;
+      final percentage = (spent / limit.limitAmount * 100).clamp(0.0, 100.0);
+      final isOverLimit = spent > limit.limitAmount;
       final color = isOverLimit 
           ? AppColors.error 
           : percentage > 80 
@@ -751,7 +750,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        category.name,
+                        limit.name,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -760,7 +759,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${FormatUtils.formatCurrency(spent)} of ${FormatUtils.formatCurrency(limit.amount)}',
+                        '${FormatUtils.formatCurrency(spent)} of ${FormatUtils.formatCurrency(limit.limitAmount)}',
                         style: TextStyle(
                           fontSize: 14,
                           color: color,
@@ -805,7 +804,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     const Icon(Icons.warning_rounded, size: 16, color: AppColors.error),
                     const SizedBox(width: 6),
                     Text(
-                      'Over budget by ${FormatUtils.formatCurrency(spent - limit.amount)}',
+                      'Over budget by ${FormatUtils.formatCurrency(spent - limit.limitAmount)}',
                       style: const TextStyle(
                         fontSize: 12,
                         color: AppColors.error,
