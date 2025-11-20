@@ -1,6 +1,6 @@
-# Contributing to Spendrix
+# Contributing to HisabX
 
-Thank you for considering contributing to Spendrix! We welcome contributions from the community.
+Thank you for considering contributing to HisabX! We welcome contributions from the community.
 
 ## How to Contribute
 
@@ -24,8 +24,8 @@ We love new ideas! To suggest a feature:
 
 1. **Fork the repository**
    ```bash
-   git clone https://github.com/yourusername/spendrix.git
-   cd spendrix
+   git clone https://github.com/yourusername/hisabx.git
+   cd hisabx
    ```
 
 2. **Create a feature branch**

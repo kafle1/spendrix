@@ -180,6 +180,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _loadLendFeatureSetting();
+    _loadDashboardLendingToggle();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadLendFeatureSetting();
+    _loadDashboardLendingToggle();
   }
 
   Future<void> _loadLendFeatureSetting() async {
@@ -193,6 +201,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
       });
     }
+  }
+
+  Future<void> _loadDashboardLendingToggle() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      final savedToggleState = prefs.getBool('isDashboardLendingEnabled');
+      setState(() {
+        // Use saved state if available, otherwise default to true (enabled)
+        // But only if the global feature is enabled
+        if (_isLendFeatureEnabled) {
+          _showLending = savedToggleState ?? true;
+        }
+      });
+    }
+  }
+
+  Future<void> _saveDashboardLendingToggle(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isDashboardLendingEnabled', value);
   }
 
   @override
@@ -327,6 +354,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                             setState(() {
                                               _showLending = value;
                                             });
+                                            _saveDashboardLendingToggle(value);
                                           },
                                           activeColor: AppColors.success,
                                           inactiveThumbColor: Colors.white.withOpacity(0.5),
@@ -339,18 +367,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 ),
                               if (_isLendFeatureEnabled)
                                 const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Icon(
-                                  Icons.account_balance_wallet_outlined,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                              ),
                             ],
                           ),
                         ],
@@ -718,12 +734,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       leading: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
+                          color: (isDark ? Colors.white : AppColors.primary).withOpacity(0.1),
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.account_balance_wallet,
-                          color: AppColors.primary,
+                          color: isDark ? Colors.white : AppColors.primary,
                           size: 24,
                         ),
                       ),

@@ -63,9 +63,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
       lastDate: now.add(const Duration(days: 365)),
       initialDateRange: initialRange,
       builder: (context, child) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).brightness == Brightness.dark
+            colorScheme: isDark
                 ? ColorScheme.dark(
                     primary: AppColors.primary,
                     onPrimary: Colors.white,

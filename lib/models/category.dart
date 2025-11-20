@@ -4,6 +4,7 @@ class Category {
   final String type;
   final String? iconName;
   final String? colorHex;
+  final int? displayOrder;
 
   Category({
     this.id,
@@ -11,6 +12,7 @@ class Category {
     required this.type,
     this.iconName,
     this.colorHex,
+    this.displayOrder,
   });
 
   Map<String, dynamic> toMap() {
@@ -20,6 +22,7 @@ class Category {
       'type': type,
       'iconName': iconName,
       'colorHex': colorHex,
+      'displayOrder': displayOrder,
     };
   }
 
@@ -30,6 +33,7 @@ class Category {
       type: map['type'] as String,
       iconName: map['iconName'] as String?,
       colorHex: map['colorHex'] as String?,
+      displayOrder: map['displayOrder'] as int?,
     );
   }
 
@@ -39,6 +43,7 @@ class Category {
     String? type,
     String? iconName,
     String? colorHex,
+    int? displayOrder,
   }) {
     return Category(
       id: id ?? this.id,
@@ -46,6 +51,7 @@ class Category {
       type: type ?? this.type,
       iconName: iconName ?? this.iconName,
       colorHex: colorHex ?? this.colorHex,
+      displayOrder: displayOrder ?? this.displayOrder,
     );
   }
 }

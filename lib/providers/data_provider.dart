@@ -72,6 +72,15 @@ class DataProvider with ChangeNotifier {
     await loadCategories();
   }
 
+  Future<void> reorderCategories(List<app_models.Category> categories) async {
+    for (int i = 0; i < categories.length; i++) {
+      final category = categories[i];
+      final updatedCategory = category.copyWith(displayOrder: i);
+      await _dbHelper.updateCategory(updatedCategory);
+    }
+    await loadCategories();
+  }
+
   Future<void> loadTransactions({
     DateTime? startDate,
     DateTime? endDate,

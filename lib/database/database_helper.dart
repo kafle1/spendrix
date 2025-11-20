@@ -23,7 +23,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
@@ -46,7 +46,8 @@ class DatabaseHelper {
         name TEXT NOT NULL,
         type TEXT NOT NULL,
         iconName TEXT,
-        colorHex TEXT
+        colorHex TEXT,
+        displayOrder INTEGER
       )
     ''');
 
@@ -108,6 +109,14 @@ class DatabaseHelper {
         await db.execute('ALTER TABLE accounts_new RENAME TO accounts');
       }
     }
+    if (oldVersion < 4) {
+      // Add displayOrder column to categories table
+      try {
+        await db.execute('ALTER TABLE categories ADD COLUMN displayOrder INTEGER');
+      } catch (e) {
+        // If column already exists, ignore
+      }
+    }
   }
 
   Future<int> insertAccount(Account account) async {
@@ -144,8 +153,8 @@ class DatabaseHelper {
   Future<List<app_models.Category>> getCategories({String? type}) async {
     final db = await database;
     final List<Map<String, dynamic>> maps = type != null
-        ? await db.query('categories', where: 'type = ?', whereArgs: [type])
-        : await db.query('categories');
+        ? await db.query('categories', where: 'type = ?', whereArgs: [type], orderBy: 'displayOrder ASC, id ASC')
+        : await db.query('categories', orderBy: 'displayOrder ASC, id ASC');
     return List.generate(maps.length, (i) => app_models.Category.fromMap(maps[i]));
   }
 

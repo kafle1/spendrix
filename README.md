@@ -1,12 +1,12 @@
-# Spendrix 💰
+# HisabX 💰
 
 **Smart Money Management Made Simple**
 
-Spendrix is a modern, intuitive expense tracking application built with Flutter. Track your income, expenses, and manage your finances with ease across all your devices.
+HisabX is a modern, intuitive expense tracking application built with Flutter. Track your income, expenses, and manage your finances with ease across all your devices.
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.8.1+-blue.svg)](https://flutter.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](https://github.com/yourusername/spendrix/releases)
+[![Version](https://img.shields.io/badge/version-0.2.0-green.svg)](https://github.com/yourusername/hisabx/releases)
 
 ## ✨ Features
 
@@ -44,8 +44,8 @@ Spendrix is a modern, intuitive expense tracking application built with Flutter.
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/spendrix.git
-   cd spendrix
+   git clone https://github.com/yourusername/hisabx.git
+   cd hisabx
    ```
 
 2. **Install dependencies**

@@ -1,8 +1,8 @@
-import 'package:flutter/material.dart' hide TextStyle, Colors, SizedBox, Padding, BorderRadius;
+import 'package:flutter/material.dart'hide TextStyle, Colors, SizedBox, Padding, BorderRadius;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/account.dart';
-import '../models/category.dart';
+import '../models/category.dart' as app_models;
 import '../models/spending_limit.dart';
 import '../providers/data_provider.dart';
 import '../utils/app_theme.dart';
@@ -103,12 +103,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               leading: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: (isDarkTheme ? Colors.white : AppColors.primary).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   _isDarkMode ? Icons.dark_mode : Icons.light_mode,
-                  color: AppColors.primary,
+                  color: isDarkTheme ? Colors.white : AppColors.primary,
                 ),
               ),
               title: const Text(
@@ -118,9 +118,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              subtitle: const Text(
+              subtitle: Text(
                 'Toggle dark theme',
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                style: TextStyle(fontSize: 12, color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.textSecondary),
               ),
               trailing: Switch(
                 value: _isDarkMode,
@@ -141,12 +141,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               leading: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: (isDarkTheme ? Colors.white : AppColors.primary).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.payments_outlined,
-                  color: AppColors.primary,
+                  color: isDarkTheme ? Colors.white : AppColors.primary,
                 ),
               ),
               title: const Text(
@@ -156,9 +156,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              subtitle: const Text(
+              subtitle: Text(
                 'Enable lend and borrow tracking',
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                style: TextStyle(fontSize: 12, color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.textSecondary),
               ),
               trailing: Switch(
                 value: _isLendFeatureEnabled,
@@ -288,10 +288,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.1),
+            color: (isDarkTheme ? Colors.white : AppColors.primary).withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: AppColors.primary),
+          child: Icon(icon, color: isDarkTheme ? Colors.white : AppColors.primary),
         ),
         title: Text(
           title,
@@ -300,7 +300,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.textSecondary),
+        trailing: Icon(Icons.arrow_forward_ios, size: 16, color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.textSecondary),
         onTap: onTap,
       ),
     );
@@ -378,6 +378,10 @@ class ManageAccountsScreen extends StatelessWidget {
       ),
       body: Consumer<DataProvider>(
         builder: (context, dataProvider, child) {
+          final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
+          final surfaceColor = isDarkTheme ? AppColors.darkSurface : AppColors.surface;
+          final borderColor = isDarkTheme ? AppColors.darkBorder : AppColors.border;
+          
           return ListView(
             padding: const EdgeInsets.all(16.0),
             children: [
@@ -385,21 +389,32 @@ class ManageAccountsScreen extends StatelessWidget {
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: surfaceColor,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: borderColor),
                   ),
                   child: ListTile(
                     leading: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: (isDarkTheme ? Colors.white : AppColors.primary).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.account_balance_wallet, color: AppColors.primary),
+                      child: Icon(Icons.account_balance_wallet, color: isDarkTheme ? Colors.white : AppColors.primary),
                     ),
-                    title: Text(account.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text(FormatUtils.formatCurrency(account.balance)),
+                    title: Text(
+                      account.name,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: isDarkTheme ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                      ),
+                    ),
+                    subtitle: Text(
+                      FormatUtils.formatCurrency(account.balance),
+                      style: TextStyle(
+                        color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                      ),
+                    ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -598,44 +613,88 @@ class ManageCategoriesScreen extends StatelessWidget {
         ? dataProvider.incomeCategories
         : dataProvider.expenseCategories;
 
-    return ListView(
-      padding: const EdgeInsets.all(16.0),
+    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDarkTheme ? AppColors.darkSurface : AppColors.surface;
+    final borderColor = isDarkTheme ? AppColors.darkBorder : AppColors.border;
+
+    return Column(
       children: [
-        ...categories.map((category) {
-          return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(10),
+        Expanded(
+          child: ReorderableListView(
+            padding: const EdgeInsets.all(16.0),
+            onReorder: (oldIndex, newIndex) async {
+              // Adjust newIndex if moving item down the list
+              if (newIndex > oldIndex) {
+                newIndex -= 1;
+              }
+              
+              // Create new list with reordered categories
+              final items = List<app_models.Category>.from(categories);
+              final item = items.removeAt(oldIndex);
+              items.insert(newIndex, item);
+              
+              // Update the order in the database
+              await dataProvider.reorderCategories(items);
+            },
+            children: categories.map((category) {
+              return Container(
+                key: ValueKey(category.id),
+                margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
-                  color: type == 'income'
-                      ? AppColors.income.withOpacity(0.1)
-                      : AppColors.expense.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  color: surfaceColor,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: borderColor),
                 ),
-                child: Icon(
-                  type == 'income' ? Icons.arrow_downward : Icons.arrow_upward,
-                  color: type == 'income' ? AppColors.income : AppColors.expense,
+                child: ListTile(
+                  leading: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.drag_handle,
+                        color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: type == 'income'
+                              ? AppColors.income.withOpacity(0.1)
+                              : AppColors.expense.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          type == 'income' ? Icons.arrow_downward : Icons.arrow_upward,
+                          color: type == 'income' ? AppColors.income : AppColors.expense,
+                        ),
+                      ),
+                    ],
+                  ),
+                  title: Text(
+                    category.name,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: isDarkTheme ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                    ),
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete_outline, color: AppColors.error),
+                    onPressed: () => _confirmDeleteCategory(context, category, dataProvider),
+                  ),
                 ),
-              ),
-              title: Text(category.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete_outline, color: AppColors.error),
-                onPressed: () => _confirmDeleteCategory(context, category, dataProvider),
-              ),
+              );
+            }).toList(),
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.all(16.0),
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _showAddCategoryDialog(context, dataProvider, type),
+              icon: const Icon(Icons.add),
+              label: Text('Add ${type == 'income' ? 'Income' : 'Expense'} Category'),
             ),
-          );
-        }),
-        const SizedBox(height: 16),
-        ElevatedButton.icon(
-          onPressed: () => _showAddCategoryDialog(context, dataProvider, type),
-          icon: const Icon(Icons.add),
-          label: Text('Add ${type == 'income' ? 'Income' : 'Expense'} Category'),
+          ),
         ),
       ],
     );
@@ -662,7 +721,7 @@ class ManageCategoriesScreen extends StatelessWidget {
               onPressed: () async {
                 if (nameController.text.isEmpty) return;
                 
-                await dataProvider.addCategory(Category(
+                await dataProvider.addCategory(app_models.Category(
                   name: nameController.text,
                   type: type,
                 ));
@@ -678,7 +737,7 @@ class ManageCategoriesScreen extends StatelessWidget {
     );
   }
 
-  void _confirmDeleteCategory(BuildContext context, Category category, DataProvider dataProvider) {
+  void _confirmDeleteCategory(BuildContext context, app_models.Category category, DataProvider dataProvider) {
     showDialog(
       context: context,
       builder: (context) {
@@ -718,6 +777,10 @@ class ManageSpendingLimitsScreen extends StatelessWidget {
       body: Consumer<DataProvider>(
         builder: (context, dataProvider, child) {
           final limits = dataProvider.spendingLimits;
+          final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
+          final surfaceColor = isDarkTheme ? AppColors.darkSurface : AppColors.surface;
+          final borderColor = isDarkTheme ? AppColors.darkBorder : AppColors.border;
+          final backgroundColor = isDarkTheme ? AppColors.darkBackground : AppColors.background;
           
           return ListView(
             padding: const EdgeInsets.all(16.0),
@@ -729,9 +792,9 @@ class ManageSpendingLimitsScreen extends StatelessWidget {
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: surfaceColor,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: borderColor),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -743,9 +806,10 @@ class ManageSpendingLimitsScreen extends StatelessWidget {
                           children: [
                             Text(
                               limit.name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
+                                color: isDarkTheme ? AppColors.darkTextPrimary : AppColors.textPrimary,
                               ),
                             ),
                             IconButton(
@@ -757,8 +821,8 @@ class ManageSpendingLimitsScreen extends StatelessWidget {
                         const SizedBox(height: 8),
                         Text(
                           '${FormatUtils.formatCurrency(spent)} of ${FormatUtils.formatCurrency(limit.limitAmount)}',
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
+                          style: TextStyle(
+                            color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.textSecondary,
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -767,7 +831,7 @@ class ManageSpendingLimitsScreen extends StatelessWidget {
                           child: LinearProgressIndicator(
                             value: percentage / 100,
                             minHeight: 8,
-                            backgroundColor: AppColors.background,
+                            backgroundColor: backgroundColor,
                             color: percentage > 90
                                 ? AppColors.error
                                 : percentage > 70
@@ -778,9 +842,9 @@ class ManageSpendingLimitsScreen extends StatelessWidget {
                         const SizedBox(height: 12),
                         Text(
                           '${percentage.toStringAsFixed(0)}% used • ${limit.period}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: AppColors.textSecondary,
+                            color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.textSecondary,
                           ),
                         ),
                       ],
@@ -791,16 +855,18 @@ class ManageSpendingLimitsScreen extends StatelessWidget {
               if (limits.isEmpty)
                 Container(
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: surfaceColor,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: borderColor),
                   ),
-                  child: const Padding(
+                  child: Padding(
                     padding: EdgeInsets.all(32.0),
                     child: Center(
                       child: Text(
                         'No spending limits set',
-                        style: TextStyle(color: AppColors.textHint),
+                        style: TextStyle(
+                          color: isDarkTheme ? AppColors.darkTextHint : AppColors.textHint,
+                        ),
                       ),
                     ),
                   ),

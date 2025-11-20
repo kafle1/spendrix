@@ -507,20 +507,20 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           TextFormField(
             controller: _amountController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+              color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
             ),
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               prefixText: 'Rs ',
               prefixStyle: TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textSecondary,
+                color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
               ),
               hintText: '0.00',
-              hintStyle: TextStyle(color: AppColors.textHint),
+              hintStyle: TextStyle(color: isDark ? AppColors.darkTextHint : AppColors.textHint),
               border: InputBorder.none,
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,

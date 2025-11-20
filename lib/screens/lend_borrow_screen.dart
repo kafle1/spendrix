@@ -212,15 +212,16 @@ class _LendBorrowScreenState extends State<LendBorrowScreen> with SingleTickerPr
     required Color color,
     required int count,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(24.0),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: isDark ? AppColors.darkSurface : AppColors.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: (isDark ? Colors.white : Colors.black).withOpacity(0.02),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -239,8 +240,8 @@ class _LendBorrowScreenState extends State<LendBorrowScreen> with SingleTickerPr
           const SizedBox(height: 16),
           Text(
             title,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
+            style: TextStyle(
+              color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkTextSecondary : AppColors.textSecondary,
               fontSize: 16,
               fontWeight: FontWeight.w500,
             ),
@@ -259,14 +260,14 @@ class _LendBorrowScreenState extends State<LendBorrowScreen> with SingleTickerPr
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: AppColors.background,
+              color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkBackground : AppColors.background,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkBorder : AppColors.border),
             ),
             child: Text(
               '$count ${count == 1 ? 'person' : 'people'}',
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkTextSecondary : AppColors.textSecondary,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
@@ -283,12 +284,13 @@ class _LendBorrowScreenState extends State<LendBorrowScreen> with SingleTickerPr
     required String type,
     required DataProvider dataProvider,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: isDark ? AppColors.darkSurface : AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
       ),
       child: InkWell(
         onTap: () => _showPersonDetails(personName, type, dataProvider),
@@ -324,18 +326,18 @@ class _LendBorrowScreenState extends State<LendBorrowScreen> with SingleTickerPr
                   children: [
                     Text(
                       personName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkTextPrimary : AppColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       type == 'lend_given' ? 'To receive' : 'To pay',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkTextSecondary : AppColors.textSecondary,
                       ),
                     ),
                   ],
