@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.2] - 2025-11-20
+
+### Fixed
+- **Dark Mode Polish**: 
+    - Fixed remaining invisible text and hardcoded colors on Dashboard, Reports, Lend/Borrow, and Settings screens.
+    - Corrected "Accounts" title color on Dashboard.
+    - Fixed Spending Limits card text visibility in dark mode.
+    - Fixed PopupMenuButton colors in Reports screen.
+    - Fixed TabBar indicator visibility in Lend/Borrow screen.
+
 ## [0.3.1] - 2025-11-20
 
 ### Changed

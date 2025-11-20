@@ -135,6 +135,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 setState(() {
                   _selectedPeriod = value;
                 });
+                final dataProvider = Provider.of<DataProvider>(context, listen: false);
                 
                 switch (value) {
                   case 'This Month':
@@ -152,7 +153,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 }
                 
                 if (mounted) {
-                  final dataProvider = Provider.of<DataProvider>(context, listen: false);
                   await dataProvider.loadTransactions(
                     startDate: _startDate,
                     endDate: _endDate,
@@ -205,21 +205,21 @@ class _ReportsScreenState extends State<ReportsScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: (Theme.of(context).brightness == Brightness.dark ? Colors.white : AppColors.primary).withValues(alpha:0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
                   children: [
                     Text(
                       _selectedPeriod,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
+                        color: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppColors.primary,
                       ),
                     ),
                     const SizedBox(width: 4),
-                    const Icon(Icons.arrow_drop_down_rounded, color: AppColors.primary),
+                    Icon(Icons.arrow_drop_down_rounded, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppColors.primary),
                   ],
                 ),
               ),
@@ -237,7 +237,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             startDate: _startDate,
             endDate: _endDate,
           );
-          final balance = totalIncome - totalExpense;
+
           
           final expensesByCategory = dataProvider.getExpensesByCategory(
             startDate: _startDate,
@@ -365,45 +365,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  Widget _buildBalanceCard(double balance) {
-    return Container(
-      padding: const EdgeInsets.all(28.0),
-      decoration: BoxDecoration(
-        color: context.surfaceColor,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: context.borderColor),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Text(
-            balance >= 0 ? 'Net Savings' : 'Net Loss',
-            style: TextStyle(
-              color: context.textSecondaryColor,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            FormatUtils.formatCurrency(balance.abs()),
-            style: TextStyle(
-              color: balance >= 0 ? AppColors.success : AppColors.error,
-              fontSize: 42,
-              fontWeight: FontWeight.bold,
-              letterSpacing: -1,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildStatCard(String title, double amount, IconData icon, Color color, int count) {
     return Container(
@@ -419,7 +381,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha:0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 24),
@@ -470,7 +432,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha:0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 24),
@@ -659,7 +621,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.warning.withOpacity(0.1),
+                  color: AppColors.warning.withValues(alpha:0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.insights_rounded, color: AppColors.warning, size: 24),
@@ -747,7 +709,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isOverLimit 
-                ? AppColors.error.withOpacity(0.3) 
+                ? AppColors.error.withValues(alpha:0.3) 
                 : context.borderColor,
           ),
         ),
@@ -784,7 +746,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    color: color.withValues(alpha:0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(

@@ -55,13 +55,13 @@ class _LendBorrowScreenState extends State<LendBorrowScreen> with SingleTickerPr
             child: TabBar(
               controller: _tabController,
               indicator: BoxDecoration(
-                color: AppColors.primary,
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppColors.primary,
                 borderRadius: BorderRadius.circular(12),
               ),
               indicatorSize: TabBarIndicatorSize.tab,
               dividerColor: Colors.transparent,
               dividerHeight: 0,
-              labelColor: Colors.white,
+              labelColor: Theme.of(context).brightness == Brightness.dark ? AppColors.primary : Colors.white,
               unselectedLabelColor: Theme.of(context).textTheme.bodySmall?.color,
               labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               padding: const EdgeInsets.all(4),
@@ -221,7 +221,7 @@ class _LendBorrowScreenState extends State<LendBorrowScreen> with SingleTickerPr
         border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: (isDark ? Colors.white : Colors.black).withOpacity(0.02),
+            color: (isDark ? Colors.white : Colors.black).withValues(alpha:0.02),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -232,7 +232,7 @@ class _LendBorrowScreenState extends State<LendBorrowScreen> with SingleTickerPr
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha:0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 32),
@@ -304,8 +304,8 @@ class _LendBorrowScreenState extends State<LendBorrowScreen> with SingleTickerPr
                 height: 56,
                 decoration: BoxDecoration(
                   color: type == 'lend_given' 
-                      ? AppColors.success.withOpacity(0.1)
-                      : AppColors.error.withOpacity(0.1),
+                      ? AppColors.success.withValues(alpha:0.1)
+                      : AppColors.error.withValues(alpha:0.1),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Center(
@@ -379,7 +379,7 @@ class _LendBorrowScreenState extends State<LendBorrowScreen> with SingleTickerPr
             Icon(
               Icons.payments_outlined,
               size: 80,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha:0.3),
             ),
             const SizedBox(height: 24),
             Text(
@@ -447,7 +447,7 @@ class _LendBorrowScreenState extends State<LendBorrowScreen> with SingleTickerPr
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.2),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha:0.2),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -458,8 +458,8 @@ class _LendBorrowScreenState extends State<LendBorrowScreen> with SingleTickerPr
                   CircleAvatar(
                     radius: 32,
                     backgroundColor: type == 'lend_given' 
-                        ? AppColors.income.withOpacity(0.15)
-                        : AppColors.expense.withOpacity(0.15),
+                        ? AppColors.income.withValues(alpha:0.15)
+                        : AppColors.expense.withValues(alpha:0.15),
                     child: Text(
                       personName[0].toUpperCase(),
                       style: TextStyle(
@@ -572,9 +572,9 @@ class _LendBorrowScreenState extends State<LendBorrowScreen> with SingleTickerPr
                               leading: CircleAvatar(
                                 backgroundColor: isGiven
                                     ? (type == 'lend_given' ? AppColors.expense : AppColors.income)
-                                        .withOpacity(0.15)
+                                        .withValues(alpha:0.15)
                                     : (type == 'lend_given' ? AppColors.income : AppColors.expense)
-                                        .withOpacity(0.15),
+                                        .withValues(alpha:0.15),
                                 child: Icon(
                                   isGiven 
                                       ? (type == 'lend_given' ? Icons.arrow_upward : Icons.arrow_downward)
@@ -637,9 +637,9 @@ class _LendBorrowScreenState extends State<LendBorrowScreen> with SingleTickerPr
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
-            color: AppColors.textSecondary,
+            color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkTextSecondary : AppColors.textSecondary,
           ),
         ),
         const SizedBox(height: 4),

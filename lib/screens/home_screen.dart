@@ -299,7 +299,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.primary.withOpacity(0.2),
+                        color: AppColors.primary.withValues(alpha:0.2),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       ),
@@ -314,7 +314,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           Text(
                             'Total Balance',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
+                              color: Colors.white.withValues(alpha:0.7),
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                             ),
@@ -325,7 +325,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.1),
+                                    color: Colors.white.withValues(alpha:0.1),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Row(
@@ -333,14 +333,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     children: [
                                       Icon(
                                         Icons.swap_horiz_rounded,
-                                        color: Colors.white.withOpacity(0.7),
+                                        color: Colors.white.withValues(alpha:0.7),
                                         size: 14,
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
                                         'Lending',
                                         style: TextStyle(
-                                          color: Colors.white.withOpacity(0.7),
+                                          color: Colors.white.withValues(alpha:0.7),
                                           fontSize: 11,
                                           fontWeight: FontWeight.w500,
                                         ),
@@ -357,8 +357,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                             _saveDashboardLendingToggle(value);
                                           },
                                           activeColor: AppColors.success,
-                                          inactiveThumbColor: Colors.white.withOpacity(0.5),
-                                          inactiveTrackColor: Colors.white.withOpacity(0.2),
+                                          inactiveThumbColor: Colors.white.withValues(alpha:0.5),
+                                          inactiveTrackColor: Colors.white.withValues(alpha:0.2),
                                           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                         ),
                                       ),
@@ -388,9 +388,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.05),
+                            color: Colors.white.withValues(alpha:0.05),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.white.withOpacity(0.1)),
+                            border: Border.all(color: Colors.white.withValues(alpha:0.1)),
                           ),
                           child: Row(
                             children: [
@@ -401,7 +401,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     Text(
                                       'To Receive',
                                       style: TextStyle(
-                                        color: Colors.white.withOpacity(0.7),
+                                        color: Colors.white.withValues(alpha:0.7),
                                         fontSize: 12,
                                       ),
                                     ),
@@ -422,7 +422,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               Container(
                                 width: 1,
                                 height: 30,
-                                color: Colors.white.withOpacity(0.1),
+                                color: Colors.white.withValues(alpha:0.1),
                               ),
                               const SizedBox(width: 16),
                               Expanded(
@@ -432,7 +432,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     Text(
                                       'To Pay',
                                       style: TextStyle(
-                                        color: Colors.white.withOpacity(0.7),
+                                        color: Colors.white.withValues(alpha:0.7),
                                         fontSize: 12,
                                       ),
                                     ),
@@ -475,7 +475,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.02),
+                              color: Colors.black.withValues(alpha:0.02),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
@@ -489,7 +489,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: AppColors.success.withOpacity(0.1),
+                                    color: AppColors.success.withValues(alpha:0.1),
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(
@@ -545,7 +545,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.02),
+                              color: Colors.black.withValues(alpha:0.02),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
@@ -559,7 +559,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: AppColors.error.withOpacity(0.1),
+                                    color: AppColors.error.withValues(alpha:0.1),
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(
@@ -615,13 +615,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
                       color: percentage >= 100
-                          ? AppColors.error.withOpacity(0.1)
-                          : AppColors.warning.withOpacity(0.1),
+                          ? AppColors.error.withValues(alpha:0.1)
+                          : AppColors.warning.withValues(alpha:0.1),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: percentage >= 100
-                            ? AppColors.error.withOpacity(0.3)
-                            : AppColors.warning.withOpacity(0.3),
+                            ? AppColors.error.withValues(alpha:0.3)
+                            : AppColors.warning.withValues(alpha:0.3),
                       ),
                     ),
                     child: Padding(
@@ -667,7 +667,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             child: LinearProgressIndicator(
                               value: percentage / 100,
                               minHeight: 6,
-                              backgroundColor: AppColors.surface.withOpacity(0.5),
+                              backgroundColor: AppColors.surface.withValues(alpha:0.5),
                               color: percentage >= 100
                                   ? AppColors.error
                                   : AppColors.warning,
@@ -676,9 +676,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           const SizedBox(height: 8),
                           Text(
                             '${FormatUtils.formatCurrency(spent)} of ${FormatUtils.formatCurrency(limit.limitAmount)}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: AppColors.textSecondary,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.textSecondary,
                             ),
                           ),
                         ],
@@ -690,12 +692,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Accounts',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.textPrimary,
                       ),
                     ),
                     TextButton.icon(
@@ -723,7 +727,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.02),
+                          color: Colors.black.withValues(alpha:0.02),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -734,7 +738,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       leading: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: (isDark ? Colors.white : AppColors.primary).withOpacity(0.1),
+                          color: (isDark ? Colors.white : AppColors.primary).withValues(alpha:0.1),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Icon(
@@ -845,8 +849,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: isIncome
-                              ? AppColors.income.withOpacity(0.1)
-                              : AppColors.expense.withOpacity(0.1),
+                              ? AppColors.income.withValues(alpha:0.1)
+                              : AppColors.expense.withValues(alpha:0.1),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Icon(
@@ -1047,14 +1051,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
+            style: TextStyle(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.darkTextSecondary
+                  : AppColors.textSecondary,
             ),
           ),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w600,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.darkTextPrimary
+                  : AppColors.textPrimary,
             ),
           ),
         ],

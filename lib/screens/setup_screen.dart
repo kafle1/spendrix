@@ -276,7 +276,7 @@ class _SetupScreenState extends State<SetupScreen> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.1),
+                            color: AppColors.primary.withValues(alpha:0.1),
                             borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(
@@ -415,8 +415,8 @@ class _SetupScreenState extends State<SetupScreen> {
                     _incomeCategories.removeAt(index);
                   });
                 },
-                backgroundColor: AppColors.income.withOpacity(0.1),
-                side: BorderSide(color: AppColors.income.withOpacity(0.3)),
+                backgroundColor: AppColors.income.withValues(alpha:0.1),
+                side: BorderSide(color: AppColors.income.withValues(alpha:0.3)),
               );
             }).toList(),
           ),
@@ -472,8 +472,8 @@ class _SetupScreenState extends State<SetupScreen> {
                     _expenseCategories.removeAt(index);
                   });
                 },
-                backgroundColor: AppColors.expense.withOpacity(0.1),
-                side: BorderSide(color: AppColors.expense.withOpacity(0.3)),
+                backgroundColor: AppColors.expense.withValues(alpha:0.1),
+                side: BorderSide(color: AppColors.expense.withValues(alpha:0.3)),
               );
             }).toList(),
           ),
