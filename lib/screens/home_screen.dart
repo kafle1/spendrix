@@ -369,9 +369,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: AppColors.surface,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? AppColors.darkSurface
+                              : AppColors.surface,
                           borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: AppColors.border),
+                          border: Border.all(
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? AppColors.darkBorder
+                                : AppColors.border,
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.02),
@@ -398,10 +404,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                const Text(
+                                Text(
                                   'Income',
                                   style: TextStyle(
-                                    color: AppColors.textSecondary,
+                                    color: Theme.of(context).brightness == Brightness.dark
+                                        ? AppColors.darkTextSecondary
+                                        : AppColors.textSecondary,
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -413,10 +421,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               _isBalanceVisible
                                   ? FormatUtils.formatCurrency(monthlyIncome)
                                   : '••••••',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? AppColors.darkTextPrimary
+                                    : AppColors.textPrimary,
                                 letterSpacing: -0.5,
                               ),
                             ),
@@ -429,9 +439,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: AppColors.surface,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? AppColors.darkSurface
+                              : AppColors.surface,
                           borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: AppColors.border),
+                          border: Border.all(
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? AppColors.darkBorder
+                                : AppColors.border,
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.02),
@@ -458,10 +474,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                const Text(
+                                Text(
                                   'Expense',
                                   style: TextStyle(
-                                    color: AppColors.textSecondary,
+                                    color: Theme.of(context).brightness == Brightness.dark
+                                        ? AppColors.darkTextSecondary
+                                        : AppColors.textSecondary,
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -473,10 +491,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               _isBalanceVisible
                                   ? FormatUtils.formatCurrency(monthlyExpense)
                                   : '••••••',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? AppColors.darkTextPrimary
+                                    : AppColors.textPrimary,
                                 letterSpacing: -0.5,
                               ),
                             ),
@@ -636,31 +656,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       subtitle: Text(
                         account.type.toUpperCase(),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: AppColors.textSecondary,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.textSecondary,
                         ),
                       ),
                       trailing: Text(
                         _isBalanceVisible
                             ? FormatUtils.formatCurrency(account.balance)
                             : '••••••',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? AppColors.darkTextPrimary
+                              : AppColors.textPrimary,
                         ),
                       ),
                     ),
                   );
                 }),
                 const SizedBox(height: 24),
-                const Text(
+                Text(
                   'Recent Transactions',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? AppColors.darkTextPrimary
+                        : AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -682,9 +708,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     decoration: BoxDecoration(
-                      color: AppColors.surface,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? AppColors.darkSurface
+                          : AppColors.surface,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.border),
+                      border: Border.all(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? AppColors.darkBorder
+                            : AppColors.border,
+                      ),
                     ),
                     child: ListTile(
                       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -717,9 +749,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           '${account.name} • ${FormatUtils.formatDate(transaction.date)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: AppColors.textSecondary,
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.textSecondary,
                           ),
                         ),
                       ),
@@ -746,15 +780,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(32.0),
                     decoration: BoxDecoration(
-                      color: AppColors.surface,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? AppColors.darkSurface
+                          : AppColors.surface,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.border),
+                      border: Border.all(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? AppColors.darkBorder
+                            : AppColors.border,
+                      ),
                     ),
                     child: Center(
                       child: Text(
                         'No transactions yet',
                         style: TextStyle(
-                          color: AppColors.textHint,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? AppColors.darkTextHint
+                              : AppColors.textHint,
                         ),
                       ),
                     ),

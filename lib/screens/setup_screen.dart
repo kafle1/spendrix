@@ -406,17 +406,14 @@ class _SetupScreenState extends State<SetupScreen> {
             children: _incomeCategories.asMap().entries.map((entry) {
               final index = entry.key;
               final category = entry.value;
-              final isLendCategory = category['name'] == 'Lend Returned';
               return InputChip(
                 label: Text(category['name']),
                 deleteIcon: const Icon(Icons.close, size: 18),
-                onDeleted: isLendCategory
-                    ? null
-                    : () {
-                        setState(() {
-                          _incomeCategories.removeAt(index);
-                        });
-                      },
+                onDeleted: () {
+                  setState(() {
+                    _incomeCategories.removeAt(index);
+                  });
+                },
                 backgroundColor: AppColors.income.withOpacity(0.1),
                 side: BorderSide(color: AppColors.income.withOpacity(0.3)),
               );
@@ -466,17 +463,14 @@ class _SetupScreenState extends State<SetupScreen> {
             children: _expenseCategories.asMap().entries.map((entry) {
               final index = entry.key;
               final category = entry.value;
-              final isLendCategory = category['name'] == 'Lend Given';
               return InputChip(
                 label: Text(category['name']),
                 deleteIcon: const Icon(Icons.close, size: 18),
-                onDeleted: isLendCategory
-                    ? null
-                    : () {
-                        setState(() {
-                          _expenseCategories.removeAt(index);
-                        });
-                      },
+                onDeleted: () {
+                  setState(() {
+                    _expenseCategories.removeAt(index);
+                  });
+                },
                 backgroundColor: AppColors.expense.withOpacity(0.1),
                 side: BorderSide(color: AppColors.expense.withOpacity(0.3)),
               );
@@ -540,15 +534,6 @@ class _SetupScreenState extends State<SetupScreen> {
 
   Future<void> _completeSetup() async {
     final dataProvider = Provider.of<DataProvider>(context, listen: false);
-
-    if (_enableLendBorrow) {
-      if (!_incomeCategories.any((cat) => cat['name'] == 'Lend Returned')) {
-        _incomeCategories.add({'name': 'Lend Returned'});
-      }
-      if (!_expenseCategories.any((cat) => cat['name'] == 'Lend Given')) {
-        _expenseCategories.add({'name': 'Lend Given'});
-      }
-    }
 
     for (var accountData in _accounts) {
       await dataProvider.addAccount(Account(

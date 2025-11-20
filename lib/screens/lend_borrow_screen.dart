@@ -59,6 +59,8 @@ class _LendBorrowScreenState extends State<LendBorrowScreen> with SingleTickerPr
                 borderRadius: BorderRadius.circular(12),
               ),
               indicatorSize: TabBarIndicatorSize.tab,
+              dividerColor: Colors.transparent,
+              dividerHeight: 0,
               labelColor: Colors.white,
               unselectedLabelColor: Theme.of(context).textTheme.bodySmall?.color,
               labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
@@ -479,8 +481,10 @@ class _LendBorrowScreenState extends State<LendBorrowScreen> with SingleTickerPr
                         ),
                         Text(
                           type == 'lend_given' ? 'Lend Given' : 'Lend Taken',
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
+                          style: TextStyle(
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.textSecondary,
                           ),
                         ),
                       ],
@@ -492,7 +496,9 @@ class _LendBorrowScreenState extends State<LendBorrowScreen> with SingleTickerPr
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceVariant,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.darkSurfaceVariant
+                      : AppColors.surfaceVariant,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -537,10 +543,14 @@ class _LendBorrowScreenState extends State<LendBorrowScreen> with SingleTickerPr
               const SizedBox(height: 16),
               Expanded(
                 child: transactions.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text(
                           'No transactions yet',
-                          style: TextStyle(color: AppColors.textSecondary),
+                          style: TextStyle(
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.textSecondary,
+                          ),
                         ),
                       )
                     : ListView.builder(
@@ -550,11 +560,12 @@ class _LendBorrowScreenState extends State<LendBorrowScreen> with SingleTickerPr
                           final transaction = transactions[index];
                           final isGiven = transaction.type == 'lend_given' || 
                                         transaction.type == 'lend_taken';
+                          final isDark = Theme.of(context).brightness == Brightness.dark;
                           
                           return Card(
                             margin: const EdgeInsets.only(bottom: 10),
                             elevation: 0,
-                            color: AppColors.surfaceVariant,
+                            color: isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant,
                             child: ListTile(
                               leading: CircleAvatar(
                                 backgroundColor: isGiven

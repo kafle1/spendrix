@@ -281,6 +281,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Widget _buildLendOption(String title, String subtitle, String type, IconData icon) {
     final isSelected = _selectedLendType == type;
     final color = _selectedType == 'income' ? AppColors.income : AppColors.expense;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return InkWell(
       onTap: () {
@@ -296,7 +297,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.1) : AppColors.surfaceVariant,
+          color: isSelected 
+              ? color.withOpacity(0.1) 
+              : (isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant),
           border: Border.all(
             color: isSelected ? color : Colors.transparent,
             width: isSelected ? 2 : 0,
@@ -310,9 +313,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               decoration: BoxDecoration(
                 color: isSelected 
                     ? color.withOpacity(0.2) 
-                    : (Theme.of(context).brightness == Brightness.dark 
-                        ? AppColors.darkSurfaceVariant 
-                        : Colors.white),
+                    : (isDark ? AppColors.darkSurfaceVariant : Colors.white),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
@@ -329,7 +330,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   Text(
                     title,
                     style: TextStyle(
-                      color: isSelected ? color : AppColors.textPrimary,
+                      color: isSelected 
+                          ? color 
+                          : (isDark ? AppColors.darkTextPrimary : AppColors.textPrimary),
                       fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                       fontSize: 14,
                     ),
@@ -337,7 +340,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   Text(
                     subtitle,
                     style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
                       fontSize: 12,
                     ),
                   ),
@@ -398,9 +401,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   return DropdownMenuItem(
                     value: person,
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Flexible(child: Text(person)),
+                        Flexible(
+                          child: Text(
+                            person,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         Text(
                           FormatUtils.formatCurrency(outstanding),
                           style: const TextStyle(
@@ -567,15 +576,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               return DropdownMenuItem(
                 value: account,
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Flexible(
                       child: Text(
                         account.name,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: AppColors.textPrimary),
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Text(
                       FormatUtils.formatCurrency(account.balance),
                       style: const TextStyle(
@@ -648,9 +657,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     ? dataProvider.incomeCategories
                     : dataProvider.expenseCategories)
                 .map((category) {
+              final isDark = Theme.of(context).brightness == Brightness.dark;
               return DropdownMenuItem(
                 value: category,
-                child: Text(category.name, style: const TextStyle(color: AppColors.textPrimary)),
+                child: Text(
+                  category.name,
+                  style: TextStyle(
+                    color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                  ),
+                ),
               );
             }).toList(),
             onChanged: (value) {
@@ -738,7 +753,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   Expanded(
                     child: Text(
                       FormatUtils.formatDate(_selectedDate),
-                      style: const TextStyle(fontSize: 16, color: AppColors.textPrimary),
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                      ),
                     ),
                   ),
                   const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textSecondary),
