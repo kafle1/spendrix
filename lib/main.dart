@@ -49,7 +49,7 @@ class _MyAppState extends State<MyApp> {
         Provider<Function(ThemeMode)>.value(value: _updateThemeMode),
       ],
       child: MaterialApp(
-        title: 'HisabX',
+        title: 'Spendrix',
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         themeMode: _themeMode,
@@ -128,7 +128,7 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             const SizedBox(height: 32),
             Text(
-              'HisabX',
+              'Spendrix',
               style: TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,

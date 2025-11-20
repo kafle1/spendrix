@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.1] - 2025-11-20
+
+### Changed
+- **Rebranding**: Renamed app from "HisabX" to "Spendrix".
+- **Release Assets**: Included APK in the release.
+
 ## [0.3.0] - 2025-11-20
 
 ### Added
