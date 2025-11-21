@@ -142,7 +142,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               heroTag: 'addTransaction',
-              elevation: 4,
+              elevation: Theme.of(context).brightness == Brightness.dark ? 8 : 4,
+              highlightElevation: Theme.of(context).brightness == Brightness.dark ? 12 : 6,
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
             )
@@ -295,12 +296,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Container(
                   padding: const EdgeInsets.all(24.0),
                   decoration: BoxDecoration(
-                    color: AppColors.primary,
+                    gradient: LinearGradient(
+                      colors: Theme.of(context).brightness == Brightness.dark
+                          ? [AppColors.primary, AppColors.primary.withValues(alpha: 0.8)]
+                          : [AppColors.primary, AppColors.primary.withValues(alpha: 0.9)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.primary.withValues(alpha:0.2),
-                        blurRadius: 20,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? AppColors.primary.withValues(alpha: 0.3)
+                            : AppColors.primary.withValues(alpha: 0.2),
+                        blurRadius: Theme.of(context).brightness == Brightness.dark ? 16 : 20,
                         offset: const Offset(0, 10),
                       ),
                     ],
@@ -475,7 +484,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha:0.02),
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.black.withValues(alpha: 0.2)
+                                  : Colors.black.withValues(alpha: 0.02),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
@@ -545,7 +556,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha:0.02),
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.black.withValues(alpha: 0.2)
+                                  : Colors.black.withValues(alpha: 0.02),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
@@ -727,7 +740,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha:0.02),
+                          color: isDark
+                              ? Colors.black.withValues(alpha: 0.2)
+                              : Colors.black.withValues(alpha: 0.02),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -738,12 +753,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       leading: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: (isDark ? Colors.white : AppColors.primary).withValues(alpha:0.1),
+                          color: (isDark ? AppColors.primary : AppColors.primary).withValues(alpha:0.1),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Icon(
                           Icons.account_balance_wallet,
-                          color: isDark ? Colors.white : AppColors.primary,
+                          color: isDark ? AppColors.primary : AppColors.primary,
                           size: 24,
                         ),
                       ),

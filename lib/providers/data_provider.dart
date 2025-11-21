@@ -4,6 +4,7 @@ import '../models/account.dart';
 import '../models/category.dart' as app_models;
 import '../models/transaction.dart' as app_models;
 import '../models/spending_limit.dart';
+import '../models/lend_record.dart';
 
 class DataProvider with ChangeNotifier {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
@@ -13,12 +14,14 @@ class DataProvider with ChangeNotifier {
   List<app_models.Category> _expenseCategories = [];
   List<app_models.Transaction> _transactions = [];
   List<SpendingLimit> _spendingLimits = [];
+  List<LendRecord> _lendRecords = [];
 
   List<Account> get accounts => _accounts;
   List<app_models.Category> get incomeCategories => _incomeCategories;
   List<app_models.Category> get expenseCategories => _expenseCategories;
   List<app_models.Transaction> get transactions => _transactions;
   List<SpendingLimit> get spendingLimits => _spendingLimits;
+  List<LendRecord> get lendRecords => _lendRecords;
 
   double get totalBalance {
     return _accounts.fold(0, (sum, account) => sum + account.balance);
@@ -29,6 +32,7 @@ class DataProvider with ChangeNotifier {
     await loadCategories();
     await loadTransactions();
     await loadSpendingLimits();
+    await loadLendRecords();
   }
 
   Future<void> loadAccounts() async {
@@ -244,6 +248,27 @@ class DataProvider with ChangeNotifier {
     await loadSpendingLimits();
   }
 
+  // Lend Records methods
+  Future<void> loadLendRecords() async {
+    _lendRecords = await _dbHelper.getLendRecords();
+    notifyListeners();
+  }
+
+  Future<void> addLendRecord(LendRecord record) async {
+    await _dbHelper.insertLendRecord(record);
+    await loadLendRecords();
+  }
+
+  Future<void> updateLendRecord(LendRecord record) async {
+    await _dbHelper.updateLendRecord(record);
+    await loadLendRecords();
+  }
+
+  Future<void> deleteLendRecord(int id) async {
+    await _dbHelper.deleteLendRecord(id);
+    await loadLendRecords();
+  }
+
   double getTotalIncome({DateTime? startDate, DateTime? endDate}) {
     return _transactions
         .where((t) =>
@@ -330,25 +355,39 @@ class DataProvider with ChangeNotifier {
         .fold(0.0, (sum, t) => sum + t.amount);
   }
 
-  // Get unique people from lend transactions
+  // Get unique people from lend transactions AND lend records
   List<String> getLendGivenPeople() {
-    return _transactions
+    final transactionPeople = _transactions
         .where((t) => t.type == 'lend_given' && t.personName != null)
-        .map((t) => t.personName!)
-        .toSet()
-        .toList()..sort();
+        .map((t) => t.personName!);
+    
+    final recordPeople = _lendRecords
+        .where((r) => r.type == 'given')
+        .map((r) => r.personName);
+    
+    return {...transactionPeople, ...recordPeople}.toList()..sort();
   }
 
   List<String> getLendTakenPeople() {
-    return _transactions
+    final transactionPeople = _transactions
         .where((t) => t.type == 'lend_taken' && t.personName != null)
-        .map((t) => t.personName!)
-        .toSet()
-        .toList()..sort();
+        .map((t) => t.personName!);
+    
+    final recordPeople = _lendRecords
+        .where((r) => r.type == 'taken')
+        .map((r) => r.personName);
+    
+    return {...transactionPeople, ...recordPeople}.toList()..sort();
   }
 
-  // Calculate outstanding lend amount for a person
+  // Calculate outstanding lend amount for a person (includes initial records)
   double getOutstandingLendGiven(String personName) {
+    // Initial lend records (not settled)
+    final initialAmount = _lendRecords
+        .where((r) => r.type == 'given' && r.personName == personName && !r.isSettled)
+        .fold(0.0, (sum, r) => sum + r.amount);
+    
+    // Transactions: given - returned
     final given = _transactions
         .where((t) => t.type == 'lend_given' && t.personName == personName)
         .fold(0.0, (sum, t) => sum + t.amount);
@@ -357,10 +396,16 @@ class DataProvider with ChangeNotifier {
         .where((t) => t.type == 'lend_returned_expense' && t.personName == personName)
         .fold(0.0, (sum, t) => sum + t.amount);
     
-    return given - returned;
+    return initialAmount + given - returned;
   }
 
   double getOutstandingLendTaken(String personName) {
+    // Initial lend records (not settled)
+    final initialAmount = _lendRecords
+        .where((r) => r.type == 'taken' && r.personName == personName && !r.isSettled)
+        .fold(0.0, (sum, r) => sum + r.amount);
+    
+    // Transactions: taken - returned
     final taken = _transactions
         .where((t) => t.type == 'lend_taken' && t.personName == personName)
         .fold(0.0, (sum, t) => sum + t.amount);
@@ -369,7 +414,7 @@ class DataProvider with ChangeNotifier {
         .where((t) => t.type == 'lend_returned_income' && t.personName == personName)
         .fold(0.0, (sum, t) => sum + t.amount);
     
-    return taken - returned;
+    return initialAmount + taken - returned;
   }
 
   // Get total lend statistics
@@ -391,6 +436,7 @@ class DataProvider with ChangeNotifier {
     _expenseCategories = [];
     _transactions = [];
     _spendingLimits = [];
+    _lendRecords = [];
     notifyListeners();
   }
 }

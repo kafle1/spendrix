@@ -126,6 +126,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 value: _isDarkMode,
                 onChanged: _toggleThemeMode,
                 activeColor: AppColors.primary,
+                activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
+                inactiveThumbColor: isDarkTheme ? Colors.grey[400] : Colors.grey[300],
+                inactiveTrackColor: isDarkTheme ? Colors.grey[700] : Colors.grey[300],
               ),
             ),
           ),
@@ -164,6 +167,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 value: _isLendFeatureEnabled,
                 onChanged: _toggleLendFeature,
                 activeColor: AppColors.primary,
+                activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
+                inactiveThumbColor: isDarkTheme ? Colors.grey[400] : Colors.grey[300],
+                inactiveTrackColor: isDarkTheme ? Colors.grey[700] : Colors.grey[300],
               ),
             ),
           ),
@@ -621,6 +627,7 @@ class ManageCategoriesScreen extends StatelessWidget {
       children: [
         Expanded(
           child: ReorderableListView(
+            buildDefaultDragHandles: false,
             padding: const EdgeInsets.all(16.0),
             onReorder: (oldIndex, newIndex) async {
               // Adjust newIndex if moving item down the list
@@ -649,11 +656,14 @@ class ManageCategoriesScreen extends StatelessWidget {
                   leading: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        Icons.drag_handle,
-                        color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                      ReorderableDragStartListener(
+                        index: categories.indexOf(category),
+                        child: Icon(
+                          Icons.drag_indicator,
+                          color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                        ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 12),
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
@@ -676,9 +686,19 @@ class ManageCategoriesScreen extends StatelessWidget {
                       color: isDarkTheme ? AppColors.darkTextPrimary : AppColors.textPrimary,
                     ),
                   ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline, color: AppColors.error),
-                    onPressed: () => _confirmDeleteCategory(context, category, dataProvider),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined),
+                        onPressed: () => _showEditCategoryDialog(context, category, dataProvider, type),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: AppColors.error),
+                        onPressed: () => _confirmDeleteCategory(context, category, dataProvider),
+                      ),
+                    ],
                   ),
                 ),
               );
@@ -730,6 +750,47 @@ class ManageCategoriesScreen extends StatelessWidget {
                 Navigator.pop(context);
               },
               child: const Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEditCategoryDialog(BuildContext context, app_models.Category category, DataProvider dataProvider, String type) {
+    final nameController = TextEditingController(text: category.name);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Edit ${type == 'income' ? 'Income' : 'Expense'} Category'),
+          content: TextField(
+            controller: nameController,
+            decoration: const InputDecoration(labelText: 'Category Name'),
+            autofocus: true,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameController.text.isEmpty) return;
+                if (nameController.text == category.name) {
+                  Navigator.pop(context);
+                  return;
+                }
+                
+                await dataProvider.updateCategory(category.copyWith(
+                  name: nameController.text,
+                ));
+                
+                if (!context.mounted) return;
+                Navigator.pop(context);
+              },
+              child: const Text('Save'),
             ),
           ],
         );
@@ -812,9 +873,18 @@ class ManageSpendingLimitsScreen extends StatelessWidget {
                                 color: isDarkTheme ? AppColors.darkTextPrimary : AppColors.textPrimary,
                               ),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline, color: AppColors.error),
-                              onPressed: () => _confirmDeleteLimit(context, limit, dataProvider),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined),
+                                  onPressed: () => _showEditLimitDialog(context, limit, dataProvider),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, color: AppColors.error),
+                                  onPressed: () => _confirmDeleteLimit(context, limit, dataProvider),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -994,6 +1064,124 @@ class ManageSpendingLimitsScreen extends StatelessWidget {
                     Navigator.pop(context);
                   },
                   child: const Text('Add'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showEditLimitDialog(BuildContext context, SpendingLimit limit, DataProvider dataProvider) {
+    final nameController = TextEditingController(text: limit.name);
+    final amountController = TextEditingController(text: limit.limitAmount.toString());
+    String selectedPeriod = limit.period;
+    List<int> selectedAccounts = List.from(limit.accountIds);
+    List<int> selectedCategories = List.from(limit.categoryIds);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Edit Spending Limit'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(labelText: 'Limit Name'),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: amountController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Limit Amount',
+                        prefixText: 'Rs ',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: selectedPeriod,
+                      decoration: const InputDecoration(labelText: 'Period'),
+                      items: const [
+                        DropdownMenuItem(value: 'daily', child: Text('Daily')),
+                        DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
+                        DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
+                      ],
+                      onChanged: (value) {
+                        setDialogState(() {
+                          selectedPeriod = value!;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Select Accounts:'),
+                    ...dataProvider.accounts.map((account) {
+                      return CheckboxListTile(
+                        title: Text(account.name),
+                        value: selectedAccounts.contains(account.id),
+                        onChanged: (value) {
+                          setDialogState(() {
+                            if (value!) {
+                              selectedAccounts.add(account.id!);
+                            } else {
+                              selectedAccounts.remove(account.id);
+                            }
+                          });
+                        },
+                      );
+                    }),
+                    const SizedBox(height: 16),
+                    const Text('Select Categories:'),
+                    ...dataProvider.expenseCategories.map((category) {
+                      return CheckboxListTile(
+                        title: Text(category.name),
+                        value: selectedCategories.contains(category.id),
+                        onChanged: (value) {
+                          setDialogState(() {
+                            if (value!) {
+                              selectedCategories.add(category.id!);
+                            } else {
+                              selectedCategories.remove(category.id);
+                            }
+                          });
+                        },
+                      );
+                    }),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (nameController.text.isEmpty ||
+                        amountController.text.isEmpty ||
+                        selectedAccounts.isEmpty ||
+                        selectedCategories.isEmpty) {
+                      return;
+                    }
+                    
+                    await dataProvider.updateSpendingLimit(limit.copyWith(
+                      name: nameController.text,
+                      limitAmount: double.parse(amountController.text),
+                      period: selectedPeriod,
+                      accountIds: selectedAccounts,
+                      categoryIds: selectedCategories,
+                    ));
+                    
+                    if (!context.mounted) return;
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Save'),
                 ),
               ],
             );

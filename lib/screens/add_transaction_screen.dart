@@ -313,7 +313,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               decoration: BoxDecoration(
                 color: isSelected 
                     ? color.withValues(alpha:0.2) 
-                    : (isDark ? AppColors.darkSurfaceVariant : Colors.white),
+                    : (isDark ? AppColors.darkSurfaceVariant : AppColors.surface),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
@@ -857,6 +857,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   Widget _buildSaveButton() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ElevatedButton(
       onPressed: _saveTransaction,
       style: ElevatedButton.styleFrom(
@@ -865,7 +866,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
-        elevation: 0,
+        elevation: isDark ? 4 : 2,
+        shadowColor: isDark ? AppColors.primary.withValues(alpha: 0.5) : null,
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),

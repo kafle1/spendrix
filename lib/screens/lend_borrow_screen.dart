@@ -221,7 +221,7 @@ class _LendBorrowScreenState extends State<LendBorrowScreen> with SingleTickerPr
         border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: (isDark ? Colors.white : Colors.black).withValues(alpha:0.02),
+            color: (isDark ? Colors.black : Colors.black).withValues(alpha: isDark ? 0.2 : 0.02),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),

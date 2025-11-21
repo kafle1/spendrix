@@ -4,6 +4,7 @@ import '../models/account.dart';
 import '../models/category.dart' as app_models;
 import '../models/transaction.dart' as app_models;
 import '../models/spending_limit.dart';
+import '../models/lend_record.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -23,7 +24,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
@@ -80,6 +81,19 @@ class DatabaseHelper {
         isActive INTEGER NOT NULL
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE lend_records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL,
+        personName TEXT NOT NULL,
+        amount REAL NOT NULL,
+        date TEXT NOT NULL,
+        remarks TEXT,
+        isSettled INTEGER NOT NULL DEFAULT 0,
+        createdAt TEXT NOT NULL
+      )
+    ''');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -116,6 +130,21 @@ class DatabaseHelper {
       } catch (e) {
         // If column already exists, ignore
       }
+    }
+    if (oldVersion < 5) {
+      // Add lend_records table
+      await db.execute('''
+        CREATE TABLE lend_records (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          type TEXT NOT NULL,
+          personName TEXT NOT NULL,
+          amount REAL NOT NULL,
+          date TEXT NOT NULL,
+          remarks TEXT,
+          isSettled INTEGER NOT NULL DEFAULT 0,
+          createdAt TEXT NOT NULL
+        )
+      ''');
     }
   }
 
@@ -278,12 +307,71 @@ class DatabaseHelper {
     return await db.delete('spending_limits', where: 'id = ?', whereArgs: [id]);
   }
 
+  Future<int> insertLendRecord(LendRecord record) async {
+    final db = await database;
+    return await db.insert('lend_records', record.toMap());
+  }
+
+  Future<List<LendRecord>> getLendRecords({
+    String? type,
+    String? personName,
+    bool? isSettled,
+  }) async {
+    final db = await database;
+    String whereClause = '';
+    List<dynamic> whereArgs = [];
+
+    if (type != null) {
+      whereClause += 'type = ?';
+      whereArgs.add(type);
+    }
+
+    if (personName != null) {
+      if (whereClause.isNotEmpty) whereClause += ' AND ';
+      whereClause += 'personName = ?';
+      whereArgs.add(personName);
+    }
+
+    if (isSettled != null) {
+      if (whereClause.isNotEmpty) whereClause += ' AND ';
+      whereClause += 'isSettled = ?';
+      whereArgs.add(isSettled ? 1 : 0);
+    }
+
+    final List<Map<String, dynamic>> maps = whereClause.isNotEmpty
+        ? await db.query(
+            'lend_records',
+            where: whereClause,
+            whereArgs: whereArgs,
+            orderBy: 'date DESC',
+          )
+        : await db.query('lend_records', orderBy: 'date DESC');
+
+    return List.generate(maps.length, (i) => LendRecord.fromMap(maps[i]));
+  }
+
+  Future<int> updateLendRecord(LendRecord record) async {
+    final db = await database;
+    return await db.update(
+      'lend_records',
+      record.toMap(),
+      where: 'id = ?',
+      whereArgs: [record.id],
+    );
+  }
+
+  Future<int> deleteLendRecord(int id) async {
+    final db = await database;
+    return await db.delete('lend_records', where: 'id = ?', whereArgs: [id]);
+  }
+
   Future<void> resetAllData() async {
     final db = await database;
     await db.delete('transactions');
     await db.delete('spending_limits');
     await db.delete('categories');
     await db.delete('accounts');
+    await db.delete('lend_records');
   }
 
   Future<void> close() async {

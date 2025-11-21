@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/account.dart';
 import '../models/category.dart' as app_models;
-import '../models/transaction.dart' as app_models;
+import '../models/lend_record.dart';
 import '../providers/data_provider.dart';
 import '../utils/app_theme.dart';
 import 'home_screen.dart';
@@ -70,6 +70,7 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(_totalPages, (index) {
+                  final isDark = Theme.of(context).brightness == Brightness.dark;
                   return AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -78,7 +79,7 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
                     decoration: BoxDecoration(
                       color: _getDisplayPageIndex(_currentPage) == index
                           ? AppColors.primary
-                          : AppColors.divider,
+                          : (isDark ? AppColors.darkBorder : AppColors.divider),
                       borderRadius: BorderRadius.circular(5),
                     ),
                   );
@@ -111,6 +112,16 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
                     Expanded(
                       child: OutlinedButton(
                         onPressed: _handleBack,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Theme.of(context).brightness == Brightness.dark
+                              ? AppColors.darkTextPrimary
+                              : AppColors.textPrimary,
+                          side: BorderSide(
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? AppColors.darkBorder
+                                : AppColors.border,
+                          ),
+                        ),
                         child: const Text('Back'),
                       ),
                     ),
@@ -119,6 +130,11 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
                     flex: 2,
                     child: ElevatedButton(
                       onPressed: _isLastPage ? _completeSetup : _handleNext,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        elevation: Theme.of(context).brightness == Brightness.dark ? 4 : 2,
+                      ),
                       child: Text(_isLastPage ? 'Get Started' : 'Next'),
                     ),
                   ),
@@ -223,11 +239,12 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Enable Lend & Borrow',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
+                                color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -235,7 +252,9 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
                               _enableLendBorrow ? 'Enabled' : 'Disabled',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: _enableLendBorrow ? AppColors.success : AppColors.textSecondary,
+                                color: _enableLendBorrow
+                                    ? AppColors.success
+                                    : (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
                               ),
                             ),
                           ],
@@ -253,6 +272,9 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
                           });
                         },
                         activeColor: AppColors.primary,
+                        activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
+                        inactiveThumbColor: isDark ? Colors.grey[400] : Colors.grey[300],
+                        inactiveTrackColor: isDark ? Colors.grey[700] : Colors.grey[300],
                       ),
                     ],
                   ),
@@ -483,6 +505,8 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
               minimumSize: const Size(double.infinity, 0),
+              foregroundColor: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+              side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.border),
             ),
           ),
         ],
@@ -527,31 +551,56 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     ),
                     const SizedBox(height: 16),
-                    InkWell(
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: selectedDate,
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime.now(),
-                        );
-                        if (picked != null) {
-                          setDialogState(() {
-                            selectedDate = picked;
-                          });
-                        }
-                      },
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Date',
-                          border: OutlineInputBorder(),
-                          suffixIcon: Icon(Icons.calendar_today),
-                        ),
-                        child: Text(
-                          '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}',
+                      InkWell(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: selectedDate,
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime.now(),
+                            builder: (context, child) {
+                              return Theme(
+                                data: Theme.of(context).copyWith(
+                                  colorScheme: Theme.of(context).brightness == Brightness.dark
+                                      ? ColorScheme.dark(
+                                          primary: AppColors.primary,
+                                          onPrimary: Colors.white,
+                                          surface: AppColors.darkSurface,
+                                          onSurface: AppColors.darkTextPrimary,
+                                        )
+                                      : const ColorScheme.light(
+                                          primary: AppColors.primary,
+                                          onPrimary: Colors.white,
+                                          surface: Colors.white,
+                                          onSurface: AppColors.textPrimary,
+                                        ),
+                                ),
+                                child: child!,
+                              );
+                            },
+                          );
+                          if (picked != null) {
+                            setDialogState(() {
+                              selectedDate = picked;
+                            });
+                          }
+                        },
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'Date',
+                            border: OutlineInputBorder(),
+                            suffixIcon: Icon(Icons.calendar_today),
+                          ),
+                          child: Text(
+                            '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}',
+                            style: TextStyle(
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.textPrimary,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
                     const SizedBox(height: 16),
                     TextField(
                       controller: remarksController,
@@ -605,6 +654,10 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
 
                     Navigator.pop(context);
                   },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
                   child: const Text('Add'),
                 ),
               ],
@@ -719,6 +772,8 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
               minimumSize: const Size(double.infinity, 0),
+              foregroundColor: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+              side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.border),
             ),
           ),
         ],
@@ -778,6 +833,8 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
               minimumSize: const Size(double.infinity, 0),
+              foregroundColor: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+              side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.border),
             ),
           ),
         ],
@@ -837,6 +894,8 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
               minimumSize: const Size(double.infinity, 0),
+              foregroundColor: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+              side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.border),
             ),
           ),
         ],
@@ -884,6 +943,10 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
                 });
                 Navigator.pop(context);
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
               child: const Text('Add'),
             ),
           ],
@@ -927,44 +990,26 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
     }
 
     if (_enableLendBorrow) {
-      var lendCategory = dataProvider.expenseCategories
-          .where((c) => c.name.toLowerCase() == 'cash lend')
-          .firstOrNull;
-
-      if (lendCategory == null) {
-        await dataProvider.addCategory(app_models.Category(
-          name: 'Cash Lend',
-          type: 'expense',
-        ));
-        await dataProvider.loadCategories();
-        lendCategory = dataProvider.expenseCategories
-            .where((c) => c.name.toLowerCase() == 'cash lend')
-            .first;
-      }
-
-      final firstAccount = dataProvider.accounts.first;
-
+      // Save initial lend records (these are existing debts, not new transactions)
       for (var record in _lendGivenRecords) {
-        await dataProvider.addTransaction(app_models.Transaction(
-          type: 'lend_given',
+        await dataProvider.addLendRecord(LendRecord(
+          type: 'given',
+          personName: record['personName'],
           amount: record['amount'],
-          accountId: firstAccount.id!,
-          categoryId: lendCategory.id!,
           date: record['date'],
           remarks: record['remarks'].isEmpty ? null : record['remarks'],
-          personName: record['personName'],
+          isSettled: false,
         ));
       }
 
       for (var record in _lendTakenRecords) {
-        await dataProvider.addTransaction(app_models.Transaction(
-          type: 'lend_taken',
+        await dataProvider.addLendRecord(LendRecord(
+          type: 'taken',
+          personName: record['personName'],
           amount: record['amount'],
-          accountId: firstAccount.id!,
-          categoryId: lendCategory.id!,
           date: record['date'],
           remarks: record['remarks'].isEmpty ? null : record['remarks'],
-          personName: record['personName'],
+          isSettled: false,
         ));
       }
     }
