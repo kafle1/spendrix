@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.1.0] - 2025-11-22
+
+### Added
+- **Transactions Page**: New dedicated page to view all transactions with comprehensive filtering options.
+  - Filter by date range, transaction type (income/expense/all), account, and category.
+  - Display all transactions in a clean, organized list.
+  - "Show All" button on dashboard navigates to this page.
+- **PDF Export**: Export filtered transactions to PDF for record-keeping and sharing.
+  - Generates professional PDF reports with transaction details.
+  - Accessible from the Transactions page.
+
+### Changed
+- **Filter UI Enhancement**: Updated filter interface to use dropdown menu style for better UX.
+- **App Icon**: Updated app icon for a more modern look.
+
 ## [0.3.2] - 2025-11-20
 
 ### Fixed
