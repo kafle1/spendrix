@@ -323,41 +323,101 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     ),
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Period Filter
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _buildFilterChip('All', 'all'),
-                          _buildFilterChip('Today', 'daily'),
-                          _buildFilterChip('This Week', 'weekly'),
-                          _buildFilterChip('This Month', 'monthly'),
-                          _buildFilterChip('This Year', 'yearly'),
-                        ],
+                    Text(
+                      'Filter Transactions',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    // Additional Filters
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        if (_selectedType != null || _selectedAccountId != null || _selectedCategoryId != null)
-                          TextButton.icon(
-                            onPressed: () {
-                              setState(() {
-                                _selectedType = null;
-                                _selectedAccountId = null;
-                                _selectedCategoryId = null;
-                              });
-                            },
-                            icon: const Icon(Icons.clear, size: 16),
-                            label: const Text('Clear Filters'),
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        setState(() {
+                          _selectedPeriod = value;
+                        });
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'all',
+                          child: Row(
+                            children: [
+                              Icon(Icons.all_inclusive_rounded, size: 20),
+                              SizedBox(width: 12),
+                              Text('All Time'),
+                            ],
                           ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'daily',
+                          child: Row(
+                            children: [
+                              Icon(Icons.today_rounded, size: 20),
+                              SizedBox(width: 12),
+                              Text('Today'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'weekly',
+                          child: Row(
+                            children: [
+                              Icon(Icons.view_week_rounded, size: 20),
+                              SizedBox(width: 12),
+                              Text('This Week'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'monthly',
+                          child: Row(
+                            children: [
+                              Icon(Icons.calendar_today_rounded, size: 20),
+                              SizedBox(width: 12),
+                              Text('This Month'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'yearly',
+                          child: Row(
+                            children: [
+                              Icon(Icons.date_range_rounded, size: 20),
+                              SizedBox(width: 12),
+                              Text('This Year'),
+                            ],
+                          ),
+                        ),
                       ],
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _selectedPeriod == 'all' ? 'All Time' :
+                              _selectedPeriod == 'daily' ? 'Today' :
+                              _selectedPeriod == 'weekly' ? 'This Week' :
+                              _selectedPeriod == 'monthly' ? 'This Month' : 'This Year',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.arrow_drop_down_rounded, color: AppColors.primary),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -483,30 +543,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             ],
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildFilterChip(String label, String value) {
-    final isSelected = _selectedPeriod == value;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
-        setState(() {
-          _selectedPeriod = value;
-        });
-      },
-      selectedColor: AppColors.primary.withValues(alpha: 0.2),
-      checkmarkColor: AppColors.primary,
-      backgroundColor: isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant,
-      labelStyle: TextStyle(
-        color: isSelected
-            ? AppColors.primary
-            : (isDark ? AppColors.darkTextPrimary : AppColors.textPrimary),
-        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
       ),
     );
   }
