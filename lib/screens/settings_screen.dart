@@ -484,11 +484,24 @@ class ManageAccountsScreen extends StatelessWidget {
             ),
             ElevatedButton(
               onPressed: () async {
-                if (nameController.text.isEmpty) return;
+                final name = nameController.text.trim();
+                if (name.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter account name')),
+                  );
+                  return;
+                }
+                if (name.length > 50) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Account name too long (max 50 characters)')),
+                  );
+                  return;
+                }
                 
                 await dataProvider.addAccount(Account(
-                  name: nameController.text,
-                  balance: double.tryParse(balanceController.text) ?? 0,
+                  name: name,
+                  balance: double.tryParse(balanceController.text.trim()) ?? 0,
                   type: 'other',
                 ));
                 
@@ -537,11 +550,24 @@ class ManageAccountsScreen extends StatelessWidget {
             ),
             ElevatedButton(
               onPressed: () async {
-                if (nameController.text.isEmpty) return;
+                final name = nameController.text.trim();
+                if (name.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter account name')),
+                  );
+                  return;
+                }
+                if (name.length > 50) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Account name too long (max 50 characters)')),
+                  );
+                  return;
+                }
                 
                 await dataProvider.updateAccount(account.copyWith(
-                  name: nameController.text,
-                  balance: double.tryParse(balanceController.text) ?? account.balance,
+                  name: name,
+                  balance: double.tryParse(balanceController.text.trim()) ?? account.balance,
                 ));
                 
                 if (!context.mounted) return;
@@ -739,10 +765,23 @@ class ManageCategoriesScreen extends StatelessWidget {
             ),
             ElevatedButton(
               onPressed: () async {
-                if (nameController.text.isEmpty) return;
+                final name = nameController.text.trim();
+                if (name.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter category name')),
+                  );
+                  return;
+                }
+                if (name.length > 50) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Category name too long (max 50 characters)')),
+                  );
+                  return;
+                }
                 
                 await dataProvider.addCategory(app_models.Category(
-                  name: nameController.text,
+                  name: name,
                   type: type,
                 ));
                 
@@ -777,14 +816,27 @@ class ManageCategoriesScreen extends StatelessWidget {
             ),
             ElevatedButton(
               onPressed: () async {
-                if (nameController.text.isEmpty) return;
-                if (nameController.text == category.name) {
+                final name = nameController.text.trim();
+                if (name.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter category name')),
+                  );
+                  return;
+                }
+                if (name.length > 50) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Category name too long (max 50 characters)')),
+                  );
+                  return;
+                }
+                if (name == category.name) {
                   Navigator.pop(context);
                   return;
                 }
                 
                 await dataProvider.updateCategory(category.copyWith(
-                  name: nameController.text,
+                  name: name,
                 ));
                 
                 if (!context.mounted) return;
@@ -1044,16 +1096,33 @@ class ManageSpendingLimitsScreen extends StatelessWidget {
                 ),
                 ElevatedButton(
                   onPressed: () async {
-                    if (nameController.text.isEmpty ||
-                        amountController.text.isEmpty ||
-                        selectedAccounts.isEmpty ||
-                        selectedCategories.isEmpty) {
+                    if (nameController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please enter a limit name')),
+                      );
+                      return;
+                    }
+                    
+                    final amount = double.tryParse(amountController.text.trim());
+                    if (amount == null || amount <= 0) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please enter a valid amount greater than 0')),
+                      );
+                      return;
+                    }
+                    
+                    if (selectedAccounts.isEmpty || selectedCategories.isEmpty) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please select at least one account and category')),
+                      );
                       return;
                     }
                     
                     await dataProvider.addSpendingLimit(SpendingLimit(
-                      name: nameController.text,
-                      limitAmount: double.parse(amountController.text),
+                      name: nameController.text.trim(),
+                      limitAmount: amount,
                       period: selectedPeriod,
                       accountIds: selectedAccounts,
                       categoryIds: selectedCategories,
@@ -1163,16 +1232,33 @@ class ManageSpendingLimitsScreen extends StatelessWidget {
                 ),
                 ElevatedButton(
                   onPressed: () async {
-                    if (nameController.text.isEmpty ||
-                        amountController.text.isEmpty ||
-                        selectedAccounts.isEmpty ||
-                        selectedCategories.isEmpty) {
+                    if (nameController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please enter a limit name')),
+                      );
+                      return;
+                    }
+                    
+                    final amount = double.tryParse(amountController.text.trim());
+                    if (amount == null || amount <= 0) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please enter a valid amount greater than 0')),
+                      );
+                      return;
+                    }
+                    
+                    if (selectedAccounts.isEmpty || selectedCategories.isEmpty) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please select at least one account and category')),
+                      );
                       return;
                     }
                     
                     await dataProvider.updateSpendingLimit(limit.copyWith(
-                      name: nameController.text,
-                      limitAmount: double.parse(amountController.text),
+                      name: nameController.text.trim(),
+                      limitAmount: amount,
                       period: selectedPeriod,
                       accountIds: selectedAccounts,
                       categoryIds: selectedCategories,
