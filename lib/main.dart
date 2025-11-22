@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/data_provider.dart';
 import 'screens/setup_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/transactions_screen.dart';
 import 'utils/app_theme.dart';
 
 void main() async {
@@ -58,6 +59,7 @@ class _MyAppState extends State<MyApp> {
         routes: {
           '/setup': (context) => const SetupScreen(),
           '/home': (context) => const HomeScreen(),
+          '/transactions': (context) => const TransactionsScreen(),
         },
       ),
     );

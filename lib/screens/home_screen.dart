@@ -791,15 +791,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   );
                 }),
                 const SizedBox(height: 24),
-                Text(
-                  'Recent Transactions',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? AppColors.darkTextPrimary
-                        : AppColors.textPrimary,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Recent Transactions',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.textPrimary,
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.pushNamed(context, '/transactions');
+                      },
+                      icon: const Icon(Icons.arrow_forward, size: 18),
+                      label: const Text('Show All'),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 ...dataProvider.transactions
