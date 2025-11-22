@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.2] - 2025-11-22
+
+### Fixed
+- **App Icon**: Fixed issue where app icon was not correctly updated on devices by removing invalid adaptive icon configuration.
+
 ## [1.1.1] - 2025-11-22
 
 ### Fixed
