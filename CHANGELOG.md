@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.1] - 2025-11-22
+
+### Fixed
+- **App Icon**: Fixed issue where app icon was not correctly updated on devices.
+
 ## [1.1.0] - 2025-11-22
 
 ### Added
