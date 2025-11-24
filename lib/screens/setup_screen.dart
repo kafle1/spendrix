@@ -1015,7 +1015,8 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
     }
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('lendBorrowEnabled', _enableLendBorrow);
+    await prefs.setBool('isLendFeatureEnabled', _enableLendBorrow);
+    await prefs.setBool('setupCompleted', true);
 
     if (!mounted) return;
     Navigator.of(context).pushReplacement(

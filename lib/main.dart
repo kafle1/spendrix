@@ -82,15 +82,13 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _initialize() async {
     final prefs = await SharedPreferences.getInstance();
-    final isFirstTime = prefs.getBool('isFirstTime') ?? true;
+    final setupCompleted = prefs.getBool('setupCompleted') ?? false;
 
     await Future.delayed(const Duration(milliseconds: 2000));
 
     if (!mounted) return;
 
-    if (isFirstTime) {
-      await prefs.setBool('isFirstTime', false);
-      if (!mounted) return;
+    if (!setupCompleted) {
       Navigator.of(context).pushReplacementNamed('/setup');
     } else {
       final dataProvider = Provider.of<DataProvider>(context, listen: false);
@@ -110,22 +108,21 @@ class _SplashScreenState extends State<SplashScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(24),
+              width: 120,
+              height: 120,
               decoration: BoxDecoration(
-                color: AppColors.primary,
                 borderRadius: BorderRadius.circular(32),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primary.withValues(alpha:0.3),
+                    color: AppColors.primary.withValues(alpha: 0.3),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
                 ],
-              ),
-              child: Icon(
-                Icons.account_balance_wallet_rounded,
-                size: 64,
-                color: Theme.of(context).colorScheme.onPrimary,
+                image: const DecorationImage(
+                  image: AssetImage('assets/icon/icon.png'),
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
             const SizedBox(height: 32),
