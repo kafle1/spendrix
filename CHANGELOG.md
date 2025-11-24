@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.2.0] - 2025-11-24
+
+### Fixed
+- **Onboarding Persistence**: Fixed critical issue where onboarding screen was showing every time the app was opened.
+  - Implemented proper SharedPreferences key consistency between splash screen and setup screen.
+  - Changed from `isFirstTime` to `setupCompleted` flag for better clarity and reliability.
+  - Setup completion is now properly saved after initial setup.
+- **Splash Screen**: Replaced generic wallet icon with app's actual icon for better brand consistency.
+
+### Changed
+- **Assets Configuration**: Added assets folder to pubspec.yaml to properly load app icon.
+- **Database Migration**: Verified that database version upgrades preserve all user data (accounts, transactions, categories, lend records).
+- **Version Management**: Updated to version 1.2.0+4 with proper semantic versioning.
+
+### Technical
+- All existing data is preserved when upgrading from previous versions.
+- Clean, production-ready code without unnecessary AI-generated patterns.
+- Proper error handling and state management throughout the app.
+
 ## [1.1.0] - 2025-11-22
 
 ### Added
