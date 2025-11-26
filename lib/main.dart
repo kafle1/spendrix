@@ -21,30 +21,44 @@ void main() async {
   runZonedGuarded<Future<void>>(() async {
     WidgetsFlutterBinding.ensureInitialized();
     
-    // Load environment variables
-    await dotenv.load(fileName: ".env");
-    
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    
-    FirebasePerformance.instance;
-    
-    FlutterError.onError = (errorDetails) {
-      FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
-    };
-    
-    PlatformDispatcher.instance.onError = (error, stack) {
-      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-      return true;
-    };
-    
-    await FirebaseRemoteConfigService.initialize();
-    await FirebaseAnalyticsService.logAppOpen();
+    try {
+      // Load environment variables
+      await dotenv.load(fileName: ".env");
+      
+      // Initialize Firebase only if not already initialized
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      }
+      
+      FirebasePerformance.instance;
+      
+      FlutterError.onError = (errorDetails) {
+        FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+      };
+      
+      PlatformDispatcher.instance.onError = (error, stack) {
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+        return true;
+      };
+      
+      await FirebaseRemoteConfigService.initialize();
+      await FirebaseAnalyticsService.logAppOpen();
+    } catch (e, stack) {
+      debugPrint('Firebase initialization error: $e');
+      debugPrint('Stack: $stack');
+      // Continue even if Firebase fails
+    }
     
     runApp(const MyApp());
   }, (error, stack) {
-    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    debugPrint('Caught error: $error');
+    try {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    } catch (e) {
+      debugPrint('Failed to log to Crashlytics: $e');
+    }
   });
 }
 
@@ -120,21 +134,29 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _initialize() async {
-    final prefs = await SharedPreferences.getInstance();
-    final setupCompleted = prefs.getBool('setupCompleted') ?? false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final setupCompleted = prefs.getBool('setupCompleted') ?? false;
 
-    await Future.delayed(const Duration(milliseconds: 2000));
+      await Future.delayed(const Duration(milliseconds: 2000));
 
-    if (!mounted) return;
-
-    if (!setupCompleted) {
-      Navigator.of(context).pushReplacementNamed('/setup');
-    } else {
-      final dataProvider = Provider.of<DataProvider>(context, listen: false);
-      await dataProvider.loadAllData();
-      
       if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed('/home');
+
+      if (!setupCompleted) {
+        Navigator.of(context).pushReplacementNamed('/setup');
+      } else {
+        final dataProvider = Provider.of<DataProvider>(context, listen: false);
+        await dataProvider.loadAllData();
+        
+        if (!mounted) return;
+        Navigator.of(context).pushReplacementNamed('/home');
+      }
+    } catch (e, stack) {
+      debugPrint('Initialization error: $e');
+      debugPrint('Stack: $stack');
+      // Navigate to setup screen on error
+      if (!mounted) return;
+      Navigator.of(context).pushReplacementNamed('/setup');
     }
   }
 
@@ -150,6 +172,7 @@ class _SplashScreenState extends State<SplashScreen> {
               width: 120,
               height: 120,
               decoration: BoxDecoration(
+                color: AppColors.primary,
                 borderRadius: BorderRadius.circular(32),
                 boxShadow: [
                   BoxShadow(
@@ -158,9 +181,19 @@ class _SplashScreenState extends State<SplashScreen> {
                     offset: const Offset(0, 10),
                   ),
                 ],
-                image: DecorationImage(
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(32),
+                child: Image(
                   image: Assets.icon.icon.provider(),
-                  fit: BoxFit.cover,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Icon(
+                      Icons.account_balance_wallet,
+                      size: 60,
+                      color: Colors.white,
+                    );
+                  },
                 ),
               ),
             ),
