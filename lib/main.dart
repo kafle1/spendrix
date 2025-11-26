@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'gen/assets.gen.dart';
 import 'providers/data_provider.dart';
 import 'screens/setup_screen.dart';
 import 'screens/home_screen.dart';
@@ -119,8 +120,8 @@ class _SplashScreenState extends State<SplashScreen> {
                     offset: const Offset(0, 10),
                   ),
                 ],
-                image: const DecorationImage(
-                  image: AssetImage('assets/icon/icon.png'),
+                image: DecorationImage(
+                  image: Assets.icon.icon.provider(),
                   fit: BoxFit.cover,
                 ),
               ),
