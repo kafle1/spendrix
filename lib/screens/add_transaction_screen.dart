@@ -363,8 +363,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     List<String> existingPeople = [];
     if (isReturning) {
       existingPeople = _selectedLendType == 'lend_returned_income'
-          ? dataProvider.getLendTakenPeople()
-          : dataProvider.getLendGivenPeople();
+          ? dataProvider.getLendGivenPeople()
+          : dataProvider.getLendTakenPeople();
     }
 
     return Container(
@@ -396,8 +396,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 ),
                 items: existingPeople.map((person) {
                   final outstanding = _selectedLendType == 'lend_returned_income'
-                      ? dataProvider.getOutstandingLendTaken(person)
-                      : dataProvider.getOutstandingLendGiven(person);
+                      ? dataProvider.getOutstandingLendGiven(person)
+                      : dataProvider.getOutstandingLendTaken(person);
                   return DropdownMenuItem(
                     value: person,
                     child: Row(
@@ -463,8 +463,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 if (_selectedLendType == 'lend_returned_income' || _selectedLendType == 'lend_returned_expense') {
                   final dataProvider = Provider.of<DataProvider>(context, listen: false);
                   final outstanding = _selectedLendType == 'lend_returned_income'
-                      ? dataProvider.getOutstandingLendTaken(value.trim())
-                      : dataProvider.getOutstandingLendGiven(value.trim());
+                      ? dataProvider.getOutstandingLendGiven(value.trim())
+                      : dataProvider.getOutstandingLendTaken(value.trim());
                   
                   if (outstanding <= 0) {
                     return 'No outstanding amount for this person';

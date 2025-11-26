@@ -180,6 +180,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    _loadBalanceVisibility();
     _loadLendFeatureSetting();
     _loadDashboardLendingToggle();
   }
@@ -189,6 +190,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.didChangeDependencies();
     _loadLendFeatureSetting();
     _loadDashboardLendingToggle();
+  }
+
+  Future<void> _loadBalanceVisibility() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _isBalanceVisible = prefs.getBool('isBalanceVisible') ?? true;
+      });
+    }
+  }
+
+  Future<void> _saveBalanceVisibility(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isBalanceVisible', value);
   }
 
   Future<void> _loadLendFeatureSetting() async {
@@ -255,6 +270,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               setState(() {
                 _isBalanceVisible = !_isBalanceVisible;
               });
+              _saveBalanceVisibility(_isBalanceVisible);
             },
             tooltip: _isBalanceVisible ? 'Hide Balance' : 'Show Balance',
           ),
