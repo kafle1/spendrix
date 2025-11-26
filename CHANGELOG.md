@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.3.0] - 2025-11-26
+
+### Added
+- **Firebase Integration**: Integrated comprehensive Firebase services for better app monitoring and analytics.
+  - Firebase Analytics for user behavior tracking and insights.
+  - Firebase Crashlytics for real-time crash reporting and diagnostics.
+  - Firebase Performance Monitoring for app performance tracking.
+  - Firebase Remote Config for dynamic feature toggles and A/B testing.
+- **Asset Generation**: Implemented flutter_gen for type-safe asset references.
+  - Auto-generated `assets.gen.dart` for all app assets.
+  - Eliminates hardcoded asset paths and prevents runtime errors.
+- **Balance Visibility Toggle**: Added ability to show/hide account balances on dashboard for privacy.
+
+### Fixed
+- **Lend Type Logic**: Fixed issue with lend/borrow transaction type logic in the dashboard.
+- **Dark Mode Icons**: Updated app icons and theme colors for improved dark mode support.
+
+### Security
+- **Environment Variable System**: Implemented secure environment variable management.
+  - Removed all hardcoded Firebase API keys from source code.
+  - Added flutter_dotenv for secure configuration management.
+  - All sensitive data now stored in `.env` file (gitignored).
+  - Cleaned git history to remove exposed API keys.
+  - Added `.env.example` template for team setup.
+  - Comprehensive security fix documentation included.
+- **Breaking Change**: API keys must now be stored in `.env` file (see SECURITY_FIX_SUMMARY.md).
+
+### Technical
+- Updated iOS deployment target to 13.0.
+- Added CocoaPods configuration for iOS.
+- Enhanced security with proper secret management.
+- Improved code organization with generated assets.
+
 ## [1.2.0] - 2025-11-24
 
 ### Fixed
