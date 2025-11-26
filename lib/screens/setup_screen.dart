@@ -131,8 +131,8 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
                     child: ElevatedButton(
                       onPressed: _isLastPage ? _completeSetup : _handleNext,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
+                        backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppColors.primary,
+                        foregroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.darkBackground : Colors.white,
                         elevation: Theme.of(context).brightness == Brightness.dark ? 4 : 2,
                       ),
                       child: Text(_isLastPage ? 'Get Started' : 'Next'),
@@ -559,19 +559,20 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
                             firstDate: DateTime(2000),
                             lastDate: DateTime.now(),
                             builder: (context, child) {
+                              final isDark = Theme.of(context).brightness == Brightness.dark;
                               return Theme(
                                 data: Theme.of(context).copyWith(
-                                  colorScheme: Theme.of(context).brightness == Brightness.dark
+                                  colorScheme: isDark
                                       ? ColorScheme.dark(
-                                          primary: AppColors.primary,
-                                          onPrimary: Colors.white,
+                                          primary: Colors.white,
+                                          onPrimary: AppColors.darkBackground,
                                           surface: AppColors.darkSurface,
                                           onSurface: AppColors.darkTextPrimary,
                                         )
                                       : const ColorScheme.light(
                                           primary: AppColors.primary,
                                           onPrimary: Colors.white,
-                                          surface: Colors.white,
+                                          surface: AppColors.surface,
                                           onSurface: AppColors.textPrimary,
                                         ),
                                 ),

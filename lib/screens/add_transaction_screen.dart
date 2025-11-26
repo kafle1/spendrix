@@ -752,19 +752,20 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 firstDate: DateTime(2020),
                 lastDate: DateTime.now().add(const Duration(days: 365)),
                 builder: (context, child) {
+                  final isDark = Theme.of(context).brightness == Brightness.dark;
                   return Theme(
                     data: Theme.of(context).copyWith(
-                      colorScheme: Theme.of(context).brightness == Brightness.dark
+                      colorScheme: isDark
                           ? ColorScheme.dark(
-                              primary: AppColors.primary,
-                              onPrimary: Colors.white,
+                              primary: Colors.white,
+                              onPrimary: AppColors.darkBackground,
                               surface: AppColors.darkSurface,
                               onSurface: AppColors.darkTextPrimary,
                             )
                           : const ColorScheme.light(
                               primary: AppColors.primary,
                               onPrimary: Colors.white,
-                              surface: Colors.white,
+                              surface: AppColors.surface,
                               onSurface: AppColors.textPrimary,
                             ),
                     ),
@@ -867,9 +868,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           borderRadius: BorderRadius.circular(16),
         ),
         elevation: isDark ? 4 : 2,
-        shadowColor: isDark ? AppColors.primary.withValues(alpha: 0.5) : null,
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        shadowColor: isDark ? Colors.white.withValues(alpha: 0.5) : null,
+        backgroundColor: isDark ? Colors.white : AppColors.primary,
+        foregroundColor: isDark ? AppColors.darkBackground : Colors.white,
       ),
       child: const Text(
         'Save Transaction',

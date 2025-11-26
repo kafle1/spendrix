@@ -68,15 +68,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
           data: Theme.of(context).copyWith(
             colorScheme: isDark
                 ? ColorScheme.dark(
-                    primary: AppColors.primary,
-                    onPrimary: Colors.white,
+                    primary: Colors.white,
+                    onPrimary: AppColors.darkBackground,
                     surface: AppColors.darkSurface,
                     onSurface: AppColors.darkTextPrimary,
                   )
                 : const ColorScheme.light(
                     primary: AppColors.primary,
                     onPrimary: Colors.white,
-                    surface: Colors.white,
+                    surface: AppColors.surface,
                     onSurface: AppColors.textPrimary,
                   ),
           ),
@@ -515,10 +515,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
         value: entry.value,
         title: category.name,
         radius: 90,
-        titleStyle: const TextStyle(
+        titleStyle: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.bold,
-          color: Colors.white,
+          color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkTextPrimary : Colors.white,
         ),
       );
     }).toList();

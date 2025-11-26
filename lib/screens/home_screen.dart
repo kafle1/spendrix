@@ -144,8 +144,8 @@ class _HomeScreenState extends State<HomeScreen> {
               heroTag: 'addTransaction',
               elevation: Theme.of(context).brightness == Brightness.dark ? 8 : 4,
               highlightElevation: Theme.of(context).brightness == Brightness.dark ? 12 : 6,
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+              backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppColors.primary,
+              foregroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.darkBackground : Colors.white,
             )
           : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
