@@ -1,16 +1,47 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_performance/firebase_performance.dart';
+import 'firebase_options.dart';
 import 'gen/assets.gen.dart';
 import 'providers/data_provider.dart';
 import 'screens/setup_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/transactions_screen.dart';
 import 'utils/app_theme.dart';
+import 'services/firebase_analytics_service.dart';
+import 'services/firebase_remote_config_service.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
+  runZonedGuarded<Future<void>>(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    
+    FirebasePerformance.instance;
+    
+    FlutterError.onError = (errorDetails) {
+      FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+    };
+    
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
+    
+    await FirebaseRemoteConfigService.initialize();
+    await FirebaseAnalyticsService.logAppOpen();
+    
+    runApp(const MyApp());
+  }, (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+  });
 }
 
 class MyApp extends StatefulWidget {
@@ -56,6 +87,9 @@ class _MyAppState extends State<MyApp> {
         darkTheme: AppTheme.darkTheme,
         themeMode: _themeMode,
         debugShowCheckedModeBanner: false,
+        navigatorObservers: [
+          FirebaseAnalyticsService.observer,
+        ],
         home: const SplashScreen(),
         routes: {
           '/setup': (context) => const SetupScreen(),

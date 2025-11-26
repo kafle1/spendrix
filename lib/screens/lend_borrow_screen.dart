@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/data_provider.dart';
 import '../utils/app_theme.dart';
 import '../utils/format_utils.dart';
+import '../services/firebase_analytics_service.dart';
 import 'package:flutter/painting.dart' show TextStyle, BorderRadius;
 import 'package:flutter/material.dart' show Colors;
 
@@ -20,6 +21,7 @@ class _LendBorrowScreenState extends State<LendBorrowScreen> with SingleTickerPr
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    FirebaseAnalyticsService.logScreenView('lend_borrow_screen');
   }
 
   @override

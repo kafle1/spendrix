@@ -7,6 +7,7 @@ import '../models/spending_limit.dart';
 import '../providers/data_provider.dart';
 import '../utils/app_theme.dart';
 import '../utils/format_utils.dart';
+import '../services/firebase_analytics_service.dart';
 import 'package:flutter/painting.dart' show TextStyle, BorderRadius;
 import 'package:flutter/material.dart' show Colors;
 import 'package:flutter/widgets.dart' show SizedBox, Padding;
@@ -49,6 +50,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _isDarkMode = value;
     });
+    
+    // Log analytics event
+    await FirebaseAnalyticsService.logThemeChanged(value ? 'dark' : 'light');
     
     if (!mounted) return;
     final updateTheme = Provider.of<Function(ThemeMode)>(context, listen: false);

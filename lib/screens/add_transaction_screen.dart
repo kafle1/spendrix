@@ -7,6 +7,7 @@ import '../models/category.dart' as app_models;
 import '../providers/data_provider.dart';
 import '../utils/app_theme.dart';
 import '../utils/format_utils.dart';
+import '../services/firebase_analytics_service.dart';
 import 'package:flutter/painting.dart' show TextStyle, BorderRadius;
 import 'package:flutter/material.dart' show Colors;
 
@@ -936,6 +937,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
     try {
       await dataProvider.addTransaction(transaction);
+      
+      // Log analytics event
+      await FirebaseAnalyticsService.logTransactionAdded(
+        type: transactionType,
+        amount: amount,
+        category: _selectedCategory?.name ?? 'lend_borrow',
+        accountName: _selectedAccount?.name,
+      );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

@@ -7,6 +7,7 @@ import '../models/category.dart' as app_models;
 import '../utils/app_theme.dart';
 import '../utils/format_utils.dart';
 import '../models/transaction.dart' as model;
+import '../services/firebase_analytics_service.dart';
 import 'add_transaction_screen.dart';
 import 'reports_screen.dart';
 import 'lend_borrow_screen.dart';
@@ -27,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadLendFeatureSetting();
+    FirebaseAnalyticsService.logScreenView('home_screen');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<DataProvider>(context, listen: false).loadAllData();
     });

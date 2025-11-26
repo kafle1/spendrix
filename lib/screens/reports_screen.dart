@@ -6,6 +6,7 @@ import '../models/category.dart' as app_models;
 import '../utils/app_theme.dart';
 import '../utils/format_utils.dart';
 import '../utils/theme_utils.dart';
+import '../services/firebase_analytics_service.dart';
 import 'package:flutter/painting.dart' show TextStyle, BorderRadius;
 import 'package:flutter/material.dart' show Colors;
 
@@ -25,6 +26,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   void initState() {
     super.initState();
     _setThisMonth();
+    FirebaseAnalyticsService.logScreenView('reports_screen');
   }
 
   void _setThisMonth() {
