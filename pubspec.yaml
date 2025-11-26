@@ -28,6 +28,7 @@ dependencies:
   path_provider: ^2.1.0
   pdf: ^3.10.0
   printing: ^5.12.02
+  flutter_dotenv: ^5.1.0
   
   # Firebase
   firebase_core: ^3.8.1
@@ -54,6 +55,7 @@ flutter:
   
   assets:
     - assets/icon/
+    - .env
 
 flutter_gen:
   output: lib/gen/

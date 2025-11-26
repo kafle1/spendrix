@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_performance/firebase_performance.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'firebase_options.dart';
 import 'gen/assets.gen.dart';
 import 'providers/data_provider.dart';
@@ -19,6 +20,9 @@ import 'services/firebase_remote_config_service.dart';
 void main() async {
   runZonedGuarded<Future<void>>(() async {
     WidgetsFlutterBinding.ensureInitialized();
+    
+    // Load environment variables
+    await dotenv.load(fileName: ".env");
     
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
