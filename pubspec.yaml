@@ -26,6 +26,7 @@ dependencies:
   shared_preferences: ^2.0.15
   google_fonts: ^6.1.0
   path_provider: ^2.1.0
+  share_plus: ^10.1.4
   pdf: ^3.10.0
   printing: ^5.12.02
   flutter_dotenv: ^5.1.0
