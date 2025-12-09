@@ -8,6 +8,8 @@ import '../providers/data_provider.dart';
 import '../utils/app_theme.dart';
 import '../utils/format_utils.dart';
 import '../services/firebase_analytics_service.dart';
+import '../services/data_export_service.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter/painting.dart' show TextStyle, BorderRadius;
 import 'package:flutter/material.dart' show Colors;
 import 'package:flutter/widgets.dart' show SizedBox, Padding;
@@ -230,6 +232,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+            child: Text(
+              'Data & Backup',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.textSecondary,
+              ),
+            ),
+          ),
+          _buildSectionHeader(
+            'Export Data',
+            Icons.file_download_outlined,
+            context,
+            () => _exportData(context),
+          ),
           const SizedBox(height: 28),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
@@ -373,6 +393,89 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
       
       Navigator.pushNamedAndRemoveUntil(context, '/setup', (route) => false);
+    }
+  }
+
+  Future<void> _exportData(BuildContext context) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final dataProvider = Provider.of<DataProvider>(context, listen: false);
+    
+    // Check if there's any data to export
+    if (!DataExportService.hasData(dataProvider)) {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+          content: Text('No data to export. Add some transactions first!'),
+          backgroundColor: AppColors.warning,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+    
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      // Export and share the data
+      final result = await DataExportService.exportAndShare(dataProvider);
+      
+      // Close loading dialog
+      if (!context.mounted) return;
+      Navigator.of(context).pop();
+      
+      // Provide feedback based on share result
+      switch (result.status) {
+        case ShareResultStatus.success:
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(
+              content: Text('Data exported successfully!'),
+              backgroundColor: AppColors.success,
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 2),
+            ),
+          );
+          // Log analytics event
+          await FirebaseAnalyticsService.logReportExported('json');
+          break;
+        case ShareResultStatus.dismissed:
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(
+              content: Text('Export cancelled'),
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 2),
+            ),
+          );
+          break;
+        case ShareResultStatus.unavailable:
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(
+              content: Text('Share functionality not available on this device'),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          break;
+      }
+    } catch (e) {
+      // Close loading dialog if still showing
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+      
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text('Export failed: ${e.toString()}'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 }
