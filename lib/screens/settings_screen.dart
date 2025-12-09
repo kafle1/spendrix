@@ -398,6 +398,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _exportData(BuildContext context) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final dataProvider = Provider.of<DataProvider>(context, listen: false);
+    
+    // Check if there's any data to export
+    if (!DataExportService.hasData(dataProvider)) {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+          content: Text('No data to export. Add some transactions first!'),
+          backgroundColor: AppColors.warning,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
     
     // Show loading indicator
     showDialog(
@@ -409,8 +423,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
 
     try {
-      final dataProvider = Provider.of<DataProvider>(context, listen: false);
-      
       // Export and share the data
       final result = await DataExportService.exportAndShare(dataProvider);
       
@@ -418,19 +430,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!context.mounted) return;
       Navigator.of(context).pop();
       
-      // Show success message if shared successfully
-      if (result.status == ShareResultStatus.success) {
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(
-            content: Text('Data exported successfully!'),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 2),
-          ),
-        );
-        
-        // Log analytics event
-        await FirebaseAnalyticsService.logReportExported('json');
+      // Provide feedback based on share result
+      switch (result.status) {
+        case ShareResultStatus.success:
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(
+              content: Text('Data exported successfully!'),
+              backgroundColor: AppColors.success,
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 2),
+            ),
+          );
+          // Log analytics event
+          await FirebaseAnalyticsService.logReportExported('json');
+          break;
+        case ShareResultStatus.dismissed:
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(
+              content: Text('Export cancelled'),
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 2),
+            ),
+          );
+          break;
+        case ShareResultStatus.unavailable:
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(
+              content: Text('Share functionality not available on this device'),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          break;
       }
     } catch (e) {
       // Close loading dialog if still showing

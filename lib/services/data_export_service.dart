@@ -1,25 +1,82 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../providers/data_provider.dart';
 
-/// Service for exporting all app data to JSON format
+/// Service for exporting all Spendrix app data to JSON format.
+/// 
+/// This service provides functionality to export user data for backup
+/// and data portability purposes.
+/// 
+/// ## JSON Export Schema (v1)
+/// 
+/// ```json
+/// {
+///   "metadata": {
+///     "appName": "Spendrix",
+///     "version": "1.3.0",
+///     "exportedAt": "2025-12-09T10:00:00.000Z",
+///     "schemaVersion": 1
+///   },
+///   "data": {
+///     "accounts": [{ "id": 1, "name": "Cash", "balance": 5000.0, ... }],
+///     "categories": {
+///       "income": [{ "id": 1, "name": "Salary", "type": "income", ... }],
+///       "expense": [{ "id": 2, "name": "Food", "type": "expense", ... }]
+///     },
+///     "transactions": [{ "id": 1, "type": "expense", "amount": 100.0, ... }],
+///     "spendingLimits": [{ "id": 1, "name": "Monthly Food", ... }],
+///     "lendRecords": [{ "id": 1, "type": "given", "personName": "John", ... }]
+///   },
+///   "summary": {
+///     "totalAccounts": 3,
+///     "totalCategories": 15,
+///     "totalTransactions": 150,
+///     "totalSpendingLimits": 2,
+///     "totalLendRecords": 5
+///   }
+/// }
+/// ```
+/// 
+/// The `schemaVersion` field enables future import functionality to handle
+/// backward compatibility when the data structure changes.
 class DataExportService {
-  /// Current schema version for the export format
+  /// Current schema version for the export format.
+  /// Increment this when making breaking changes to the export structure.
   static const int schemaVersion = 1;
   
   /// App name for metadata
   static const String appName = 'Spendrix';
   
-  /// Generates a timestamped filename for exports
+  /// App version - should be updated when pubspec.yaml version changes
+  /// TODO: Consider using package_info_plus for dynamic version retrieval
+  static const String appVersion = '1.3.0';
+  
+  /// Generates a timestamped filename for exports.
+  /// Format: spendrix_backup_YYYYMMDD_HHMMSS.json
   static String generateFileName() {
     final now = DateTime.now();
     final timestamp = '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
     return 'spendrix_backup_$timestamp.json';
   }
   
-  /// Exports all app data to a JSON string
+  /// Checks if the data provider has any data to export.
+  /// Returns true if at least one data collection is non-empty.
+  static bool hasData(DataProvider dataProvider) {
+    return dataProvider.accounts.isNotEmpty ||
+           dataProvider.incomeCategories.isNotEmpty ||
+           dataProvider.expenseCategories.isNotEmpty ||
+           dataProvider.transactions.isNotEmpty ||
+           dataProvider.spendingLimits.isNotEmpty ||
+           dataProvider.lendRecords.isNotEmpty;
+  }
+  
+  /// Exports all app data to a JSON string.
+  /// 
+  /// Returns a pretty-printed JSON string containing all user data
+  /// with metadata and summary information.
   static Future<String> exportToJson(DataProvider dataProvider) async {
     // Collect all data from the provider
     final accounts = dataProvider.accounts.map((a) => a.toMap()).toList();
@@ -33,7 +90,7 @@ class DataExportService {
     final exportData = {
       'metadata': {
         'appName': appName,
-        'version': '1.3.0', // App version from pubspec
+        'version': appVersion,
         'exportedAt': DateTime.now().toUtc().toIso8601String(),
         'schemaVersion': schemaVersion,
       },
@@ -61,16 +118,12 @@ class DataExportService {
     return encoder.convert(exportData);
   }
   
-  /// Saves JSON data to a file and returns the file path
-  static Future<File> saveToFile(String jsonData) async {
-    final directory = await getApplicationDocumentsDirectory();
-    final fileName = generateFileName();
-    final file = File('${directory.path}/$fileName');
-    await file.writeAsString(jsonData);
-    return file;
-  }
-  
-  /// Exports data and shares the file using the native share dialog
+  /// Exports data and shares the file using the native share dialog.
+  /// 
+  /// Creates a temporary file with the exported JSON data, opens the
+  /// native share dialog, and cleans up the temp file after sharing.
+  /// 
+  /// Returns the [ShareResult] indicating the outcome of the share operation.
   static Future<ShareResult> exportAndShare(DataProvider dataProvider) async {
     // Generate JSON data
     final jsonData = await exportToJson(dataProvider);
@@ -81,33 +134,26 @@ class DataExportService {
     final file = File('${directory.path}/$fileName');
     await file.writeAsString(jsonData);
     
-    // Share the file
-    final result = await Share.shareXFiles(
-      [XFile(file.path)],
-      subject: 'Spendrix Data Export',
-      text: 'My Spendrix expense tracker data backup',
-    );
+    ShareResult result;
+    try {
+      // Share the file
+      result = await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: 'Spendrix Data Export',
+        text: 'My Spendrix expense tracker data backup',
+      );
+    } finally {
+      // Explicitly clean up the temporary file
+      if (await file.exists()) {
+        try {
+          await file.delete();
+        } catch (e) {
+          // Log cleanup errors in debug mode, but don't fail the operation
+          debugPrint('Failed to clean up temp export file: $e');
+        }
+      }
+    }
     
     return result;
-  }
-  
-  /// Saves data to downloads folder and returns the file
-  static Future<File> exportToDownloads(DataProvider dataProvider) async {
-    final jsonData = await exportToJson(dataProvider);
-    
-    // Try to get downloads directory, fallback to documents
-    Directory? directory;
-    try {
-      directory = await getDownloadsDirectory();
-    } catch (_) {
-      // Downloads directory might not be available on all platforms
-    }
-    directory ??= await getApplicationDocumentsDirectory();
-    
-    final fileName = generateFileName();
-    final file = File('${directory.path}/$fileName');
-    await file.writeAsString(jsonData);
-    
-    return file;
   }
 }
