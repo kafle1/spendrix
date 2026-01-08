@@ -8,6 +8,7 @@ import '../utils/app_theme.dart';
 import '../utils/format_utils.dart';
 import '../models/transaction.dart' as model;
 import '../services/firebase_analytics_service.dart';
+import '../services/settings_service.dart';
 import 'add_transaction_screen.dart';
 import 'reports_screen.dart';
 import 'lend_borrow_screen.dart';
@@ -22,12 +23,13 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
-  bool _isLendFeatureEnabled = true;
+
+  bool get _hasExpenseTracking => SettingsService.hasExpenseTracking;
+  bool get _hasLoanTracking => SettingsService.hasLoanTracking;
 
   @override
   void initState() {
     super.initState();
-    _loadLendFeatureSetting();
     FirebaseAnalyticsService.logScreenView('home_screen');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<DataProvider>(context, listen: false).loadAllData();
@@ -35,79 +37,54 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _loadLendFeatureSetting();
-  }
-
-  Future<void> _loadLendFeatureSetting() async {
-    final prefs = await SharedPreferences.getInstance();
-    final enabled = prefs.getBool('isLendFeatureEnabled') ?? true;
-    if (mounted && enabled != _isLendFeatureEnabled) {
-      setState(() {
-        _isLendFeatureEnabled = enabled;
-        if (_selectedIndex == 2 && !enabled) {
-          _selectedIndex = 0;
-        }
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final List<Widget> screens = _isLendFeatureEnabled
-        ? [
-            const DashboardScreen(),
-            const ReportsScreen(),
-            const LendBorrowScreen(),
-            const SettingsScreen(),
-          ]
-        : [
-            const DashboardScreen(),
-            const ReportsScreen(),
-            const SettingsScreen(),
-          ];
+    final List<Widget> screens = [];
+    final List<NavigationDestination> destinations = [];
 
-    final List<NavigationDestination> destinations = _isLendFeatureEnabled
-        ? const [
-            NavigationDestination(
-              icon: Icon(Icons.dashboard_outlined),
-              selectedIcon: Icon(Icons.dashboard_rounded),
-              label: 'Home',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.pie_chart_outline_rounded),
-              selectedIcon: Icon(Icons.pie_chart_rounded),
-              label: 'Reports',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.swap_horiz_rounded),
-              selectedIcon: Icon(Icons.swap_horiz_rounded),
-              label: 'Lend',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.settings_outlined),
-              selectedIcon: Icon(Icons.settings_rounded),
-              label: 'Settings',
-            ),
-          ]
-        : const [
-            NavigationDestination(
-              icon: Icon(Icons.dashboard_outlined),
-              selectedIcon: Icon(Icons.dashboard_rounded),
-              label: 'Home',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.pie_chart_outline_rounded),
-              selectedIcon: Icon(Icons.pie_chart_rounded),
-              label: 'Reports',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.settings_outlined),
-              selectedIcon: Icon(Icons.settings_rounded),
-              label: 'Settings',
-            ),
-          ];
+    if (_hasExpenseTracking) {
+      screens.add(const DashboardScreen());
+      destinations.add(const NavigationDestination(
+        icon: Icon(Icons.dashboard_outlined),
+        selectedIcon: Icon(Icons.dashboard_rounded),
+        label: 'Home',
+      ));
+      
+      screens.add(const ReportsScreen());
+      destinations.add(const NavigationDestination(
+        icon: Icon(Icons.pie_chart_outline_rounded),
+        selectedIcon: Icon(Icons.pie_chart_rounded),
+        label: 'Reports',
+      ));
+    }
+
+    if (_hasLoanTracking) {
+      if (!_hasExpenseTracking) {
+        screens.add(const LoanOnlyDashboard());
+        destinations.add(const NavigationDestination(
+          icon: Icon(Icons.dashboard_outlined),
+          selectedIcon: Icon(Icons.dashboard_rounded),
+          label: 'Home',
+        ));
+      }
+      
+      screens.add(const LendBorrowScreen());
+      destinations.add(const NavigationDestination(
+        icon: Icon(Icons.swap_horiz_rounded),
+        selectedIcon: Icon(Icons.swap_horiz_rounded),
+        label: 'Loans',
+      ));
+    }
+
+    screens.add(const SettingsScreen());
+    destinations.add(const NavigationDestination(
+      icon: Icon(Icons.settings_outlined),
+      selectedIcon: Icon(Icons.settings_rounded),
+      label: 'Settings',
+    ));
+
+    if (_selectedIndex >= screens.length) {
+      _selectedIndex = 0;
+    }
 
     return Scaffold(
       body: AnimatedSwitcher(
@@ -128,7 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
         },
         child: screens[_selectedIndex],
       ),
-      floatingActionButton: _selectedIndex == 0
+      floatingActionButton: _selectedIndex == 0 && _hasExpenseTracking
           ? FloatingActionButton.extended(
               onPressed: () {
                 Navigator.push(
@@ -154,14 +131,269 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
+          setState(() => _selectedIndex = index);
         },
         elevation: 0,
         height: 65,
         backgroundColor: Theme.of(context).colorScheme.surface,
         destinations: destinations,
+      ),
+    );
+  }
+}
+
+class LoanOnlyDashboard extends StatefulWidget {
+  const LoanOnlyDashboard({super.key});
+
+  @override
+  State<LoanOnlyDashboard> createState() => _LoanOnlyDashboardState();
+}
+
+class _LoanOnlyDashboardState extends State<LoanOnlyDashboard> {
+  bool _isBalanceVisible = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBalanceVisibility();
+  }
+
+  Future<void> _loadBalanceVisibility() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() => _isBalanceVisible = prefs.getBool('isBalanceVisible') ?? true);
+    }
+  }
+
+  Future<void> _saveBalanceVisibility(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isBalanceVisible', value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Loan Tracker',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              'Manage your loans',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).textTheme.bodySmall?.color,
+              ),
+            ),
+          ],
+        ),
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(
+              _isBalanceVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+              color: Theme.of(context).textTheme.bodySmall?.color,
+            ),
+            onPressed: () {
+              setState(() => _isBalanceVisible = !_isBalanceVisible);
+              _saveBalanceVisibility(_isBalanceVisible);
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: Consumer<DataProvider>(
+        builder: (context, dataProvider, child) {
+          final totalLendGiven = dataProvider.getTotalLendGiven();
+          final totalLendTaken = dataProvider.getTotalLendTaken();
+          final netPosition = totalLendGiven - totalLendTaken;
+
+          return RefreshIndicator(
+            onRefresh: () => dataProvider.loadAllData(),
+            child: ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.8)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.2),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Net Position',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _isBalanceVisible
+                            ? FormatUtils.formatCurrency(netPosition.abs())
+                            : '••••••',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -1,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        netPosition >= 0 ? 'You are owed money' : 'You owe money',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildStatCard(
+                        'To Receive',
+                        totalLendGiven,
+                        Icons.arrow_downward_rounded,
+                        AppColors.success,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildStatCard(
+                        'To Pay',
+                        totalLendTaken,
+                        Icons.arrow_upward_rounded,
+                        AppColors.error,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Accounts',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? AppColors.darkTextPrimary
+                        : AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...dataProvider.accounts.map((account) {
+                  final isDark = Theme.of(context).brightness == Brightness.dark;
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.darkSurface : AppColors.surface,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      leading: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Icon(
+                          Icons.account_balance_wallet,
+                          color: AppColors.primary,
+                          size: 24,
+                        ),
+                      ),
+                      title: Text(
+                        account.name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                        ),
+                      ),
+                      trailing: Text(
+                        _isBalanceVisible
+                            ? FormatUtils.formatCurrency(account.balance)
+                            : '••••••',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildStatCard(String title, double amount, IconData icon, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 16),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: TextStyle(
+              color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _isBalanceVisible ? FormatUtils.formatCurrency(amount) : '••••••',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: color,
+              letterSpacing: -0.5,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -177,29 +409,20 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   bool _isBalanceVisible = true;
   bool _showLending = true;
-  bool _isLendFeatureEnabled = true;
+
+  bool get _hasLoanTracking => SettingsService.hasLoanTracking;
 
   @override
   void initState() {
     super.initState();
     _loadBalanceVisibility();
-    _loadLendFeatureSetting();
-    _loadDashboardLendingToggle();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _loadLendFeatureSetting();
     _loadDashboardLendingToggle();
   }
 
   Future<void> _loadBalanceVisibility() async {
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
-      setState(() {
-        _isBalanceVisible = prefs.getBool('isBalanceVisible') ?? true;
-      });
+      setState(() => _isBalanceVisible = prefs.getBool('isBalanceVisible') ?? true);
     }
   }
 
@@ -208,28 +431,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await prefs.setBool('isBalanceVisible', value);
   }
 
-  Future<void> _loadLendFeatureSetting() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (mounted) {
-      setState(() {
-        _isLendFeatureEnabled = prefs.getBool('isLendFeatureEnabled') ?? true;
-        // If lend feature is disabled globally, force _showLending to false
-        if (!_isLendFeatureEnabled) {
-          _showLending = false;
-        }
-      });
-    }
-  }
-
   Future<void> _loadDashboardLendingToggle() async {
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
-      final savedToggleState = prefs.getBool('isDashboardLendingEnabled');
       setState(() {
-        // Use saved state if available, otherwise default to true (enabled)
-        // But only if the global feature is enabled
-        if (_isLendFeatureEnabled) {
-          _showLending = savedToggleState ?? true;
+        if (_hasLoanTracking) {
+          _showLending = prefs.getBool('isDashboardLendingEnabled') ?? true;
+        } else {
+          _showLending = false;
         }
       });
     }
@@ -269,9 +478,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               color: Theme.of(context).textTheme.bodySmall?.color,
             ),
             onPressed: () {
-              setState(() {
-                _isBalanceVisible = !_isBalanceVisible;
-              });
+              setState(() => _isBalanceVisible = !_isBalanceVisible);
               _saveBalanceVisibility(_isBalanceVisible);
             },
             tooltip: _isBalanceVisible ? 'Hide Balance' : 'Show Balance',
@@ -285,7 +492,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           final startOfMonth = DateTime(now.year, now.month, 1);
           final endOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
 
-          // Calculate monthly income and expense, optionally excluding lending
           double monthlyIncome = 0;
           double monthlyExpense = 0;
           
@@ -341,61 +547,53 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           Text(
                             'Total Balance',
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha:0.7),
+                              color: Colors.white.withValues(alpha: 0.7),
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          Row(
-                            children: [
-                              if (_isLendFeatureEnabled)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha:0.1),
-                                    borderRadius: BorderRadius.circular(12),
+                          if (_hasLoanTracking)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.swap_horiz_rounded,
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                    size: 14,
                                   ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.swap_horiz_rounded,
-                                        color: Colors.white.withValues(alpha:0.7),
-                                        size: 14,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'Lending',
-                                        style: TextStyle(
-                                          color: Colors.white.withValues(alpha:0.7),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      SizedBox(
-                                        height: 20,
-                                        child: Switch(
-                                          value: _showLending,
-                                          onChanged: (value) {
-                                            setState(() {
-                                              _showLending = value;
-                                            });
-                                            _saveDashboardLendingToggle(value);
-                                          },
-                                          activeColor: AppColors.success,
-                                          inactiveThumbColor: Colors.white.withValues(alpha:0.5),
-                                          inactiveTrackColor: Colors.white.withValues(alpha:0.2),
-                                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                        ),
-                                      ),
-                                    ],
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Loans',
+                                    style: TextStyle(
+                                      color: Colors.white.withValues(alpha: 0.7),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
-                                ),
-                              if (_isLendFeatureEnabled)
-                                const SizedBox(width: 8),
-                            ],
-                          ),
+                                  const SizedBox(width: 4),
+                                  SizedBox(
+                                    height: 20,
+                                    child: Switch(
+                                      value: _showLending,
+                                      onChanged: (value) {
+                                        setState(() => _showLending = value);
+                                        _saveDashboardLendingToggle(value);
+                                      },
+                                      activeColor: AppColors.success,
+                                      inactiveThumbColor: Colors.white.withValues(alpha: 0.5),
+                                      inactiveTrackColor: Colors.white.withValues(alpha: 0.2),
+                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -410,14 +608,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           letterSpacing: -1,
                         ),
                       ),
-                      if (_showLending && (totalLendGiven > 0 || totalLendTaken > 0)) ...[
+                      if (_showLending && _hasLoanTracking && (totalLendGiven > 0 || totalLendTaken > 0)) ...[
                         const SizedBox(height: 24),
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha:0.05),
+                            color: Colors.white.withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.white.withValues(alpha:0.1)),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                           ),
                           child: Row(
                             children: [
@@ -428,7 +626,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     Text(
                                       'To Receive',
                                       style: TextStyle(
-                                        color: Colors.white.withValues(alpha:0.7),
+                                        color: Colors.white.withValues(alpha: 0.7),
                                         fontSize: 12,
                                       ),
                                     ),
@@ -449,7 +647,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               Container(
                                 width: 1,
                                 height: 30,
-                                color: Colors.white.withValues(alpha:0.1),
+                                color: Colors.white.withValues(alpha: 0.1),
                               ),
                               const SizedBox(width: 16),
                               Expanded(
@@ -459,7 +657,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     Text(
                                       'To Pay',
                                       style: TextStyle(
-                                        color: Colors.white.withValues(alpha:0.7),
+                                        color: Colors.white.withValues(alpha: 0.7),
                                         fontSize: 12,
                                       ),
                                     ),
@@ -488,155 +686,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? AppColors.darkSurface
-                              : AppColors.surface,
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? AppColors.darkBorder
-                                : AppColors.border,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.black.withValues(alpha: 0.2)
-                                  : Colors.black.withValues(alpha: 0.02),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.success.withValues(alpha:0.1),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.arrow_downward_rounded,
-                                    color: AppColors.success,
-                                    size: 16,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Income',
-                                  style: TextStyle(
-                                    color: Theme.of(context).brightness == Brightness.dark
-                                        ? AppColors.darkTextSecondary
-                                        : AppColors.textSecondary,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              _isBalanceVisible
-                                  ? FormatUtils.formatCurrency(monthlyIncome)
-                                  : '••••••',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).brightness == Brightness.dark
-                                    ? AppColors.darkTextPrimary
-                                    : AppColors.textPrimary,
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                          ],
-                        ),
+                      child: _buildStatCard(
+                        'Income',
+                        monthlyIncome,
+                        Icons.arrow_downward_rounded,
+                        AppColors.success,
                       ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? AppColors.darkSurface
-                              : AppColors.surface,
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? AppColors.darkBorder
-                                : AppColors.border,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.black.withValues(alpha: 0.2)
-                                  : Colors.black.withValues(alpha: 0.02),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.error.withValues(alpha:0.1),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.arrow_upward_rounded,
-                                    color: AppColors.error,
-                                    size: 16,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Expense',
-                                  style: TextStyle(
-                                    color: Theme.of(context).brightness == Brightness.dark
-                                        ? AppColors.darkTextSecondary
-                                        : AppColors.textSecondary,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              _isBalanceVisible
-                                  ? FormatUtils.formatCurrency(monthlyExpense)
-                                  : '••••••',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).brightness == Brightness.dark
-                                    ? AppColors.darkTextPrimary
-                                    : AppColors.textPrimary,
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                          ],
-                        ),
+                      child: _buildStatCard(
+                        'Expense',
+                        monthlyExpense,
+                        Icons.arrow_upward_rounded,
+                        AppColors.error,
                       ),
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 16),
-                ...dataProvider.spendingLimits
-                    .where((limit) => limit.isActive)
-                    .map((limit) {
+                ...dataProvider.spendingLimits.where((limit) => limit.isActive).map((limit) {
                   final spent = dataProvider.getSpendingForLimit(limit);
                   final percentage = (spent / limit.limitAmount * 100).clamp(0, 100);
                   
@@ -646,13 +715,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
                       color: percentage >= 100
-                          ? AppColors.error.withValues(alpha:0.1)
-                          : AppColors.warning.withValues(alpha:0.1),
+                          ? AppColors.error.withValues(alpha: 0.1)
+                          : AppColors.warning.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: percentage >= 100
-                            ? AppColors.error.withValues(alpha:0.3)
-                            : AppColors.warning.withValues(alpha:0.3),
+                            ? AppColors.error.withValues(alpha: 0.3)
+                            : AppColors.warning.withValues(alpha: 0.3),
                       ),
                     ),
                     child: Padding(
@@ -664,9 +733,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             children: [
                               Icon(
                                 Icons.warning_amber_rounded,
-                                color: percentage >= 100
-                                    ? AppColors.error
-                                    : AppColors.warning,
+                                color: percentage >= 100 ? AppColors.error : AppColors.warning,
                                 size: 20,
                               ),
                               const SizedBox(width: 8),
@@ -675,9 +742,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   limit.name,
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    color: percentage >= 100
-                                        ? AppColors.error
-                                        : AppColors.warning,
+                                    color: percentage >= 100 ? AppColors.error : AppColors.warning,
                                   ),
                                 ),
                               ),
@@ -685,9 +750,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 '${percentage.toStringAsFixed(0)}%',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: percentage >= 100
-                                      ? AppColors.error
-                                      : AppColors.warning,
+                                  color: percentage >= 100 ? AppColors.error : AppColors.warning,
                                 ),
                               ),
                             ],
@@ -698,10 +761,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             child: LinearProgressIndicator(
                               value: percentage / 100,
                               minHeight: 6,
-                              backgroundColor: AppColors.surface.withValues(alpha:0.5),
-                              color: percentage >= 100
-                                  ? AppColors.error
-                                  : AppColors.warning,
+                              backgroundColor: AppColors.surface.withValues(alpha: 0.5),
+                              color: percentage >= 100 ? AppColors.error : AppColors.warning,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -737,9 +798,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => const SettingsScreen(),
-                          ),
+                          MaterialPageRoute(builder: (context) => const SettingsScreen()),
                         );
                       },
                       icon: const Icon(Icons.settings, size: 18),
@@ -771,12 +830,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       leading: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: (isDark ? AppColors.primary : AppColors.primary).withValues(alpha:0.1),
+                          color: AppColors.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Icon(
                           Icons.account_balance_wallet,
-                          color: isDark ? AppColors.primary : AppColors.primary,
+                          color: AppColors.primary,
                           size: 24,
                         ),
                       ),
@@ -832,37 +891,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                ...dataProvider.transactions
-                    .where((transaction) {
-                      if (_showLending) return true;
-                      // Exclude lending transactions when toggle is off
-                      return transaction.type != 'lend_taken' &&
-                             transaction.type != 'lend_given' &&
-                             transaction.type != 'lend_returned_income' &&
-                             transaction.type != 'lend_returned_expense';
-                    })
-                    .take(10)
-                    .map((transaction) {
+                ...dataProvider.transactions.where((transaction) {
+                  if (_showLending) return true;
+                  return transaction.type != 'lend_taken' &&
+                         transaction.type != 'lend_given' &&
+                         transaction.type != 'lend_returned_income' &&
+                         transaction.type != 'lend_returned_expense';
+                }).take(10).map((transaction) {
                   final account = dataProvider.accounts.firstWhere(
                     (a) => a.id == transaction.accountId,
                     orElse: () => Account(name: 'Unknown', balance: 0, type: 'other'),
                   );
                   
-                  // Determine if transaction is income-type or expense-type
                   final isIncome = transaction.type == 'income' || 
                                    transaction.type == 'lend_taken' || 
                                    transaction.type == 'lend_returned_income';
                   
-                  // Get display name for transaction
                   String displayName;
                   if (transaction.type == 'lend_taken') {
-                    displayName = 'Lend Taken${transaction.personName != null ? " - ${transaction.personName}" : ""}';
+                    displayName = 'Loan Taken${transaction.personName != null ? " - ${transaction.personName}" : ""}';
                   } else if (transaction.type == 'lend_given') {
-                    displayName = 'Lend Given${transaction.personName != null ? " - ${transaction.personName}" : ""}';
+                    displayName = 'Loan Given${transaction.personName != null ? " - ${transaction.personName}" : ""}';
                   } else if (transaction.type == 'lend_returned_income') {
-                    displayName = 'Lend Returned${transaction.personName != null ? " - ${transaction.personName}" : ""}';
+                    displayName = 'Loan Returned${transaction.personName != null ? " - ${transaction.personName}" : ""}';
                   } else if (transaction.type == 'lend_returned_expense') {
-                    displayName = 'Lend Returned${transaction.personName != null ? " - ${transaction.personName}" : ""}';
+                    displayName = 'Loan Returned${transaction.personName != null ? " - ${transaction.personName}" : ""}';
                   } else {
                     final categories = isIncome
                         ? dataProvider.incomeCategories
@@ -894,17 +947,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: isIncome
-                              ? AppColors.income.withValues(alpha:0.1)
-                              : AppColors.expense.withValues(alpha:0.1),
+                              ? AppColors.income.withValues(alpha: 0.1)
+                              : AppColors.expense.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Icon(
-                          isIncome
-                              ? Icons.arrow_downward_rounded
-                              : Icons.arrow_upward_rounded,
-                          color: isIncome
-                              ? AppColors.income
-                              : AppColors.expense,
+                          isIncome ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                          color: isIncome ? AppColors.income : AppColors.expense,
                           size: 20,
                         ),
                       ),
@@ -937,13 +986,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: isIncome
-                              ? AppColors.income
-                              : AppColors.expense,
+                          color: isIncome ? AppColors.income : AppColors.expense,
                         ),
                       ),
                       onTap: () {
-                        _showTransactionDetails(context, transaction, account, app_models.Category(name: displayName, type: transaction.type));
+                        _showTransactionDetails(context, transaction, account);
                       },
                     ),
                   );
@@ -982,12 +1029,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  void _showTransactionDetails(
-    BuildContext context,
-    model.Transaction transaction,
-    account,
-    category,
-  ) {
+  Widget _buildStatCard(String title, double amount, IconData icon, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.2)
+                : Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 16),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _isBalanceVisible
+                ? FormatUtils.formatCurrency(amount)
+                : '••••••',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+              letterSpacing: -0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTransactionDetails(BuildContext context, model.Transaction transaction, Account account) {
     final dataProvider = Provider.of<DataProvider>(context, listen: false);
     
     showModalBottomSheet(
@@ -1004,10 +1105,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   const Text(
                     'Transaction Details',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
@@ -1025,16 +1123,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: transaction.type == 'income'
-                          ? AppColors.income
-                          : AppColors.expense,
+                      color: transaction.type == 'income' ? AppColors.income : AppColors.expense,
                     ),
                   ),
                 ],
               ),
               const Divider(height: 24),
-              _buildDetailRow('Type', transaction.type == 'income' ? 'Income' : 'Expense'),
-              _buildDetailRow('Category', category.name),
+              _buildDetailRow('Type', transaction.type),
               _buildDetailRow('Account', account.name),
               _buildDetailRow('Date', FormatUtils.formatDate(transaction.date)),
               if (transaction.remarks != null)
@@ -1050,9 +1145,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           context: context,
                           builder: (context) => AlertDialog(
                             title: const Text('Delete Transaction'),
-                            content: const Text(
-                              'Are you sure you want to delete this transaction?',
-                            ),
+                            content: const Text('Are you sure you want to delete this transaction?'),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(context),
@@ -1063,9 +1156,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   dataProvider.deleteTransaction(transaction);
                                   Navigator.pop(context);
                                 },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.error,
-                                ),
+                                style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
                                 child: const Text('Delete'),
                               ),
                             ],
@@ -1074,9 +1165,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       },
                       icon: const Icon(Icons.delete_outline),
                       label: const Text('Delete'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.error,
-                      ),
+                      style: OutlinedButton.styleFrom(foregroundColor: AppColors.error),
                     ),
                   ),
                 ],

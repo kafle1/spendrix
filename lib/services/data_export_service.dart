@@ -50,8 +50,7 @@ class DataExportService {
   /// App name for metadata
   static const String appName = 'Spendrix';
   
-  /// App version - should be updated when pubspec.yaml version changes
-  /// TODO: Consider using package_info_plus for dynamic version retrieval
+  /// App version
   static const String appVersion = '1.3.0';
   
   /// Generates a timestamped filename for exports.

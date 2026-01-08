@@ -1,18 +1,18 @@
-import 'package:flutter/material.dart'hide TextStyle, Colors, SizedBox, Padding, BorderRadius;
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/account.dart';
 import '../models/category.dart' as app_models;
 import '../models/spending_limit.dart';
+import '../models/currency.dart';
+import '../models/app_settings.dart';
 import '../providers/data_provider.dart';
 import '../utils/app_theme.dart';
 import '../utils/format_utils.dart';
 import '../services/firebase_analytics_service.dart';
 import '../services/data_export_service.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:flutter/painting.dart' show TextStyle, BorderRadius;
-import 'package:flutter/material.dart' show Colors;
-import 'package:flutter/widgets.dart' show SizedBox, Padding;
+import '../services/settings_service.dart';
+import '../services/auth_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -23,13 +23,13 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _isDarkMode = false;
-  bool _isLendFeatureEnabled = true;
+  Currency _selectedCurrency = SettingsService.currentCurrency;
+  AppMode _selectedMode = SettingsService.currentAppMode;
 
   @override
   void initState() {
     super.initState();
     _loadThemeMode();
-    _loadLendFeatureSetting();
   }
 
   Future<void> _loadThemeMode() async {
@@ -39,21 +39,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-  Future<void> _loadLendFeatureSetting() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _isLendFeatureEnabled = prefs.getBool('isLendFeatureEnabled') ?? true;
-    });
-  }
-
   Future<void> _toggleThemeMode(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isDarkMode', value);
-    setState(() {
-      _isDarkMode = value;
-    });
+    setState(() => _isDarkMode = value);
     
-    // Log analytics event
     await FirebaseAnalyticsService.logThemeChanged(value ? 'dark' : 'light');
     
     if (!mounted) return;
@@ -61,36 +51,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
     updateTheme(value ? ThemeMode.dark : ThemeMode.light);
   }
 
-  Future<void> _toggleLendFeature(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isLendFeatureEnabled', value);
-    setState(() {
-      _isLendFeatureEnabled = value;
-    });
+  Future<void> _changeCurrency(Currency currency) async {
+    await SettingsService.setCurrency(currency);
+    setState(() => _selectedCurrency = currency);
     
     if (!mounted) return;
-    
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(value 
-            ? 'Lend & Borrow feature enabled' 
-            : 'Lend & Borrow feature disabled'),
+        content: Text('Currency changed to ${currency.name}'),
         backgroundColor: AppColors.success,
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
       ),
     );
   }
 
+  Future<void> _changeAppMode(AppMode mode) async {
+    await SettingsService.setAppMode(mode);
+    setState(() => _selectedMode = mode);
+    
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('App mode changed to ${mode.displayName}'),
+        backgroundColor: AppColors.success,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    
+    // Navigate to home to refresh navigation
+    Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+  }
+
+  Future<void> _signOut() async {
+    await AuthService.signOut();
+    if (!mounted) return;
+    Navigator.pushNamedAndRemoveUntil(context, '/setup', (route) => false);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = isDarkTheme ? AppColors.darkBackground : AppColors.background;
-    final surfaceColor = isDarkTheme ? AppColors.darkSurface : AppColors.surface;
-    final borderColor = isDarkTheme ? AppColors.darkBorder : AppColors.border;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.surface;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
+    final isLoggedIn = AuthService.currentUser != null;
     
     return Scaffold(
-      backgroundColor: backgroundColor,
       appBar: AppBar(
         title: const Text('Settings'),
         elevation: 0,
@@ -98,200 +103,146 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20.0),
         children: [
-          Container(
-            decoration: BoxDecoration(
-              color: surfaceColor,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: borderColor),
+          // Appearance Section
+          _buildSectionLabel('Appearance', isDark),
+          _buildSettingTile(
+            icon: _isDarkMode ? Icons.dark_mode : Icons.light_mode,
+            title: 'Dark Mode',
+            subtitle: 'Toggle dark theme',
+            trailing: Switch(
+              value: _isDarkMode,
+              onChanged: _toggleThemeMode,
+              activeColor: AppColors.primary,
             ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              leading: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: (isDarkTheme ? Colors.white : AppColors.primary).withValues(alpha:0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  _isDarkMode ? Icons.dark_mode : Icons.light_mode,
-                  color: isDarkTheme ? Colors.white : AppColors.primary,
-                ),
-              ),
-              title: const Text(
-                'Dark Mode',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              subtitle: Text(
-                'Toggle dark theme',
-                style: TextStyle(fontSize: 12, color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.textSecondary),
-              ),
-              trailing: Switch(
-                value: _isDarkMode,
-                onChanged: _toggleThemeMode,
-                activeColor: AppColors.primary,
-                activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
-                inactiveThumbColor: isDarkTheme ? Colors.grey[400] : Colors.grey[300],
-                inactiveTrackColor: isDarkTheme ? Colors.grey[700] : Colors.grey[300],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            decoration: BoxDecoration(
-              color: surfaceColor,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: borderColor),
-            ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              leading: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: (isDarkTheme ? Colors.white : AppColors.primary).withValues(alpha:0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.payments_outlined,
-                  color: isDarkTheme ? Colors.white : AppColors.primary,
-                ),
-              ),
-              title: const Text(
-                'Lend & Borrow',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              subtitle: Text(
-                'Enable lend and borrow tracking',
-                style: TextStyle(fontSize: 12, color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.textSecondary),
-              ),
-              trailing: Switch(
-                value: _isLendFeatureEnabled,
-                onChanged: _toggleLendFeature,
-                activeColor: AppColors.primary,
-                activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
-                inactiveThumbColor: isDarkTheme ? Colors.grey[400] : Colors.grey[300],
-                inactiveTrackColor: isDarkTheme ? Colors.grey[700] : Colors.grey[300],
-              ),
-            ),
+            isDark: isDark,
+            surfaceColor: surfaceColor,
+            borderColor: borderColor,
           ),
           const SizedBox(height: 24),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-            child: Text(
-              'Manage',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkTextSecondary : AppColors.textSecondary,
-              ),
-            ),
-          ),
-          _buildSectionHeader(
-            'Accounts',
-            Icons.account_balance_wallet,
-            context,
-            () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ManageAccountsScreen(),
-                ),
-              );
-            },
+          
+          // App Settings Section
+          _buildSectionLabel('App Settings', isDark),
+          _buildSettingTile(
+            icon: Icons.monetization_on_outlined,
+            title: 'Currency',
+            subtitle: '${_selectedCurrency.symbol} - ${_selectedCurrency.name}',
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () => _showCurrencyPicker(),
+            isDark: isDark,
+            surfaceColor: surfaceColor,
+            borderColor: borderColor,
           ),
           const SizedBox(height: 12),
-          _buildSectionHeader(
-            'Categories',
-            Icons.category,
-            context,
-            () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ManageCategoriesScreen(),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          _buildSectionHeader(
-            'Spending Limits',
-            Icons.trending_up,
-            context,
-            () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ManageSpendingLimitsScreen(),
-                ),
-              );
-            },
+          _buildSettingTile(
+            icon: Icons.dashboard_customize_outlined,
+            title: 'App Mode',
+            subtitle: _selectedMode.displayName,
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () => _showModePicker(),
+            isDark: isDark,
+            surfaceColor: surfaceColor,
+            borderColor: borderColor,
           ),
           const SizedBox(height: 24),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-            child: Text(
-              'Data & Backup',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.textSecondary,
-              ),
+          
+          // Manage Section
+          _buildSectionLabel('Manage', isDark),
+          _buildSettingTile(
+            icon: Icons.account_balance_wallet,
+            title: 'Accounts',
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ManageAccountsScreen()),
             ),
+            isDark: isDark,
+            surfaceColor: surfaceColor,
+            borderColor: borderColor,
           ),
-          _buildSectionHeader(
-            'Export Data',
-            Icons.file_download_outlined,
-            context,
-            () => _exportData(context),
-          ),
-          const SizedBox(height: 28),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-            child: Text(
-              'Danger Zone',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: AppColors.error,
+          if (_selectedMode.hasExpenseTracking) ...[
+            const SizedBox(height: 12),
+            _buildSettingTile(
+              icon: Icons.category,
+              title: 'Categories',
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ManageCategoriesScreen()),
               ),
+              isDark: isDark,
+              surfaceColor: surfaceColor,
+              borderColor: borderColor,
             ),
+            const SizedBox(height: 12),
+            _buildSettingTile(
+              icon: Icons.trending_up,
+              title: 'Spending Limits',
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ManageSpendingLimitsScreen()),
+              ),
+              isDark: isDark,
+              surfaceColor: surfaceColor,
+              borderColor: borderColor,
+            ),
+          ],
+          const SizedBox(height: 24),
+          
+          // Data Section
+          _buildSectionLabel('Data & Backup', isDark),
+          _buildSettingTile(
+            icon: Icons.file_download_outlined,
+            title: 'Export Data',
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () => _exportData(context),
+            isDark: isDark,
+            surfaceColor: surfaceColor,
+            borderColor: borderColor,
           ),
+          const SizedBox(height: 24),
+          
+          // Account Section
+          if (isLoggedIn) ...[
+            _buildSectionLabel('Account', isDark),
+            _buildSettingTile(
+              icon: Icons.logout,
+              title: 'Sign Out',
+              subtitle: AuthService.currentUser?.email,
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: _signOut,
+              isDark: isDark,
+              surfaceColor: surfaceColor,
+              borderColor: borderColor,
+            ),
+            const SizedBox(height: 24),
+          ],
+          
+          // Danger Zone
+          _buildSectionLabel('Danger Zone', isDark, isError: true),
           Container(
             decoration: BoxDecoration(
               color: surfaceColor,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.error.withValues(alpha:0.2)),
+              border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
             ),
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               leading: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha:0.1),
+                  color: AppColors.error.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
-                  Icons.delete_forever,
-                  color: AppColors.error,
-                ),
+                child: const Icon(Icons.delete_forever, color: AppColors.error),
               ),
               title: const Text(
                 'Reset All Data',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.error,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.error),
               ),
               subtitle: Text(
-                'Delete all accounts, transactions, and settings',
-                style: TextStyle(fontSize: 12, color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                'Delete all data and start fresh',
+                style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
               ),
               trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.error),
               onTap: () => _showResetConfirmation(context),
@@ -302,11 +253,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title, IconData icon, BuildContext context, VoidCallback onTap) {
-    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
-    final surfaceColor = isDarkTheme ? AppColors.darkSurface : AppColors.surface;
-    final borderColor = isDarkTheme ? AppColors.darkBorder : AppColors.border;
-    
+  Widget _buildSectionLabel(String title, bool isDark, {bool isError = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: isError ? AppColors.error : (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingTile({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    required Widget trailing,
+    VoidCallback? onTap,
+    required bool isDark,
+    required Color surfaceColor,
+    required Color borderColor,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: surfaceColor,
@@ -318,21 +288,113 @@ class _SettingsScreenState extends State<SettingsScreen> {
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: (isDarkTheme ? Colors.white : AppColors.primary).withValues(alpha:0.1),
+            color: (isDark ? Colors.white : AppColors.primary).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: isDarkTheme ? Colors.white : AppColors.primary),
+          child: Icon(icon, color: isDark ? Colors.white : AppColors.primary),
         ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        trailing: Icon(Icons.arrow_forward_ios, size: 16, color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.textSecondary),
+        title: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+        subtitle: subtitle != null
+            ? Text(subtitle, style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary))
+            : null,
+        trailing: trailing,
         onTap: onTap,
       ),
+    );
+  }
+
+  void _showCurrencyPicker() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.5,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (context, scrollController) {
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Select Currency', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    controller: scrollController,
+                    itemCount: Currency.currencies.length,
+                    itemBuilder: (context, index) {
+                      final currency = Currency.currencies[index];
+                      final isSelected = currency.code == _selectedCurrency.code;
+                      return ListTile(
+                        leading: Text(currency.symbol, style: const TextStyle(fontSize: 20)),
+                        title: Text(currency.name),
+                        subtitle: Text(currency.code),
+                        trailing: isSelected ? const Icon(Icons.check_circle, color: AppColors.success) : null,
+                        onTap: () {
+                          Navigator.pop(context);
+                          _changeCurrency(currency);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showModePicker() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Select App Mode', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              ...AppMode.values.map((mode) {
+                final isSelected = mode == _selectedMode;
+                return ListTile(
+                  leading: Icon(
+                    mode == AppMode.expenseOnly ? Icons.receipt_long_outlined
+                        : mode == AppMode.loanOnly ? Icons.swap_horiz_rounded
+                        : Icons.account_balance_wallet_outlined,
+                    color: isSelected ? AppColors.primary : null,
+                  ),
+                  title: Text(mode.displayName, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                  subtitle: Text(mode.description),
+                  trailing: isSelected ? const Icon(Icons.check_circle, color: AppColors.success) : null,
+                  onTap: () {
+                    Navigator.pop(context);
+                    if (mode != _selectedMode) _changeAppMode(mode);
+                  },
+                );
+              }),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -353,43 +415,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
           '• All accounts and balances\n'
           '• All transactions\n'
           '• All categories\n'
-          '• All lend/borrow records\n'
+          '• All loan records\n'
           '• All spending limits\n\n'
           'This action CANNOT be undone!',
           style: TextStyle(fontSize: 15, height: 1.5),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
             child: const Text('Reset Everything'),
           ),
         ],
       ),
     );
 
-    if (result == true) {
-      if (!context.mounted) return;
+    if (result == true && context.mounted) {
       final dataProvider = Provider.of<DataProvider>(context, listen: false);
       await dataProvider.resetAllData();
       
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isFirstTime', true);
+      await prefs.setBool('setupCompleted', false);
       
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('All data has been reset successfully'),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-        ),
+        const SnackBar(content: Text('All data has been reset'), backgroundColor: AppColors.success, behavior: SnackBarBehavior.floating),
       );
       
       Navigator.pushNamedAndRemoveUntil(context, '/setup', (route) => false);
@@ -398,83 +449,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _exportData(BuildContext context) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
-    final dataProvider = Provider.of<DataProvider>(context, listen: false);
     
-    // Check if there's any data to export
-    if (!DataExportService.hasData(dataProvider)) {
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(
-          content: Text('No data to export. Add some transactions first!'),
-          backgroundColor: AppColors.warning,
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 3),
-        ),
-      );
-      return;
-    }
-    
-    // Show loading indicator
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
-
     try {
-      // Export and share the data
-      final result = await DataExportService.exportAndShare(dataProvider);
-      
-      // Close loading dialog
-      if (!context.mounted) return;
-      Navigator.of(context).pop();
-      
-      // Provide feedback based on share result
-      switch (result.status) {
-        case ShareResultStatus.success:
-          scaffoldMessenger.showSnackBar(
-            const SnackBar(
-              content: Text('Data exported successfully!'),
-              backgroundColor: AppColors.success,
-              behavior: SnackBarBehavior.floating,
-              duration: Duration(seconds: 2),
-            ),
-          );
-          // Log analytics event
-          await FirebaseAnalyticsService.logReportExported('json');
-          break;
-        case ShareResultStatus.dismissed:
-          scaffoldMessenger.showSnackBar(
-            const SnackBar(
-              content: Text('Export cancelled'),
-              behavior: SnackBarBehavior.floating,
-              duration: Duration(seconds: 2),
-            ),
-          );
-          break;
-        case ShareResultStatus.unavailable:
-          scaffoldMessenger.showSnackBar(
-            const SnackBar(
-              content: Text('Share functionality not available on this device'),
-              backgroundColor: AppColors.error,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-          break;
-      }
-    } catch (e) {
-      // Close loading dialog if still showing
-      if (context.mounted) {
-        Navigator.of(context).pop();
-      }
-      
       scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('Export failed: ${e.toString()}'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
+        const SnackBar(content: Text('Preparing export...'), duration: Duration(seconds: 1)),
+      );
+      
+      final dataProvider = Provider.of<DataProvider>(context, listen: false);
+      await DataExportService.exportAndShare(dataProvider);
+    } catch (e) {
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('Export failed: $e'), backgroundColor: AppColors.error),
       );
     }
   }
@@ -485,233 +470,167 @@ class ManageAccountsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Manage Accounts'),
+      appBar: AppBar(title: const Text('Manage Accounts'), elevation: 0),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAddAccountDialog(context),
+        backgroundColor: isDark ? Colors.white : AppColors.primary,
+        foregroundColor: isDark ? AppColors.darkBackground : Colors.white,
+        child: const Icon(Icons.add),
       ),
       body: Consumer<DataProvider>(
         builder: (context, dataProvider, child) {
-          final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
-          final surfaceColor = isDarkTheme ? AppColors.darkSurface : AppColors.surface;
-          final borderColor = isDarkTheme ? AppColors.darkBorder : AppColors.border;
-          
-          return ListView(
-            padding: const EdgeInsets.all(16.0),
-            children: [
-              ...dataProvider.accounts.map((account) {
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: surfaceColor,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: borderColor),
+          if (dataProvider.accounts.isEmpty) {
+            return const Center(child: Text('No accounts yet'));
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.all(20),
+            itemCount: dataProvider.accounts.length,
+            itemBuilder: (context, index) {
+              final account = dataProvider.accounts[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkSurface : AppColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.account_balance_wallet, color: AppColors.primary),
                   ),
-                  child: ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: (isDarkTheme ? Colors.white : AppColors.primary).withValues(alpha:0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(Icons.account_balance_wallet, color: isDarkTheme ? Colors.white : AppColors.primary),
-                    ),
-                    title: Text(
-                      account.name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: isDarkTheme ? AppColors.darkTextPrimary : AppColors.textPrimary,
-                      ),
-                    ),
-                    subtitle: Text(
-                      FormatUtils.formatCurrency(account.balance),
-                      style: TextStyle(
-                        color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.textSecondary,
-                      ),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit_outlined),
-                          onPressed: () => _showEditAccountDialog(context, account, dataProvider),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline, color: AppColors.error),
-                          onPressed: () => _confirmDeleteAccount(context, account, dataProvider),
-                        ),
-                      ],
-                    ),
+                  title: Text(account.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text(FormatUtils.formatCurrency(account.balance)),
+                  trailing: PopupMenuButton(
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: AppColors.error))),
+                    ],
+                    onSelected: (value) {
+                      if (value == 'edit') {
+                        _showEditAccountDialog(context, account);
+                      } else if (value == 'delete') {
+                        _confirmDeleteAccount(context, account);
+                      }
+                    },
                   ),
-                );
-              }),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () => _showAddAccountDialog(context, dataProvider),
-                icon: const Icon(Icons.add),
-                label: const Text('Add Account'),
-              ),
-            ],
+                ),
+              );
+            },
           );
         },
       ),
     );
   }
 
-  void _showAddAccountDialog(BuildContext context, DataProvider dataProvider) {
+  void _showAddAccountDialog(BuildContext context) {
     final nameController = TextEditingController();
     final balanceController = TextEditingController(text: '0');
-
+    
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Add Account'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Account Name'),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: balanceController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Initial Balance',
-                  prefixText: 'Rs ',
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final name = nameController.text.trim();
-                if (name.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please enter account name')),
-                  );
-                  return;
-                }
-                if (name.length > 50) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Account name too long (max 50 characters)')),
-                  );
-                  return;
-                }
-                
-                await dataProvider.addAccount(Account(
-                  name: name,
-                  balance: double.tryParse(balanceController.text.trim()) ?? 0,
-                  type: 'other',
-                ));
-                
-                if (!context.mounted) return;
-                Navigator.pop(context);
-              },
-              child: const Text('Add'),
+      builder: (context) => AlertDialog(
+        title: const Text('Add Account'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Account Name')),
+            const SizedBox(height: 16),
+            TextField(
+              controller: balanceController,
+              decoration: const InputDecoration(labelText: 'Initial Balance'),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
             ),
           ],
-        );
-      },
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              final name = nameController.text.trim();
+              final balance = double.tryParse(balanceController.text) ?? 0;
+              if (name.isEmpty) return;
+              
+              Provider.of<DataProvider>(context, listen: false).addAccount(
+                Account(name: name, balance: balance, type: 'other'),
+              );
+              Navigator.pop(context);
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
     );
   }
 
-  void _showEditAccountDialog(BuildContext context, Account account, DataProvider dataProvider) {
+  void _showEditAccountDialog(BuildContext context, Account account) {
     final nameController = TextEditingController(text: account.name);
     final balanceController = TextEditingController(text: account.balance.toString());
-
+    
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Edit Account'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Account Name'),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: balanceController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Balance',
-                  prefixText: 'Rs ',
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final name = nameController.text.trim();
-                if (name.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please enter account name')),
-                  );
-                  return;
-                }
-                if (name.length > 50) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Account name too long (max 50 characters)')),
-                  );
-                  return;
-                }
-                
-                await dataProvider.updateAccount(account.copyWith(
-                  name: name,
-                  balance: double.tryParse(balanceController.text.trim()) ?? account.balance,
-                ));
-                
-                if (!context.mounted) return;
-                Navigator.pop(context);
-              },
-              child: const Text('Save'),
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Account'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Account Name')),
+            const SizedBox(height: 16),
+            TextField(
+              controller: balanceController,
+              decoration: const InputDecoration(labelText: 'Balance'),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
             ),
           ],
-        );
-      },
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              final name = nameController.text.trim();
+              final balance = double.tryParse(balanceController.text) ?? account.balance;
+              if (name.isEmpty) return;
+              
+              Provider.of<DataProvider>(context, listen: false).updateAccount(
+                account.copyWith(name: name, balance: balance),
+              );
+              Navigator.pop(context);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
     );
   }
 
-  void _confirmDeleteAccount(BuildContext context, Account account, DataProvider dataProvider) {
+  void _confirmDeleteAccount(BuildContext context, Account account) {
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Delete Account'),
-          content: Text('Are you sure you want to delete ${account.name}?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                await dataProvider.deleteAccount(account.id!);
-                if (!context.mounted) return;
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-              child: const Text('Delete'),
-            ),
-          ],
-        );
-      },
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Account?'),
+        content: Text('Are you sure you want to delete "${account.name}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              if (account.id != null) {
+                Provider.of<DataProvider>(context, listen: false).deleteAccount(account.id!);
+              }
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -726,19 +645,19 @@ class ManageCategoriesScreen extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Manage Categories'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: 'Income'),
-              Tab(text: 'Expense'),
-            ],
-          ),
+          elevation: 0,
+          bottom: const TabBar(tabs: [Tab(text: 'Income'), Tab(text: 'Expense')]),
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () => _showAddCategoryDialog(context),
+          child: const Icon(Icons.add),
         ),
         body: Consumer<DataProvider>(
           builder: (context, dataProvider, child) {
             return TabBarView(
               children: [
-                _buildCategoryList(context, dataProvider, 'income'),
-                _buildCategoryList(context, dataProvider, 'expense'),
+                _buildCategoryList(context, dataProvider.incomeCategories, 'income'),
+                _buildCategoryList(context, dataProvider.expenseCategories, 'expense'),
               ],
             );
           },
@@ -747,240 +666,112 @@ class ManageCategoriesScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCategoryList(BuildContext context, DataProvider dataProvider, String type) {
-    final categories = type == 'income'
-        ? dataProvider.incomeCategories
-        : dataProvider.expenseCategories;
-
-    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
-    final surfaceColor = isDarkTheme ? AppColors.darkSurface : AppColors.surface;
-    final borderColor = isDarkTheme ? AppColors.darkBorder : AppColors.border;
-
-    return Column(
-      children: [
-        Expanded(
-          child: ReorderableListView(
-            buildDefaultDragHandles: false,
-            padding: const EdgeInsets.all(16.0),
-            onReorder: (oldIndex, newIndex) async {
-              // Adjust newIndex if moving item down the list
-              if (newIndex > oldIndex) {
-                newIndex -= 1;
-              }
-              
-              // Create new list with reordered categories
-              final items = List<app_models.Category>.from(categories);
-              final item = items.removeAt(oldIndex);
-              items.insert(newIndex, item);
-              
-              // Update the order in the database
-              await dataProvider.reorderCategories(items);
-            },
-            children: categories.map((category) {
-              return Container(
-                key: ValueKey(category.id),
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: surfaceColor,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: borderColor),
-                ),
-                child: ListTile(
-                  leading: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ReorderableDragStartListener(
-                        index: categories.indexOf(category),
-                        child: Icon(
-                          Icons.drag_indicator,
-                          color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: type == 'income'
-                              ? AppColors.income.withValues(alpha:0.1)
-                              : AppColors.expense.withValues(alpha:0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          type == 'income' ? Icons.arrow_downward : Icons.arrow_upward,
-                          color: type == 'income' ? AppColors.income : AppColors.expense,
-                        ),
-                      ),
-                    ],
-                  ),
-                  title: Text(
-                    category.name,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: isDarkTheme ? AppColors.darkTextPrimary : AppColors.textPrimary,
-                    ),
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined),
-                        onPressed: () => _showEditCategoryDialog(context, category, dataProvider, type),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline, color: AppColors.error),
-                        onPressed: () => _confirmDeleteCategory(context, category, dataProvider),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
+  Widget _buildCategoryList(BuildContext context, List<app_models.Category> categories, String type) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    if (categories.isEmpty) {
+      return Center(child: Text('No $type categories'));
+    }
+    
+    return ListView.builder(
+      padding: const EdgeInsets.all(20),
+      itemCount: categories.length,
+      itemBuilder: (context, index) {
+        final category = categories[index];
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkSurface : AppColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
           ),
-        ),
-        Padding(
-          padding: EdgeInsets.all(16.0),
-          child: SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => _showAddCategoryDialog(context, dataProvider, type),
-              icon: const Icon(Icons.add),
-              label: Text('Add ${type == 'income' ? 'Income' : 'Expense'} Category'),
+          child: ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: (type == 'income' ? AppColors.income : AppColors.expense).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                type == 'income' ? Icons.arrow_downward : Icons.arrow_upward,
+                color: type == 'income' ? AppColors.income : AppColors.expense,
+              ),
+            ),
+            title: Text(category.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+            trailing: IconButton(
+              icon: const Icon(Icons.delete_outline, color: AppColors.error),
+              onPressed: () => _confirmDeleteCategory(context, category),
             ),
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 
-  void _showAddCategoryDialog(BuildContext context, DataProvider dataProvider, String type) {
-    final nameController = TextEditingController();
-
+  void _showAddCategoryDialog(BuildContext context) {
+    final controller = TextEditingController();
+    String selectedType = 'income';
+    
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Add ${type == 'income' ? 'Income' : 'Expense'} Category'),
-          content: TextField(
-            controller: nameController,
-            decoration: const InputDecoration(labelText: 'Category Name'),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Add Category'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: controller, decoration: const InputDecoration(labelText: 'Category Name')),
+              const SizedBox(height: 16),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'income', label: Text('Income')),
+                  ButtonSegment(value: 'expense', label: Text('Expense')),
+                ],
+                selected: {selectedType},
+                onSelectionChanged: (set) => setState(() => selectedType = set.first),
+              ),
+            ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
             ElevatedButton(
-              onPressed: () async {
-                final name = nameController.text.trim();
-                if (name.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please enter category name')),
-                  );
-                  return;
-                }
-                if (name.length > 50) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Category name too long (max 50 characters)')),
-                  );
-                  return;
-                }
+              onPressed: () {
+                final name = controller.text.trim();
+                if (name.isEmpty) return;
                 
-                await dataProvider.addCategory(app_models.Category(
-                  name: name,
-                  type: type,
-                ));
-                
-                if (!context.mounted) return;
+                Provider.of<DataProvider>(context, listen: false).addCategory(
+                  app_models.Category(name: name, type: selectedType),
+                );
                 Navigator.pop(context);
               },
               child: const Text('Add'),
             ),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 
-  void _showEditCategoryDialog(BuildContext context, app_models.Category category, DataProvider dataProvider, String type) {
-    final nameController = TextEditingController(text: category.name);
-
+  void _confirmDeleteCategory(BuildContext context, app_models.Category category) {
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Edit ${type == 'income' ? 'Income' : 'Expense'} Category'),
-          content: TextField(
-            controller: nameController,
-            decoration: const InputDecoration(labelText: 'Category Name'),
-            autofocus: true,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Category?'),
+        content: Text('Are you sure you want to delete "${category.name}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              if (category.id != null) {
+                Provider.of<DataProvider>(context, listen: false).deleteCategory(category.id!);
+              }
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Delete'),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final name = nameController.text.trim();
-                if (name.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please enter category name')),
-                  );
-                  return;
-                }
-                if (name.length > 50) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Category name too long (max 50 characters)')),
-                  );
-                  return;
-                }
-                if (name == category.name) {
-                  Navigator.pop(context);
-                  return;
-                }
-                
-                await dataProvider.updateCategory(category.copyWith(
-                  name: name,
-                ));
-                
-                if (!context.mounted) return;
-                Navigator.pop(context);
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _confirmDeleteCategory(BuildContext context, app_models.Category category, DataProvider dataProvider) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Delete Category'),
-          content: Text('Are you sure you want to delete ${category.name}?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                await dataProvider.deleteCategory(category.id!);
-                if (!context.mounted) return;
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-              child: const Text('Delete'),
-            ),
-          ],
-        );
-      },
+        ],
+      ),
     );
   }
 }
@@ -990,424 +781,122 @@ class ManageSpendingLimitsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Spending Limits'),
+      appBar: AppBar(title: const Text('Spending Limits'), elevation: 0),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAddLimitDialog(context),
+        backgroundColor: isDark ? Colors.white : AppColors.primary,
+        foregroundColor: isDark ? AppColors.darkBackground : Colors.white,
+        child: const Icon(Icons.add),
       ),
       body: Consumer<DataProvider>(
         builder: (context, dataProvider, child) {
-          final limits = dataProvider.spendingLimits;
-          final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
-          final surfaceColor = isDarkTheme ? AppColors.darkSurface : AppColors.surface;
-          final borderColor = isDarkTheme ? AppColors.darkBorder : AppColors.border;
-          final backgroundColor = isDarkTheme ? AppColors.darkBackground : AppColors.background;
-          
-          return ListView(
-            padding: const EdgeInsets.all(16.0),
-            children: [
-              ...limits.map((limit) {
-                final spent = dataProvider.getSpendingForLimit(limit);
-                final percentage = (spent / limit.limitAmount * 100).clamp(0, 100);
-                
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: surfaceColor,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: borderColor),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          if (dataProvider.spendingLimits.isEmpty) {
+            return const Center(child: Text('No spending limits set'));
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.all(20),
+            itemCount: dataProvider.spendingLimits.length,
+            itemBuilder: (context, index) {
+              final limit = dataProvider.spendingLimits[index];
+              final spent = dataProvider.getSpendingForLimit(limit);
+              final percentage = (spent / limit.limitAmount * 100).clamp(0, 100);
+              
+              return Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkSurface : AppColors.surface,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              limit.name,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: isDarkTheme ? AppColors.darkTextPrimary : AppColors.textPrimary,
-                              ),
-                            ),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit_outlined),
-                                  onPressed: () => _showEditLimitDialog(context, limit, dataProvider),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline, color: AppColors.error),
-                                  onPressed: () => _confirmDeleteLimit(context, limit, dataProvider),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '${FormatUtils.formatCurrency(spent)} of ${FormatUtils.formatCurrency(limit.limitAmount)}',
-                          style: TextStyle(
-                            color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: percentage / 100,
-                            minHeight: 8,
-                            backgroundColor: backgroundColor,
-                            color: percentage > 90
-                                ? AppColors.error
-                                : percentage > 70
-                                    ? AppColors.warning
-                                    : AppColors.success,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          '${percentage.toStringAsFixed(0)}% used • ${limit.period}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDarkTheme ? AppColors.darkTextSecondary : AppColors.textSecondary,
-                          ),
+                        Expanded(child: Text(limit.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+                        Switch(
+                          value: limit.isActive,
+                          onChanged: (value) {
+                            dataProvider.updateSpendingLimit(limit.copyWith(isActive: value));
+                          },
                         ),
                       ],
                     ),
-                  ),
-                );
-              }),
-              if (limits.isEmpty)
-                Container(
-                  decoration: BoxDecoration(
-                    color: surfaceColor,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: borderColor),
-                  ),
-                  child: Padding(
-                    padding: EdgeInsets.all(32.0),
-                    child: Center(
-                      child: Text(
-                        'No spending limits set',
-                        style: TextStyle(
-                          color: isDarkTheme ? AppColors.darkTextHint : AppColors.textHint,
-                        ),
+                    const SizedBox(height: 12),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: percentage / 100,
+                        minHeight: 8,
+                        backgroundColor: isDark ? AppColors.darkBorder : AppColors.border,
+                        color: percentage >= 100 ? AppColors.error : (percentage >= 70 ? AppColors.warning : AppColors.success),
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${FormatUtils.formatCurrency(spent)} of ${FormatUtils.formatCurrency(limit.limitAmount)}',
+                      style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                    ),
+                  ],
                 ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () => _showAddLimitDialog(context, dataProvider),
-                icon: const Icon(Icons.add),
-                label: const Text('Add Spending Limit'),
-              ),
-            ],
+              );
+            },
           );
         },
       ),
     );
   }
 
-  void _showAddLimitDialog(BuildContext context, DataProvider dataProvider) {
+  void _showAddLimitDialog(BuildContext context) {
     final nameController = TextEditingController();
     final amountController = TextEditingController();
-    String selectedPeriod = 'monthly';
-    List<int> selectedAccounts = dataProvider.accounts.map((a) => a.id!).toList();
-    List<int> selectedCategories = dataProvider.expenseCategories.map((c) => c.id!).toList();
-
+    
     showDialog(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Add Spending Limit'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: nameController,
-                      decoration: const InputDecoration(labelText: 'Limit Name'),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: amountController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Limit Amount',
-                        prefixText: 'Rs ',
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: selectedPeriod,
-                      decoration: const InputDecoration(labelText: 'Period'),
-                      items: const [
-                        DropdownMenuItem(value: 'daily', child: Text('Daily')),
-                        DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
-                        DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
-                      ],
-                      onChanged: (value) {
-                        setDialogState(() {
-                          selectedPeriod = value!;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    const Text('Select Accounts:'),
-                    ...dataProvider.accounts.map((account) {
-                      return CheckboxListTile(
-                        title: Text(account.name),
-                        value: selectedAccounts.contains(account.id),
-                        onChanged: (value) {
-                          setDialogState(() {
-                            if (value!) {
-                              selectedAccounts.add(account.id!);
-                            } else {
-                              selectedAccounts.remove(account.id);
-                            }
-                          });
-                        },
-                      );
-                    }),
-                    const SizedBox(height: 16),
-                    const Text('Select Categories:'),
-                    ...dataProvider.expenseCategories.map((category) {
-                      return CheckboxListTile(
-                        title: Text(category.name),
-                        value: selectedCategories.contains(category.id),
-                        onChanged: (value) {
-                          setDialogState(() {
-                            if (value!) {
-                              selectedCategories.add(category.id!);
-                            } else {
-                              selectedCategories.remove(category.id);
-                            }
-                          });
-                        },
-                      );
-                    }),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (nameController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please enter a limit name')),
-                      );
-                      return;
-                    }
-                    
-                    final amount = double.tryParse(amountController.text.trim());
-                    if (amount == null || amount <= 0) {
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please enter a valid amount greater than 0')),
-                      );
-                      return;
-                    }
-                    
-                    if (selectedAccounts.isEmpty || selectedCategories.isEmpty) {
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please select at least one account and category')),
-                      );
-                      return;
-                    }
-                    
-                    await dataProvider.addSpendingLimit(SpendingLimit(
-                      name: nameController.text.trim(),
-                      limitAmount: amount,
-                      period: selectedPeriod,
-                      accountIds: selectedAccounts,
-                      categoryIds: selectedCategories,
-                      startDate: DateTime.now(),
-                    ));
-                    
-                    if (!context.mounted) return;
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Add'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _showEditLimitDialog(BuildContext context, SpendingLimit limit, DataProvider dataProvider) {
-    final nameController = TextEditingController(text: limit.name);
-    final amountController = TextEditingController(text: limit.limitAmount.toString());
-    String selectedPeriod = limit.period;
-    List<int> selectedAccounts = List.from(limit.accountIds);
-    List<int> selectedCategories = List.from(limit.categoryIds);
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Edit Spending Limit'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: nameController,
-                      decoration: const InputDecoration(labelText: 'Limit Name'),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: amountController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Limit Amount',
-                        prefixText: 'Rs ',
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: selectedPeriod,
-                      decoration: const InputDecoration(labelText: 'Period'),
-                      items: const [
-                        DropdownMenuItem(value: 'daily', child: Text('Daily')),
-                        DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
-                        DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
-                      ],
-                      onChanged: (value) {
-                        setDialogState(() {
-                          selectedPeriod = value!;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    const Text('Select Accounts:'),
-                    ...dataProvider.accounts.map((account) {
-                      return CheckboxListTile(
-                        title: Text(account.name),
-                        value: selectedAccounts.contains(account.id),
-                        onChanged: (value) {
-                          setDialogState(() {
-                            if (value!) {
-                              selectedAccounts.add(account.id!);
-                            } else {
-                              selectedAccounts.remove(account.id);
-                            }
-                          });
-                        },
-                      );
-                    }),
-                    const SizedBox(height: 16),
-                    const Text('Select Categories:'),
-                    ...dataProvider.expenseCategories.map((category) {
-                      return CheckboxListTile(
-                        title: Text(category.name),
-                        value: selectedCategories.contains(category.id),
-                        onChanged: (value) {
-                          setDialogState(() {
-                            if (value!) {
-                              selectedCategories.add(category.id!);
-                            } else {
-                              selectedCategories.remove(category.id);
-                            }
-                          });
-                        },
-                      );
-                    }),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (nameController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please enter a limit name')),
-                      );
-                      return;
-                    }
-                    
-                    final amount = double.tryParse(amountController.text.trim());
-                    if (amount == null || amount <= 0) {
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please enter a valid amount greater than 0')),
-                      );
-                      return;
-                    }
-                    
-                    if (selectedAccounts.isEmpty || selectedCategories.isEmpty) {
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please select at least one account and category')),
-                      );
-                      return;
-                    }
-                    
-                    await dataProvider.updateSpendingLimit(limit.copyWith(
-                      name: nameController.text.trim(),
-                      limitAmount: amount,
-                      period: selectedPeriod,
-                      accountIds: selectedAccounts,
-                      categoryIds: selectedCategories,
-                    ));
-                    
-                    if (!context.mounted) return;
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Save'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _confirmDeleteLimit(BuildContext context, SpendingLimit limit, DataProvider dataProvider) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Delete Spending Limit'),
-          content: Text('Are you sure you want to delete ${limit.name}?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                await dataProvider.deleteSpendingLimit(limit.id!);
-                if (!context.mounted) return;
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-              child: const Text('Delete'),
+      builder: (context) => AlertDialog(
+        title: const Text('Add Spending Limit'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Limit Name')),
+            const SizedBox(height: 16),
+            TextField(
+              controller: amountController,
+              decoration: const InputDecoration(labelText: 'Limit Amount'),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
             ),
           ],
-        );
-      },
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              final name = nameController.text.trim();
+              final amount = double.tryParse(amountController.text) ?? 0;
+              if (name.isEmpty || amount <= 0) return;
+              
+              Provider.of<DataProvider>(context, listen: false).addSpendingLimit(
+                SpendingLimit(
+                  name: name,
+                  limitAmount: amount,
+                  period: 'monthly',
+                  accountIds: [],
+                  categoryIds: [],
+                  startDate: DateTime.now(),
+                  isActive: true,
+                ),
+              );
+              Navigator.pop(context);
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
     );
   }
 }

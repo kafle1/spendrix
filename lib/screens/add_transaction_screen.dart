@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart' hide TextStyle, Colors, BorderRadius;
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/transaction.dart' as model;
 import '../models/account.dart';
 import '../models/category.dart' as app_models;
@@ -8,6 +7,7 @@ import '../providers/data_provider.dart';
 import '../utils/app_theme.dart';
 import '../utils/format_utils.dart';
 import '../services/firebase_analytics_service.dart';
+import '../services/settings_service.dart';
 import 'package:flutter/painting.dart' show TextStyle, BorderRadius;
 import 'package:flutter/material.dart' show Colors;
 
@@ -30,22 +30,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   app_models.Category? _selectedCategory;
   DateTime _selectedDate = DateTime.now();
   String? _selectedPerson;
-  bool _isLendFeatureEnabled = true;
 
   bool get _isLendTransaction => _selectedLendType != null;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadLendFeatureSetting();
-  }
-
-  Future<void> _loadLendFeatureSetting() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _isLendFeatureEnabled = prefs.getBool('isLendFeatureEnabled') ?? true;
-    });
-  }
+  bool get _hasLoanTracking => SettingsService.hasLoanTracking;
 
   @override
   void dispose() {
@@ -176,12 +163,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               ),
             ],
           ),
-          if (_isLendFeatureEnabled && _selectedType == 'income') ...[
+          if (_hasLoanTracking && _selectedType == 'income') ...[
             const SizedBox(height: 24),
             const Divider(),
             const SizedBox(height: 16),
             Text(
-              'Lend Options',
+              'Loan Options',
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 color: AppColors.textSecondary,
                 fontWeight: FontWeight.w600,
@@ -189,25 +176,25 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             ),
             const SizedBox(height: 12),
             _buildLendOption(
-              'Lend Taken',
+              'Loan Taken',
               'I borrowed money from someone',
               'lend_taken',
               Icons.payments_outlined,
             ),
             const SizedBox(height: 8),
             _buildLendOption(
-              'Lend Returned',
+              'Loan Returned',
               'Someone returned money to me',
               'lend_returned_income',
               Icons.check_circle_outline_rounded,
             ),
           ],
-          if (_isLendFeatureEnabled && _selectedType == 'expense') ...[
+          if (_hasLoanTracking && _selectedType == 'expense') ...[
             const SizedBox(height: 24),
             const Divider(),
             const SizedBox(height: 16),
             Text(
-              'Lend Options',
+              'Loan Options',
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 color: AppColors.textSecondary,
                 fontWeight: FontWeight.w600,
@@ -215,14 +202,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             ),
             const SizedBox(height: 12),
             _buildLendOption(
-              'Lend Given',
+              'Loan Given',
               'I lent money to someone',
               'lend_given',
               Icons.send_rounded,
             ),
             const SizedBox(height: 8),
             _buildLendOption(
-              'Lend Returned',
+              'Loan Returned',
               'I returned money to someone',
               'lend_returned_expense',
               Icons.assignment_return_outlined,

@@ -5,61 +5,37 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'package:firebase_performance/firebase_performance.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'firebase_options.dart';
 import 'gen/assets.gen.dart';
 import 'providers/data_provider.dart';
 import 'screens/setup_screen.dart';
 import 'screens/home_screen.dart';
-import 'screens/transactions_screen.dart';
+import 'screens/login_screen.dart';
 import 'utils/app_theme.dart';
 import 'services/firebase_analytics_service.dart';
-import 'services/firebase_remote_config_service.dart';
+import 'services/settings_service.dart';
 
 void main() async {
-  runZonedGuarded<Future<void>>(() async {
-    WidgetsFlutterBinding.ensureInitialized();
+  WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
     
-    try {
-      // Load environment variables
-      await dotenv.load(fileName: ".env");
-      
-      // Initialize Firebase only if not already initialized
-      if (Firebase.apps.isEmpty) {
-        await Firebase.initializeApp(
-          options: DefaultFirebaseOptions.currentPlatform,
-        );
-      }
-      
-      FirebasePerformance.instance;
-      
-      FlutterError.onError = (errorDetails) {
-        FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
-      };
-      
+    if (!kIsWeb) {
+      FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
       PlatformDispatcher.instance.onError = (error, stack) {
         FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
         return true;
       };
-      
-      await FirebaseRemoteConfigService.initialize();
-      await FirebaseAnalyticsService.logAppOpen();
-    } catch (e, stack) {
-      debugPrint('Firebase initialization error: $e');
-      debugPrint('Stack: $stack');
-      // Continue even if Firebase fails
     }
-    
-    runApp(const MyApp());
-  }, (error, stack) {
-    debugPrint('Caught error: $error');
-    try {
-      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    } catch (e) {
-      debugPrint('Failed to log to Crashlytics: $e');
-    }
-  });
+
+    await SettingsService.initialize();
+    await FirebaseAnalyticsService.logAppOpen();
+  } catch (e) {
+    debugPrint('Firebase init error: $e');
+  }
+
+  runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
@@ -81,15 +57,11 @@ class _MyAppState extends State<MyApp> {
   Future<void> _loadThemeMode() async {
     final prefs = await SharedPreferences.getInstance();
     final isDark = prefs.getBool('isDarkMode') ?? false;
-    setState(() {
-      _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
-    });
+    setState(() => _themeMode = isDark ? ThemeMode.dark : ThemeMode.light);
   }
 
   void _updateThemeMode(ThemeMode mode) {
-    setState(() {
-      _themeMode = mode;
-    });
+    setState(() => _themeMode = mode);
   }
 
   @override
@@ -105,14 +77,11 @@ class _MyAppState extends State<MyApp> {
         darkTheme: AppTheme.darkTheme,
         themeMode: _themeMode,
         debugShowCheckedModeBanner: false,
-        navigatorObservers: [
-          FirebaseAnalyticsService.observer,
-        ],
+        navigatorObservers: [FirebaseAnalyticsService.observer],
         home: const SplashScreen(),
         routes: {
           '/setup': (context) => const SetupScreen(),
           '/home': (context) => const HomeScreen(),
-          '/transactions': (context) => const TransactionsScreen(),
         },
       ),
     );
@@ -138,32 +107,43 @@ class _SplashScreenState extends State<SplashScreen> {
       final prefs = await SharedPreferences.getInstance();
       final setupCompleted = prefs.getBool('setupCompleted') ?? false;
 
-      await Future.delayed(const Duration(milliseconds: 2000));
+      await Future.delayed(const Duration(milliseconds: 1500));
 
       if (!mounted) return;
 
       if (!setupCompleted) {
-        Navigator.of(context).pushReplacementNamed('/setup');
+        _navigateToLogin();
       } else {
         final dataProvider = Provider.of<DataProvider>(context, listen: false);
         await dataProvider.loadAllData();
-        
         if (!mounted) return;
-        Navigator.of(context).pushReplacementNamed('/home');
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
       }
-    } catch (e, stack) {
-      debugPrint('Initialization error: $e');
-      debugPrint('Stack: $stack');
-      // Navigate to setup screen on error
-      if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed('/setup');
+    } catch (e) {
+      debugPrint('Splash init error: $e');
+      if (mounted) _navigateToLogin();
     }
+  }
+
+  void _navigateToLogin() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => LoginScreen(
+          onLoginSuccess: () {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const SetupScreen()),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -187,13 +167,11 @@ class _SplashScreenState extends State<SplashScreen> {
                 child: Image(
                   image: Assets.icon.icon.provider(),
                   fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(
-                      Icons.account_balance_wallet,
-                      size: 60,
-                      color: Colors.white,
-                    );
-                  },
+                  errorBuilder: (_, __, ___) => const Icon(
+                    Icons.account_balance_wallet,
+                    size: 60,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
@@ -214,7 +192,6 @@ class _SplashScreenState extends State<SplashScreen> {
                 fontSize: 16,
                 color: Theme.of(context).textTheme.bodySmall?.color,
                 fontWeight: FontWeight.w500,
-                letterSpacing: 0.5,
               ),
             ),
           ],

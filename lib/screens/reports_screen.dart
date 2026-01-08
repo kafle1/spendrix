@@ -7,6 +7,7 @@ import '../utils/app_theme.dart';
 import '../utils/format_utils.dart';
 import '../utils/theme_utils.dart';
 import '../services/firebase_analytics_service.dart';
+import '../services/settings_service.dart';
 import 'package:flutter/painting.dart' show TextStyle, BorderRadius;
 import 'package:flutter/material.dart' show Colors;
 
@@ -295,27 +296,29 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildLendCard(
-                        'To Receive',
-                        totalLendGiven,
-                        Icons.payments_outlined,
-                        AppColors.income,
+                if (SettingsService.hasLoanTracking) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildLendCard(
+                          'To Receive',
+                          totalLendGiven,
+                          Icons.payments_outlined,
+                          AppColors.income,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildLendCard(
-                        'To Pay',
-                        totalLendTaken,
-                        Icons.account_balance_wallet_outlined,
-                        AppColors.expense,
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildLendCard(
+                          'To Pay',
+                          totalLendTaken,
+                          Icons.account_balance_wallet_outlined,
+                          AppColors.expense,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 24),
                 if (dataProvider.spendingLimits.isNotEmpty) ...[
                   _buildSectionHeader('Spending Limits'),
