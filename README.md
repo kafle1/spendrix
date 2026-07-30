@@ -6,7 +6,7 @@ Spendrix is a modern, intuitive expense tracking application built with Flutter.
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.8.1+-blue.svg)](https://flutter.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.4.1+1-green.svg)](https://github.com/kafle1/spendrix/releases)
+[![Version](https://img.shields.io/badge/version-1.3.0-green.svg)](https://github.com/kafle1/spendrix/releases)
 
 ## ✨ Features
 
@@ -15,6 +15,8 @@ Spendrix is a modern, intuitive expense tracking application built with Flutter.
 - **Multiple Accounts** - Manage multiple bank accounts, wallets, and payment methods
 - **Spending Limits** - Set daily, weekly, or monthly budget limits per category
 - **Lend & Borrow** - Track money lent to or borrowed from others
+- **Google Sign-In** - Secure authentication via Firebase Auth
+- **Data Export** - Export all app data to JSON for backup and portability, or generate PDF transaction reports
 
 ### 📊 Analytics & Reports
 - **Visual Analytics** - Beautiful charts and graphs for expense breakdown
@@ -78,10 +80,14 @@ lib/
 │   └── data_provider.dart
 ├── database/                 # SQLite database
 │   └── database_helper.dart
-├── utils/                    # Utilities
-│   ├── app_theme.dart
-│   └── format_utils.dart
-└── widgets/                  # Reusable widgets
+├── services/                 # Auth, export, analytics, settings
+│   ├── auth_service.dart
+│   ├── data_export_service.dart
+│   ├── firebase_analytics_service.dart
+│   └── settings_service.dart
+└── utils/                    # Utilities
+    ├── app_theme.dart
+    └── format_utils.dart
 ```
 
 ## 🛠️ Built With
@@ -91,6 +97,8 @@ lib/
 - **[SQLite](https://pub.dev/packages/sqflite)** - Local database
 - **[FL Chart](https://pub.dev/packages/fl_chart)** - Beautiful charts
 - **[Google Fonts](https://pub.dev/packages/google_fonts)** - Typography
+- **[Firebase](https://firebase.google.com/)** - Authentication, analytics, and crash reporting
+- **[pdf / printing](https://pub.dev/packages/pdf)** - PDF transaction report generation
 
 ## 🤝 Contributing
 
@@ -109,11 +117,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📮 Contact
 
 **Niraj Kafle**
-- GitHub: [@nirajkafle](https://github.com/nirajkafle)
+- GitHub: [@kafle1](https://github.com/kafle1)
 
 ## 🗺️ Roadmap
 
-- [ ] Export data to CSV/Excel
+- [ ] CSV/Excel export (JSON export already available)
 - [ ] Cloud sync and backup
 - [ ] Receipt scanning with OCR
 - [ ] Multi-currency support
