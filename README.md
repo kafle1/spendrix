@@ -32,7 +32,7 @@ Spendrix is a modern, intuitive expense tracking application built with Flutter.
 
 ## 📱 Screenshots
 
-*Screenshots coming soon*
+![Spendrix sign-in screen](docs/screenshot.png)
 
 ## 🚀 Getting Started
 
