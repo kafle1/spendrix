@@ -1,21 +1,28 @@
-MIT License
+Copyright (c) 2025-2026 Niraj Kafle. All rights reserved.
 
-Copyright (c) 2025 Niraj Kafle
+Spendrix, including its source code, app builds, name and logo, is owned by
+Niraj Kafle. It is not open source.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+You may:
+- read the source code on GitHub
+- install the official Spendrix builds from github.com/kafle1/spendrix or
+  spendrix.web.app for your own personal use
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+You may not, without written permission from Niraj Kafle:
+- copy, modify, or reuse this code or any part of it in another project
+- publish, share, or distribute the app or the code, changed or unchanged
+- sell it, charge for it, or use it in any paid product or service
+- upload it to any app store or website under any name
+- use the Spendrix name or logo
+
+Forking this repository on GitHub is allowed only as far as the GitHub Terms
+of Service require for public repositories. A fork gives no other rights.
+
+To ask for permission, contact Niraj Kafle at github.com/kafle1.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

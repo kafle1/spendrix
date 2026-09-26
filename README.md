@@ -115,4 +115,4 @@ flutter build web --release && firebase deploy --only hosting
 
 ## License
 
-MIT
+All rights reserved. You can read the code and install the app for yourself, but you can't copy, change, share, or sell it. See [LICENSE](LICENSE).
