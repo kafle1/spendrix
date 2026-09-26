@@ -18,6 +18,7 @@ import '../store.dart';
 import '../sync.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import 'entry_form.dart';
 import 'guide.dart';
 
 Future<void> openSettings(BuildContext context) => Navigator.push(
@@ -113,6 +114,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               valueListenable: themeMode,
               builder: (context, mode, _) => SegmentedButton<ThemeMode>(
                 expandedInsets: const EdgeInsets.symmetric(horizontal: 16),
+                showSelectedIcon: false,
                 segments: const [
                   ButtonSegment(value: ThemeMode.system, label: Text('System'), icon: Icon(Icons.brightness_auto)),
                   ButtonSegment(value: ThemeMode.light, label: Text('Light'), icon: Icon(Icons.light_mode_outlined)),
@@ -399,15 +401,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
       Kind.gave || Kind.got => (Icons.person_outline, store.person(r.person)?.name ?? 'Someone'),
       _ => (iconOf(store.category(r.category)?.icon), store.category(r.category)?.name ?? 'Uncategorized'),
     };
-    final when = r.active ? 'Next ${dayLabel(r.nextAfter(dayOf(DateTime.now())))}' : 'Paused';
+    final next = r.nextAfter(dayOf(DateTime.now()));
+    final when = !r.active
+        ? 'Paused'
+        : next == null
+        ? 'Ended'
+        : 'Next ${dayLabel(next)}';
     return ListTile(
+      onTap: () => openEntry(context, repeat: r),
       leading: IconBubble(icon),
       title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Money(r.kind == Kind.transfer ? r.amount : r.amount * r.kind.sign, colored: r.kind != Kind.transfer),
-          Text('${r.every.label} · $when', maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text('${r.label} · $when', maxLines: 1, overflow: TextOverflow.ellipsis),
         ],
       ),
       isThreeLine: true,
@@ -425,26 +433,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _setActive(Store store, Recurring r, bool on) {
-    var start = r.start;
     final today = dayOf(DateTime.now());
     // resuming picks up from today instead of adding everything missed while paused
     // ponytail: a monthly repeat on the 29th to 31st can shift to an earlier day here, keep the anchor day if people notice
-    if (on && start.isBefore(today)) start = r.nextAfter(DateTime(today.year, today.month, today.day - 1));
-    return store.save(
-      Recurring(
-        id: r.id,
-        kind: r.kind,
-        amount: r.amount,
-        account: r.account,
-        start: start,
-        every: r.every,
-        category: r.category,
-        to: r.to,
-        person: r.person,
-        note: r.note,
-        active: on,
-      ),
-    );
+    final start = on && r.start.isBefore(today)
+        ? r.nextAfter(DateTime(today.year, today.month, today.day - 1)) ?? today
+        : r.start;
+    return store.save(r.copyWith(start: start, active: on));
   }
 
   Future<void> _deleteRepeat(Recurring r) async {
@@ -659,10 +654,7 @@ class _Header extends StatelessWidget {
     padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
     child: Semantics(
       header: true,
-      child: Text(
-        text,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(color: Theme.of(context).colorScheme.primary),
-      ),
+      child: Text(text, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 20)),
     ),
   );
 }
@@ -1285,6 +1277,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         if (c == null) ...[
           SegmentedButton<bool>(
             expandedInsets: EdgeInsets.zero,
+            showSelectedIcon: false,
             segments: const [
               ButtonSegment(value: false, label: Text('Money out')),
               ButtonSegment(value: true, label: Text('Money in')),

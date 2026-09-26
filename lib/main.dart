@@ -262,13 +262,18 @@ class Shell extends StatelessWidget {
                   : body,
               bottomNavigationBar: wide
                   ? null
-                  : NavigationBar(
-                      selectedIndex: tab,
-                      onDestinationSelected: (i) => currentTab.value = i,
-                      destinations: [
-                        for (final (icon, selected, label) in _tabs)
-                          NavigationDestination(icon: Icon(icon), selectedIcon: Icon(selected), label: label),
-                      ],
+                  : DecoratedBox(
+                      decoration: BoxDecoration(
+                        border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
+                      ),
+                      child: NavigationBar(
+                        selectedIndex: tab,
+                        onDestinationSelected: (i) => currentTab.value = i,
+                        destinations: [
+                          for (final (icon, selected, label) in _tabs)
+                            NavigationDestination(icon: Icon(icon), selectedIcon: Icon(selected), label: label),
+                        ],
+                      ),
                     ),
             ),
           ),

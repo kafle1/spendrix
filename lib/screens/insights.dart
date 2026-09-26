@@ -1,8 +1,11 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../format.dart';
+import '../stats.dart';
 import '../store.dart';
 import '../widgets.dart';
 import 'activity.dart';
@@ -33,7 +36,17 @@ class _InsightsScreenState extends State<InsightsScreen> {
     final atLatest = !_month.isBefore(_startOfMonth(DateTime.now()));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Insights')),
+      appBar: AppBar(
+        title: const Text('Insights'),
+        actions: [
+          if (!empty)
+            IconButton(
+              onPressed: () => _share(store, from, to),
+              icon: const Icon(Icons.share_outlined),
+              tooltip: 'Share this month',
+            ),
+        ],
+      ),
       body: Narrow(
         child: Column(
           children: [
@@ -102,6 +115,32 @@ class _InsightsScreenState extends State<InsightsScreen> {
         ),
       ),
     );
+  }
+
+  /// The month as plain text, for WhatsApp, email and the like.
+  void _share(Store store, DateTime from, DateTime to) {
+    final earned = store.earned(from, to), spent = store.spent(from, to), budget = store.settings.budget;
+    final title = 'My money in ${DateFormat('MMMM y').format(from)}';
+    final text = StringBuffer('$title\n')
+      ..writeln('Money in: ${store.fmt(earned)}')
+      ..writeln('Money out: ${store.fmt(spent)}')
+      ..writeln("What's left: ${store.fmt(earned - spent)}");
+    if (budget != null) {
+      text.writeln(
+        spent > budget ? 'Budget: ${store.fmt(spent - budget)} over' : 'Budget: ${store.fmt(budget - spent)} left',
+      );
+    }
+    final cats = store.byCategory(from, to);
+    if (cats.isNotEmpty) {
+      final rest = cats.skip(5).fold(0, (s, e) => s + e.value);
+      text.writeln('\nWhere it went:');
+      for (final e in cats.take(5)) {
+        text.writeln('${store.category(e.key)?.name ?? 'Uncategorized'}: ${store.fmt(e.value)}');
+      }
+      if (rest > 0) text.writeln('Other: ${store.fmt(rest)}');
+    }
+    SharePlus.instance.share(ShareParams(text: text.toString().trim(), subject: title));
+    track('feature_used', {'name': 'share_month'});
   }
 }
 
@@ -332,9 +371,10 @@ Widget _trend(BuildContext context, Store store, DateTime month) {
                 ),
                 barTouchData: BarTouchData(
                   touchTooltipData: BarTouchTooltipData(
+                    getTooltipColor: (_) => c.inverseSurface,
                     getTooltipItem: (group, groupIndex, rod, rodIndex) => BarTooltipItem(
                       store.fmt(rod.toY.round()),
-                      const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12),
+                      TextStyle(color: c.onInverseSurface, fontWeight: FontWeight.w600, fontSize: 12),
                     ),
                   ),
                 ),
@@ -346,7 +386,7 @@ Widget _trend(BuildContext context, Store store, DateTime month) {
                         BarChartRodData(
                           toY: s.toDouble(),
                           width: 20,
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
                           color: i == spentByMonth.length - 1 ? c.primary : c.primary.withValues(alpha: .35),
                         ),
                       ],

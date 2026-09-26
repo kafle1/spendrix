@@ -131,7 +131,12 @@ class EntryTile extends StatelessWidget {
         accountName(e.account),
       ),
     };
-    final subtitle = [if (e.note.isNotEmpty) e.note, if (showDate) dayLabel(e.date), detail].join(' · ');
+    final subtitle = [
+      ?e.paidIn(store.currency),
+      if (e.note.isNotEmpty) e.note,
+      if (showDate) dayLabel(e.date),
+      detail,
+    ].join(' · ');
     return ListTile(
       leading: IconBubble(icon),
       title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),

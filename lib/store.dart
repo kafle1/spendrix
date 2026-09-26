@@ -79,7 +79,7 @@ class Store extends ChangeNotifier {
   // ponytail: everything lives in memory and is re-indexed on each change;
   // fine to ~50k entries, move totals into incremental counters past that.
 
-  Settings settings = const Settings(currency: 'USD');
+  Settings settings = const Settings(currency: 'NPR');
   List<Account> allAccounts = [];
   List<Category> categories = [];
   List<Person> people = [];
@@ -95,6 +95,19 @@ class Store extends ChangeNotifier {
   Currency get currency => currencyOf(settings.currency);
   String fmt(int cents, {bool sign = false}) => money(cents, currency, sign: sign);
 
+  /// home cents per cent of [code], from the newest entry paid in it; null when there's nothing to go on
+  double? rate(String code) {
+    for (final e in entries) {
+      if (e.fx?.code == code) return e.amount / e.fxAmount!;
+    }
+    // the Indian rupee is pegged at 1.6 Nepali rupees
+    return switch ((settings.currency, code)) {
+      ('NPR', 'INR') => 1.6,
+      ('INR', 'NPR') => 1 / 1.6,
+      _ => null,
+    };
+  }
+
   List<Account> get accounts => [
     for (final a in allAccounts)
       if (!a.archived) a,
@@ -109,6 +122,21 @@ class Store extends ChangeNotifier {
   Person? person(String? id) => _byId[id] is Person ? _byId[id] as Person : null;
   Entry? entry(String? id) => _byId[id] is Entry ? _byId[id] as Entry : null;
   Recurring? recurringOf(String? id) => _byId[id] is Recurring ? _byId[id] as Recurring : null;
+
+  /// where new money goes when nothing says otherwise: the last account used, else the first
+  String? get defaultAccount {
+    final last = prefs.getString('lastAccount');
+    return accounts.any((a) => a.id == last) ? last : accounts.firstOrNull?.id;
+  }
+
+  /// the entry added or edited most recently; made-by-a-repeat ones carry their due date, so they don't count
+  Entry? get lastTouched {
+    Entry? best;
+    for (final e in entries) {
+      if (best == null || _items[e.id]!.updated > _items[best.id]!.updated) best = e;
+    }
+    return best;
+  }
 
   int balance(String accountId) => _balance[accountId] ?? 0;
   int get total => accounts.fold(0, (sum, a) => sum + balance(a.id));
@@ -177,7 +205,7 @@ class Store extends ChangeNotifier {
       }
       _byId[m.id] = m;
     }
-    settings = s ?? const Settings(currency: 'USD');
+    settings = s ?? const Settings(currency: 'NPR');
     int rank(Model m) => order[m.id] ?? defaults.length;
     int byRank(Model a, Model b, String an, String bn) {
       final r = rank(a).compareTo(rank(b));
@@ -342,6 +370,8 @@ class Store extends ChangeNotifier {
     await saveAll(defaults);
     await _photos.clear();
     await dropLegacy();
+    // hive only rewrites the file after ~60 deletes, so a small diary would stay readable on disk
+    await _box.compact();
   }
 
   // ---- photos (kept on this device only) ----
@@ -509,7 +539,7 @@ class Store extends ChangeNotifier {
       return RegExp(r'[",\n\r]').hasMatch(safe) ? '"${safe.replaceAll('"', '""')}"' : safe;
     }
 
-    final rows = ['Date,Type,Amount,Category,Account,To account,Person,Note'];
+    final rows = ['Date,Type,Amount,Category,Account,To account,Person,Note,Paid in'];
     for (final e in entries) {
       final amount = (e.kind == Kind.transfer ? e.amount : e.signed) / 100;
       rows.add(
@@ -522,6 +552,7 @@ class Store extends ChangeNotifier {
           cell(account(e.to)?.name ?? ''),
           cell(person(e.person)?.name ?? ''),
           cell(e.note),
+          if (e.fx case final fx?) '${fx.code} ${(e.fxAmount! / 100).toStringAsFixed(2)}' else '',
         ].join(','),
       );
     }

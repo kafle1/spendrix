@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show Platform;
+import 'dart:io' show File, Platform;
 import 'dart:math' show max;
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:flutter_gemma_litertlm/flutter_gemma_litertlm.dart';
@@ -13,17 +14,71 @@ import 'format.dart';
 import 'models.dart';
 import 'stats.dart';
 import 'store.dart';
+import 'widgets.dart' show icons;
 
 enum AiStatus { unsupported, checking, missing, downloading, installed, loading, ready, failed }
 
-/// One step of an answer. [text] is the whole answer so far, [draft] an entry to review.
+/// One step of an answer. [text] is the whole answer so far, [draft] an entry to review, [act] a change to confirm.
 class Reply {
-  const Reply(this.text, [this.draft]);
+  const Reply(this.text, {this.draft, this.act});
   final String text;
   final Entry? draft;
+  final Act? act;
 }
 
-/// On-device AI (Gemma 4 E2B). Nothing leaves the device except the one-time download.
+enum Task { repeat, remove, change, budget, create, stop }
+
+/// A change the user asked for. Nothing happens until they tap it on the card.
+class Act {
+  const Act(this.task, this.title, this.detail, {this.save = const [], this.before = const [], this.drop});
+  final Task task;
+  final String title, detail;
+
+  /// written on apply; [before] holds the copies they replace
+  final List<Model> save, before;
+  final Entry? drop;
+
+  Future<void> apply(Store store) async {
+    // save() also adds a new repeat's entries that are due
+    for (final m in save) {
+      await store.save(m);
+    }
+    if (drop != null) await store.remove([drop!.id]);
+  }
+
+  /// puts back what was there, and removes what was new along with a new repeat's entries
+  Future<void> undo(Store store) async {
+    final old = {for (final m in before) m.id};
+    await store.remove([
+      for (final m in save)
+        if (!old.contains(m.id)) ...[
+          m.id,
+          for (final e in store.entries)
+            if (e.recurring == m.id) e.id,
+        ],
+    ]);
+    await store.saveAll([...before, ?drop]);
+  }
+
+  /// the same change, ready to apply again after an undo. A new repeat's dates stay deleted
+  /// under its old id, so it needs a new one or they never come back.
+  Act again() {
+    final old = {for (final m in before) m.id};
+    return Act(
+      task,
+      title,
+      detail,
+      save: [for (final m in save) m is Recurring && !old.contains(m.id) ? m.copyWith(id: newId()) : m],
+      before: before,
+      drop: drop,
+    );
+  }
+}
+
+typedef _Model = ({String repo, String rev, String file, int size});
+
+/// On-device AI: Gemma 4 E2B, or E4B where there's memory to spare.
+/// Nothing leaves the device except the one-time download.
 /// Cheap to construct: the first read of [status] runs a quick "is it installed" check,
 /// and the model itself loads on the first question.
 class Assistant extends ChangeNotifier {
@@ -31,15 +86,31 @@ class Assistant extends ChangeNotifier {
 
   final Store store;
 
-  static const _file = kIsWeb ? 'gemma-4-E2B-it-web.litertlm' : 'gemma-4-E2B-it.litertlm';
-  static const _url = 'https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/$_file';
+  // browsers only get text, where the small one is plenty
+  static const _e2b = (
+    repo: 'gemma-4-E2B-it-litert-lm',
+    rev: 'b3ca0d2f076785a8f4b2219ddbd2bdb99954eae1',
+    file: kIsWeb ? 'gemma-4-E2B-it-web.litertlm' : 'gemma-4-E2B-it.litertlm',
+    size: kIsWeb ? 2008432640 : 2588147712,
+  );
+  // reads Nepali and messy receipts better, at about twice the memory
+  static const _e4b = (
+    repo: 'gemma-4-E4B-it-litert-lm',
+    rev: '2eee7ac325f20eb8c9ac1d0e972f7c84663062da',
+    file: 'gemma-4-E4B-it.litertlm',
+    size: 3659530240,
+  );
   static const _pending = 'ai.downloading';
   static const _startError = kIsWeb
       ? "The AI couldn't start in this browser. It needs a recent Chrome or Edge."
       : "The AI couldn't start. Close other apps to free memory, then try again.";
 
+  _Model _m = _e2b;
+  // a fixed commit, so nobody can swap the model; the saved file keeps the same name
+  String get _url => 'https://huggingface.co/litert-community/${_m.repo}/resolve/${_m.rev}/${_m.file}';
+
   /// download size, told to the user before they start
-  static const sizeBytes = kIsWeb ? 2008432640 : 2588147712;
+  int get sizeBytes => _m.size;
 
   // the engine only ships for these; Intel Macs, Windows on ARM and 32-bit Android can't run it
   static final bool supported =
@@ -94,9 +165,16 @@ class Assistant extends ChangeNotifier {
   }();
 
   Future<void> _check() async {
+    _m = await _pick();
     try {
       await _init();
-      _installed = await FlutterGemma.isModelInstalled(_file);
+      // keep whichever one is already here, so an app update never downloads it again
+      final have = [
+        for (final m in [_e4b, _e2b])
+          if (await FlutterGemma.isModelInstalled(m.file)) m,
+      ];
+      _installed = have.isNotEmpty;
+      if (_installed) _m = have.first;
     } catch (_) {
       _set(AiStatus.failed, _startError);
       return;
@@ -110,6 +188,29 @@ class Assistant extends ChangeNotifier {
       _set(AiStatus.missing);
     }
   }
+
+  /// The model this device can run without slowing everything else down.
+  static Future<_Model> _pick() async {
+    if (kIsWeb) return _e2b;
+    try {
+      final info = DeviceInfoPlugin();
+      // megabytes of memory, and what E4B needs: it takes about 3 GB on phones and Macs, 7 to 9 GB on a PC
+      final (mb, need) = Platform.isAndroid
+          ? ((await info.androidInfo).physicalRamSize, 10000)
+          : Platform.isIOS
+          ? ((await info.iosInfo).physicalRamSize, 10000)
+          : Platform.isMacOS
+          ? ((await info.macOsInfo).memorySize >> 20, 14000)
+          : Platform.isWindows
+          ? ((await info.windowsInfo).systemMemoryInMegabytes, 20000)
+          : (_kb(await File('/proc/meminfo').readAsString()) >> 10, 20000);
+      return mb >= need ? _e4b : _e2b;
+    } catch (_) {
+      return _e2b;
+    }
+  }
+
+  static int _kb(String meminfo) => int.parse(RegExp(r'MemTotal:\s+(\d+)').firstMatch(meminfo)!.group(1)!);
 
   /// Downloads the model, about [sizeBytes]. Safe to call again after a failure.
   Future<void> download() async {
@@ -177,9 +278,10 @@ class Assistant extends ChangeNotifier {
     try {
       await _init();
       await FlutterGemma.clearActiveInferenceIdentity();
-      if (await FlutterGemma.isModelInstalled(_file)) await FlutterGemma.uninstallModel(_file);
+      if (await FlutterGemma.isModelInstalled(_m.file)) await FlutterGemma.uninstallModel(_m.file);
       await prefs.remove(_pending);
       _installed = false;
+      _m = await _pick();
       _set(AiStatus.missing);
     } catch (_) {
       _set(AiStatus.failed, "Couldn't remove the AI. Try again.");
@@ -237,7 +339,7 @@ class Assistant extends ChangeNotifier {
     notifyListeners();
   }
 
-  // the loaded model holds about 2 GB of memory, so give it back once the chat goes quiet
+  // the loaded model holds 2 to 4 GB of memory, so give it back once the chat goes quiet
   void _rest() {
     _idle?.cancel();
     _idle = Timer(const Duration(minutes: 3), () {
@@ -272,18 +374,20 @@ class Assistant extends ChangeNotifier {
   }
 
   /// Answers from the user's own numbers, streaming the text as it grows.
-  /// "Spent 250 on lunch" comes back as a draft entry instead. Nothing is saved.
+  /// "Spent 250 on lunch" comes back as a draft entry, "delete the last one" as an [Act]. Nothing is saved.
   /// [earlier] is the last few chat messages, oldest first.
   Stream<Reply> ask(String question, {List<String> earlier = const []}) async* {
     // a Nepali transcript can carry Devanagari digits; normalise first so the digit guard and parsing see them
     question = _digits(question);
-    // no digit means any amount would be made up, and the small model grabs the entry route for questions too
-    final entry = RegExp(r'\d').hasMatch(question);
+    // the small model reaches for an action even on questions, so a question only ever gets an answer
+    final acts = !_asks(question);
+    // no digit means any amount would be made up
+    final digits = RegExp(r'\d').hasMatch(question);
     _claim();
     try {
       final model = await _load();
       final session = _session = await model.createSession(
-        systemInstruction: _prompt(earlier, entry: entry),
+        systemInstruction: _prompt(earlier, acts: acts),
         maxOutputTokens: 300,
       );
       // stop can be tapped while the model is still loading
@@ -298,13 +402,10 @@ class Assistant extends ChangeNotifier {
       }
       final j = _json(text);
       if (j != null) {
-        final draft = entry ? _draft(j) : null;
-        yield draft == null
-            ? const Reply("I couldn't make an entry from that. Include the amount, like \"spent 250 on lunch\".")
-            : Reply("Here's a draft. Check it and save.", draft);
+        yield acts ? _act(j, digits ? _cents(j['amount']) : null) : const Reply(_noAnswer);
       } else if (!_stopped) {
         final t = text.replaceAll('**', '').trim();
-        yield Reply(t.isEmpty || t.contains('{') ? "Sorry, I don't have an answer for that." : t);
+        yield Reply(t.isEmpty || t.contains('{') ? _noAnswer : t);
       }
     } on AiError {
       rethrow;
@@ -333,8 +434,10 @@ class Assistant extends ChangeNotifier {
         Message.withImage(
           text:
               'Read this receipt or bill. Reply with only this JSON and nothing else: '
-              '{"amount": 0, "merchant": "", "date": "YYYY-MM-DD", "category": ""}. '
-              'amount is the final total paid, as a plain number. merchant is the shop name. '
+              '{"amount": 0, "currency": "", "merchant": "", "date": "YYYY-MM-DD", "category": ""}. '
+              'amount is the final total paid, as a plain number. '
+              'currency is its 3-letter code only if it is not ${store.settings.currency}, else "". '
+              'merchant is the shop name. '
               'category is one of ${jsonEncode(names)}, or "" if none fit. '
               'Use "" for anything you can\'t read.',
           imageBytes: small,
@@ -344,14 +447,17 @@ class Assistant extends ChangeNotifier {
       final j = _json(await session.getResponse());
       final amount = _cents(j?['amount']);
       if (j == null || amount == null) return null;
-      return Entry(
-        id: newId(),
-        kind: Kind.expense,
-        amount: amount,
-        date: _date(j['date']),
-        account: '',
-        category: _category(Kind.expense, j['category'])?.id,
-        note: _clip(_text(j['merchant'])),
+      return _paidIn(
+        Entry(
+          id: newId(),
+          kind: Kind.expense,
+          amount: amount,
+          date: _date(j['date']),
+          account: '',
+          category: _category(Kind.expense, j['category'])?.id,
+          note: _clip(_text(j['merchant'])),
+        ),
+        j['currency'],
       );
     } on AiError {
       rethrow;
@@ -395,38 +501,279 @@ class Assistant extends ChangeNotifier {
     }
   }
 
-  Entry? _draft(Map<String, dynamic> j) {
-    final amount = _cents(j['amount']);
+  /// The model's JSON as a draft or a change to confirm. [amount] is null when the message had no digit.
+  Reply _act(Map<String, dynamic> j, int? amount) {
+    String m(int cents) => store.fmt(cents);
+    var find = _text(j['find']);
+    // "the last one" is the default, not a search, but "last uber ride" still searches for "uber ride"
+    find = find.replaceFirst(
+      RegExp(r'^(the\s+)?((last|latest|recent|previous|that|this|it)\b\s*)?', caseSensitive: false),
+      '',
+    );
+    if (RegExp(r'^(one|entry|expense|transaction)?$', caseSensitive: false).hasMatch(find)) find = '';
+    final missing = find.isEmpty ? 'There are no entries yet.' : "I couldn't find an entry matching \"$find\".";
+
+    switch (_text(j['do']).toLowerCase()) {
+      case 'move':
+        final from = _named(store.accounts, (a) => a.name, j['from']);
+        final to = _named(store.accounts, (a) => a.name, j['to']);
+        if (amount == null) return const Reply('Say how much to move, like "move 5000 from Cash to Bank".');
+        if (from == null || to == null || from.id == to.id) {
+          return Reply("I couldn't tell which accounts. You have ${store.accounts.map((a) => a.name).join(', ')}.");
+        }
+        return Reply(
+          "Here's the transfer. Check it and save.",
+          draft: Entry(
+            id: newId(),
+            kind: Kind.transfer,
+            amount: amount,
+            date: _date(j['date']),
+            account: from.id,
+            to: to.id,
+            note: _clip(_text(j['note'])),
+          ),
+        );
+
+      case 'delete':
+        final e = _find(find);
+        if (e == null) return Reply(missing);
+        return Reply(
+          'Delete this entry?',
+          act: Act(Task.remove, _name(e), '${m(e.amount)} · ${dayLabel(e.date)}', drop: e),
+        );
+
+      case 'change':
+        final e = _find(find);
+        if (e == null) return Reply(missing);
+        final hasCategory = e.kind == Kind.expense || e.kind == Kind.income;
+        final category = hasCategory ? _named(store.categoriesFor(e.kind), (c) => c.name, j['category']) : null;
+        final note = _clip(_text(j['note']));
+        final after = e.copyWith(amount: amount, category: category?.id, note: note.isEmpty ? null : note);
+        final changes = [
+          if (after.amount != e.amount) '${m(e.amount)} → ${m(after.amount)}',
+          if (after.category != e.category)
+            '${store.category(e.category)?.name ?? 'Uncategorized'} → ${category!.name}',
+          if (after.note != e.note) 'Note: ${after.note}',
+        ];
+        if (changes.isEmpty) return const Reply('Tell me what to change, like "make the last entry 300".');
+        return Reply(
+          'Change this entry?',
+          act: Act(Task.change, _name(e), changes.join(' · '), save: [after], before: [e]),
+        );
+
+      case 'settle':
+        final p = _named(store.people, (p) => p.name, j['person']);
+        if (p == null) {
+          return Reply("I couldn't find ${_text(j['person']).isEmpty ? 'that person' : j['person']} in People.");
+        }
+        final owed = store.owed(p.id);
+        if (owed == 0) return Reply('You and ${p.name} are even.');
+        final paid = amount ?? owed.abs();
+        return Reply(
+          owed > 0
+              ? '${p.name} pays you ${m(paid)}. Check it and save.'
+              : 'You pay ${p.name} ${m(paid)}. Check it and save.',
+          draft: Entry(
+            id: newId(),
+            kind: owed > 0 ? Kind.got : Kind.gave,
+            amount: paid,
+            date: DateTime.now(),
+            account: '',
+            person: p.id,
+          ),
+        );
+
+      case 'budget':
+        if (amount == null && _cents(j['amount']) != null) {
+          return const Reply('Say the amount, like "food budget 5000".');
+        }
+        final said = _text(j['category']);
+        final String what;
+        final int? now;
+        final Model before, after;
+        if (said.isEmpty) {
+          final s = store.settings;
+          (what, now, before, after) = ('Monthly budget', s.budget, s, Settings(currency: s.currency, budget: amount));
+        } else {
+          final c = _named(store.categoriesFor(Kind.expense), (c) => c.name, said);
+          if (c == null) return Reply("I couldn't find a money out category called \"$said\".");
+          (what, now, before, after) = (
+            '${c.name} budget',
+            c.budget,
+            c,
+            Category(id: c.id, name: c.name, icon: c.icon, income: c.income, budget: amount),
+          );
+        }
+        if (amount == null && now == null) return const Reply('There is no budget set there to remove.');
+        return Reply(
+          amount == null ? 'Remove this budget?' : 'Set this budget?',
+          act: Act(
+            Task.budget,
+            amount == null ? 'Remove the $what' : '$what: ${m(amount)} a month',
+            now == null ? 'None set now' : 'Now ${m(now)}',
+            save: [after],
+            before: [before],
+          ),
+        );
+
+      case 'new':
+        final income = _text(j['kind']).toLowerCase() == 'income';
+        bool taken(Iterable<String> names, String name) => names.any((n) => n.toLowerCase() == name.toLowerCase());
+        final (person, account, category) = (
+          _clip(_text(j['person']), 60),
+          _clip(_text(j['account']), 60),
+          _clip(_text(j['category']), 60),
+        );
+        final (String name, String kind, Model model, bool exists) = person.isNotEmpty
+            ? (person, 'person', Person(id: newId(), name: person), taken(store.people.map((p) => p.name), person))
+            : account.isNotEmpty
+            ? (
+                account,
+                'account',
+                Account(id: newId(), name: account, icon: _icon(account, 'wallet')),
+                taken(store.allAccounts.map((a) => a.name), account),
+              )
+            : (
+                category,
+                income ? 'money in category' : 'money out category',
+                Category(id: newId(), name: category, icon: _icon(category, 'other'), income: income),
+                taken(store.categoriesFor(income ? Kind.income : Kind.expense).map((c) => c.name), category),
+              );
+        if (name.isEmpty) return const Reply('Tell me the name, like "add Hari to people".');
+        if (exists) return Reply('You already have a $kind called $name.');
+        return Reply('Add this?', act: Act(Task.create, name, 'New $kind', save: [model]));
+
+      case 'stop':
+        final s = find.toLowerCase();
+        final live = [
+          for (final r in store.recurring)
+            if (r.active && _repeatName(r).toLowerCase().contains(s)) r,
+        ];
+        if (live.isEmpty) {
+          return Reply(s.isEmpty ? 'Nothing is repeating right now.' : "I couldn't find a repeat matching \"$find\".");
+        }
+        if (s.isEmpty && live.length > 1) return Reply('Which one? ${live.map(_repeatName).join(', ')}.');
+        final r = live.first;
+        return Reply(
+          'Stop this repeat?',
+          act: Act(
+            Task.stop,
+            _repeatName(r),
+            '${m(r.amount)} · ${r.label}',
+            save: [r.copyWith(active: false)],
+            before: [r],
+          ),
+        );
+    }
+
+    final e = _draft(j, amount);
+    if (e == null) {
+      return const Reply("I couldn't make an entry from that. Include the amount, like \"spent 250 on lunch\".");
+    }
+    final every = Every.values.asNameMap()[_text(j['every']).toLowerCase()];
+    if (every == null) return Reply("Here's a draft. Check it and save.", draft: e);
+    // a repeat is fixed up front: home currency only, and a person that's already saved
+    if (e.fx != null) {
+      return Reply("Repeats only work in ${store.settings.currency}, so here's a one-time draft.", draft: e);
+    }
+    final account = store.defaultAccount;
+    if ((e.kind == Kind.gave || e.kind == Kind.got) && e.person == null || account == null) {
+      return Reply("Here's the first one. Set it to repeat in Edit.", draft: e);
+    }
+    // a repeat may start later, like rent from next month; one-time entries can't be in the future
+    final later = DateTime.tryParse(_text(j['date']));
+    final start = later != null && later.isAfter(e.date) && later.year <= e.date.year + 1
+        ? dayOf(later)
+        : dayOf(e.date);
+    final until = switch (DateTime.tryParse(_text(j['until']))) {
+      final d? when !d.isBefore(start) => dayOf(d),
+      _ => null,
+    };
+    final r = Recurring(
+      id: newId(),
+      kind: e.kind,
+      amount: e.amount,
+      account: account,
+      start: start,
+      every: every,
+      n: j['n'] is num ? (j['n'] as num).toInt().clamp(1, 99) : 1,
+      end: until,
+      category: e.category,
+      person: e.person,
+      note: e.note,
+    );
+    return Reply(
+      "Here's the repeat. Check it and save.",
+      act: Act(
+        Task.repeat,
+        _repeatName(r),
+        [
+          '${m(r.amount)} · ${r.label}',
+          'Starts ${dayLabel(start)}',
+          if (until != null) 'Ends ${dayLabel(until)}',
+        ].join(' · '),
+        save: [r],
+      ),
+    );
+  }
+
+  /// the entry the user means: the last one they added or edited, or the newest that matches [find]
+  Entry? _find(String find) {
+    if (find.isEmpty) return store.lastTouched;
+    final s = find.toLowerCase();
+    final cents = parseCents(s);
+    return store.entries.where((e) => _name(e).toLowerCase().contains(s) || e.amount == cents).firstOrNull;
+  }
+
+  /// "Food · lunch", "Ram", "Transfer"
+  String _name(Entry e) => [
+    store.person(e.person)?.name ?? store.category(e.category)?.name ?? e.kind.label,
+    if (e.note.isNotEmpty) e.note,
+  ].join(' · ');
+
+  String _repeatName(Recurring r) => [
+    store.person(r.person)?.name ?? store.category(r.category)?.name ?? r.kind.label,
+    if (r.note.isNotEmpty) r.note,
+  ].join(' · ');
+
+  Entry? _draft(Map<String, dynamic> j, int? amount) {
     if (amount == null) return null;
     final kind =
         const {'income': Kind.income, 'gave': Kind.gave, 'got': Kind.got}[_text(j['kind']).toLowerCase()] ??
         Kind.expense;
     final withPerson = kind == Kind.gave || kind == Kind.got;
     final who = withPerson ? _text(j['person']) : '';
-    final person = who.isEmpty
-        ? null
-        : store.people.where((p) => p.name.toLowerCase() == who.toLowerCase()).firstOrNull;
+    final person = _named(store.people, (p) => p.name, who);
     // keep a name we don't know in the note so the user can pick or add the person
     final note = [if (who.isNotEmpty && person == null) who, _text(j['note'])].where((s) => s.isNotEmpty).join(' · ');
-    return Entry(
-      id: newId(),
-      kind: kind,
-      amount: amount,
-      date: _date(j['date']),
-      account: '',
-      category: withPerson ? null : _category(kind, j['category'])?.id,
-      person: person?.id,
-      note: _clip(note),
+    return _paidIn(
+      Entry(
+        id: newId(),
+        kind: kind,
+        amount: amount,
+        date: _date(j['date']),
+        account: '',
+        category: withPerson ? null : _category(kind, j['category'])?.id,
+        person: person?.id,
+        note: _clip(note),
+      ),
+      j['currency'],
     );
   }
 
-  Category? _category(Kind kind, Object? name) {
-    final n = _text(name).toLowerCase();
-    return n.isEmpty ? null : store.categoriesFor(kind).where((c) => c.name.toLowerCase() == n).firstOrNull;
+  /// A draft said in another currency: converted at the last rate used, or 0 so the form asks.
+  Entry _paidIn(Entry e, Object? code) {
+    final c = currencies.where((c) => c.code == _text(code).toUpperCase()).firstOrNull;
+    if (c == null || c.code == store.settings.currency) return e;
+    final rate = store.rate(c.code);
+    final home = rate == null ? 0 : (e.amount * rate).round();
+    return e.copyWith(amount: home, fxCur: c.code, fxAmount: e.amount, fxHome: home);
   }
 
+  Category? _category(Kind kind, Object? name) => _named(store.categoriesFor(kind), (c) => c.name, name);
+
   /// Facts worked out in code, so the model repeats numbers instead of inventing them.
-  String _prompt(List<String> earlier, {required bool entry}) {
+  String _prompt(List<String> earlier, {required bool acts}) {
     final now = DateTime.now();
     final today = dayOf(now), tomorrow = DateTime(now.year, now.month, now.day + 1);
     final month = DateTime(now.year, now.month), next = DateTime(now.year, now.month + 1);
@@ -446,22 +793,37 @@ class Assistant extends ChangeNotifier {
         "Never guess or make up a number. If the facts don't cover it, say you don't know.",
       )
       ..writeln('Reply in the language the user wrote in, Nepali in Devanagari script or English.');
-    if (entry) {
+    if (acts) {
       b
         ..writeln(
-          'If the user tells you about money they spent, received, gave to someone or got from someone, '
-          'and is not asking a question, reply with only this JSON in English and nothing else:',
+          'If the user wants the app to do something, reply with only one of these JSON objects, in English, '
+          'and nothing else. Never say you did it: the app shows it to them to confirm.',
         )
         ..writeln(
-          '{"kind":"expense","amount":250,"category":"Food","person":"","note":"lunch",'
-          '"date":"${DateFormat('yyyy-MM-dd').format(now)}"}',
+          'Money spent, received, given to or got from someone: {"do":"add","kind":"expense","amount":250,'
+          '"currency":"","category":"Food","person":"","note":"lunch","date":"${DateFormat('yyyy-MM-dd').format(now)}"}',
         )
         ..writeln(
           'kind is expense, income, gave or got. amount is a plain number from their message. '
+          'currency is a 3-letter code only when they name another currency, like 20 dollars (USD), else "". '
           'category is one of the category names below, matching Nepali words by meaning (khana is Food), or "". '
-          'person is only for gave and got. '
-          'date is today unless they say another day.',
-        );
+          'person is only for gave and got. date is today unless they say another day. '
+          'If it repeats, like rent every month, add "every":"month" (day, week, month or year), '
+          '"n":2 for every 2 months, and "until":"YYYY-MM-DD" only if they say when it ends.',
+        )
+        ..writeln('Move money between accounts: {"do":"move","amount":5000,"from":"Cash","to":"Bank"}')
+        ..writeln(
+          'Delete an entry: {"do":"delete","find":""}. Change one: {"do":"change","find":"","amount":0,'
+          '"category":"","note":""}, filling only what they want changed. find is a word from its note, '
+          'category or person, or "" for the one they just added.',
+        )
+        ..writeln('Settle up with someone: {"do":"settle","person":"Ram"}')
+        ..writeln('Monthly budget: {"do":"budget","amount":20000,"category":""}. Amount 0 removes it.')
+        ..writeln(
+          'Add a person, account or category: {"do":"new","person":"Hari"}, {"do":"new","account":"eSewa"}, '
+          '{"do":"new","category":"Rent","kind":"expense"}',
+        )
+        ..writeln('Stop something that repeats: {"do":"stop","find":"Netflix"}');
     }
     b
       ..writeln()
@@ -538,7 +900,54 @@ class Assistant extends ChangeNotifier {
   }
 }
 
+const _noAnswer = "Sorry, I don't have an answer for that.";
+
 String _text(Object? v) => v is String ? v.trim() : '';
+
+// "can you delete it?" is a request, "how much did I spend?" a question
+bool _asks(String q) {
+  // "can you add rent?" is a request, but "could you tell me how much..." is still a question
+  final polite = RegExp(r'^((please|pls|can you|could you|would you)\b\s*)+');
+  final said = q.trim().toLowerCase(), s = said.replaceFirst(polite, '');
+  return (s == said && s.endsWith('?')) ||
+      RegExp(
+        r'^(how|what|when|where|which|who|whose|why|is|are|am|was|were|do|does|did|have|has|show|tell|list|compare)\b',
+      ).hasMatch(s) ||
+      RegExp('(कति|कुन|कहाँ|कसले|कसलाई|किन|कहिले)').hasMatch(s);
+}
+
+/// the one named [said]: an exact match, or else the only one that contains it
+T? _named<T>(Iterable<T> all, String Function(T) name, Object? said) {
+  final s = _text(said).toLowerCase();
+  if (s.isEmpty) return null;
+  final near = all.where((x) => name(x).toLowerCase().contains(s)).toList();
+  return near.where((x) => name(x).toLowerCase() == s).firstOrNull ?? (near.length == 1 ? near.first : null);
+}
+
+// a first guess from the name; the user can change it
+String _icon(String name, String fallback) {
+  const words = {
+    'esewa': 'wallet',
+    'khalti': 'wallet',
+    'saving': 'savings',
+    'credit': 'card',
+    'rent': 'home',
+    'petrol': 'fuel',
+    'wifi': 'internet',
+    'movie': 'fun',
+    'doctor': 'health',
+    'medicine': 'health',
+    'school': 'education',
+    'college': 'education',
+    'gym': 'sports',
+    'netflix': 'subscriptions',
+  };
+  final s = name.toLowerCase();
+  for (final k in [...words.keys, ...icons.keys]) {
+    if (RegExp('\\b$k').hasMatch(s)) return words[k] ?? k;
+  }
+  return fallback;
+}
 
 // Devanagari ०-९ to plain 0-9
 String _digits(String s) =>

@@ -25,10 +25,10 @@ Future<void> checkForUpdate() async {
     if (!_newer(latest, info.version)) return;
     final name = _file(info.packageName);
     final asset = (release['assets'] as List).cast<Map<String, dynamic>>().where((a) => a['name'] == name);
-    update.value = (
-      version: latest,
-      url: (asset.isEmpty ? release['html_url'] : asset.first['browser_download_url']) as String,
-    );
+    final url = (asset.isEmpty ? release['html_url'] : asset.first['browser_download_url']) as String;
+    // never send anyone to a download that isn't ours
+    if (!url.startsWith('https://github.com/kafle1/spendrix/')) return;
+    update.value = (version: latest, url: url);
   } catch (e) {
     debugPrint('update check failed: $e');
   }
@@ -45,23 +45,14 @@ bool _newer(String a, String b) {
   return false;
 }
 
-/// The release file that installs over this copy. On Android that means the same app id and chip.
+/// The release file that installs over this copy. On Android that means the same app id.
 String? _file(String id) {
-  // Platform.version ends like: on "android_arm64"
-  final chip = RegExp(r'_(\w+)"$').firstMatch(Platform.version)?.group(1);
-  if (Platform.isAndroid) {
-    final abi = switch (chip) {
-      'arm64' => '',
-      'arm' => '-32bit',
-      'x64' => '-x86_64',
-      _ => null,
-    };
-    // 1.2 and older installed as com.example.expenses_tracker, 1.3 to 2.0.1 as com.spendrix
-    return abi == null ? null : 'Spendrix-android$abi${id == 'com.spendrix' ? '-for-1.3-and-2.0' : ''}.apk';
-  }
+  // 1.2 and older installed as com.example.expenses_tracker, 1.3 to 2.0.1 as com.spendrix
+  if (Platform.isAndroid) return id == 'com.spendrix' ? 'Spendrix-android-for-1.3-and-2.0.apk' : 'Spendrix-android.apk';
   if (Platform.isMacOS) return 'Spendrix-macos.dmg';
   if (Platform.isWindows) return 'Spendrix-windows.zip';
-  if (Platform.isLinux && chip == 'x64') return 'Spendrix-linux-x64.tar.gz';
+  // Platform.version ends like: on "linux_x64"
+  if (Platform.isLinux && Platform.version.endsWith('_x64"')) return 'Spendrix-linux-x64.tar.gz';
   return null;
 }
 

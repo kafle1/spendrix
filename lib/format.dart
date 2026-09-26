@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:intl/intl.dart';
 
 class Currency {
@@ -11,6 +9,9 @@ class Currency {
 
   /// "Rs " but "$" and "A$", so the digits sit right after it
   String get prefix => symbol.length > 1 && !symbol.contains('\$') ? '$symbol ' : symbol;
+
+  /// shown next to [home] by its code when the symbols match, so PKR 500 isn't read as Rs 500
+  Currency besides(Currency home) => symbol == home.symbol ? Currency(code, code, name, indian: indian) : this;
 }
 
 const currencies = [
@@ -47,53 +48,6 @@ const currencies = [
 ];
 
 Currency currencyOf(String code) => currencies.firstWhere((c) => c.code == code, orElse: () => currencies.first);
-
-/// best guess from the phone's region, so most people never touch the picker
-String guessCurrency() {
-  const byCountry = {
-    'NP': 'NPR',
-    'IN': 'INR',
-    'US': 'USD',
-    'GB': 'GBP',
-    'AU': 'AUD',
-    'CA': 'CAD',
-    'NZ': 'NZD',
-    'JP': 'JPY',
-    'CN': 'CNY',
-    'KR': 'KRW',
-    'HK': 'HKD',
-    'SG': 'SGD',
-    'MY': 'MYR',
-    'TH': 'THB',
-    'ID': 'IDR',
-    'PH': 'PHP',
-    'BD': 'BDT',
-    'PK': 'PKR',
-    'LK': 'LKR',
-    'AE': 'AED',
-    'SA': 'SAR',
-    'QA': 'QAR',
-    'KW': 'KWD',
-    'CH': 'CHF',
-    'ZA': 'ZAR',
-    'NG': 'NGN',
-    'KE': 'KES',
-    'BR': 'BRL',
-    'MX': 'MXN',
-    'DE': 'EUR',
-    'FR': 'EUR',
-    'IT': 'EUR',
-    'ES': 'EUR',
-    'NL': 'EUR',
-    'IE': 'EUR',
-    'PT': 'EUR',
-    'AT': 'EUR',
-    'BE': 'EUR',
-    'FI': 'EUR',
-    'GR': 'EUR',
-  };
-  return byCountry[PlatformDispatcher.instance.locale.countryCode] ?? 'USD';
-}
 
 final _indian = [NumberFormat('#,##,##0', 'en_IN'), NumberFormat('#,##,##0.00', 'en_IN')];
 final _western = [NumberFormat('#,##0', 'en_US'), NumberFormat('#,##0.00', 'en_US')];
