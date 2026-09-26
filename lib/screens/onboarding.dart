@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../format.dart';
+import '../models.dart';
 import '../store.dart';
 import '../sync.dart';
 import '../widgets.dart';
 import 'settings.dart';
 
-/// First run: what Spendrix is, then the currency. Gate moves on once settings exist.
+/// First run: what Spendrix is, the currency, then cash in hand. Gate moves on once settings exist.
 class Onboarding extends StatefulWidget {
   const Onboarding({super.key});
 
@@ -16,14 +17,28 @@ class Onboarding extends StatefulWidget {
 }
 
 class _OnboardingState extends State<Onboarding> {
-  bool _pickCurrency = false, _starting = false;
+  bool _pickCurrency = false, _askCash = false, _starting = false;
   String _currency = guessCurrency();
+  final _cash = TextEditingController();
+  String? _cashError;
+
+  @override
+  void dispose() {
+    _cash.dispose();
+    super.dispose();
+  }
 
   Future<void> _start() async {
     if (_starting) return;
+    final cash = parseSigned(_cash.text);
+    setState(() => _cashError = cash == null ? 'Type an amount, like 1500' : null);
+    if (cash == null) return;
     setState(() => _starting = true);
     try {
-      await context.read<Store>().setup(_currency);
+      final store = context.read<Store>();
+      // before setup, which only seeds what's missing and swaps to Home
+      if (cash != 0) await store.save(Account(id: 'acc-cash', name: 'Cash', start: cash));
+      await store.setup(_currency);
     } finally {
       if (mounted) setState(() => _starting = false);
     }
@@ -32,7 +47,10 @@ class _OnboardingState extends State<Onboarding> {
   @override
   Widget build(BuildContext context) {
     final sync = context.watch<Sync>();
-    if (!sync.signedIn) return _pickCurrency ? _currencyPage(canGoBack: true) : _welcomePage();
+    if (!sync.signedIn) {
+      if (_askCash) return _cashPage();
+      return _pickCurrency ? _currencyPage(canGoBack: true) : _welcomePage();
+    }
     // signed in from here: wait for the first pull, then ask for a currency only if the account had none
     if (sync.lastSync != null) return _currencyPage(canGoBack: false);
     return _pullingPage(sync);
@@ -174,8 +192,9 @@ class _OnboardingState extends State<Onboarding> {
                 padding: const EdgeInsets.all(16),
                 child: FilledButton(
                   style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-                  onPressed: _starting ? null : _start,
-                  child: const Text('Start'),
+                  // signed in, the cash comes down with the account
+                  onPressed: canGoBack ? () => setState(() => _askCash = true) : (_starting ? null : _start),
+                  child: Text(canGoBack ? 'Next' : 'Start'),
                 ),
               ),
             ],
@@ -184,4 +203,57 @@ class _OnboardingState extends State<Onboarding> {
       ),
     ),
   );
+
+  Widget _cashPage() {
+    final t = Theme.of(context).textTheme;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() => _askCash = false);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          leading: BackButton(onPressed: () => setState(() => _askCash = false)),
+        ),
+        body: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Narrow(
+              width: 560,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('How much cash do you have?', style: t.headlineSmall),
+                  const SizedBox(height: 4),
+                  const Text('Count your wallet so the balance starts right. Leave it empty to start at zero.'),
+                  const SizedBox(height: 24),
+                  TextField(
+                    controller: _cash,
+                    autofocus: true,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _start(),
+                    style: t.headlineSmall,
+                    decoration: InputDecoration(
+                      labelText: 'Cash in hand',
+                      prefixText: '${currencyOf(_currency).symbol} ',
+                      errorText: _cashError,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                    onPressed: _starting ? null : _start,
+                    child: const Text('Start'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

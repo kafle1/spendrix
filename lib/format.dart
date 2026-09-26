@@ -127,6 +127,17 @@ int? parseCents(String text) {
   return cents > 0 ? cents : null;
 }
 
+/// "-1,500.5" -> -150050, empty -> 0, null when it isn't an amount
+int? parseSigned(String text) {
+  var t = text.trim();
+  final negative = t.startsWith('-') || t.startsWith('−');
+  if (negative || t.startsWith('+')) t = t.substring(1).trim();
+  if (t.isEmpty) return negative ? null : 0;
+  final cents = parseCents(t);
+  if (cents == null) return RegExp(r'^[0.,\s]+$').hasMatch(t) ? 0 : null;
+  return negative ? -cents : cents;
+}
+
 /// plain text for an amount field, no grouping: 123450 -> "1234.5"
 String centsToInput(int cents) {
   final sign = cents < 0 ? '-' : '';

@@ -8,7 +8,7 @@ Sharper version: [walkthrough video](docs/walkthrough.mp4).
 
 ## First start
 
-Tap **Get started** and pick your currency. That's it, no account needed. Spendrix starts you with a Cash account and a few categories, and you can change all of them in Settings.
+Tap **Get started**, pick your currency, then type how much cash you have on you (or leave it empty). That's it, no account needed. Spendrix starts you with a Cash account and a few categories, and you can change all of them in Settings.
 
 ![Home](docs/home.png)
 

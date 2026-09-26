@@ -1108,17 +1108,6 @@ Future<Category?> editCategory(BuildContext context, {Category? category, bool i
       builder: (_) => _CategoryEditor(category, income: category?.income ?? income),
     );
 
-/// "-1,500.5" -> -150050, empty -> 0, null when it isn't an amount
-int? _parseSigned(String text) {
-  var t = text.trim();
-  final negative = t.startsWith('-') || t.startsWith('−');
-  if (negative || t.startsWith('+')) t = t.substring(1).trim();
-  if (t.isEmpty) return negative ? null : 0;
-  final cents = parseCents(t);
-  if (cents == null) return RegExp(r'^[0.,\s]+$').hasMatch(t) ? 0 : null;
-  return negative ? -cents : cents;
-}
-
 class _AccountEditor extends StatefulWidget {
   const _AccountEditor(this.account);
 
@@ -1150,7 +1139,7 @@ class _AccountEditorState extends State<_AccountEditor> {
 
   Future<void> _save() async {
     final name = _name.text.trim();
-    final start = _parseSigned(_start.text);
+    final start = parseSigned(_start.text);
     setState(() {
       _nameError = name.isEmpty ? 'Give it a name' : null;
       _startError = start == null ? 'Type an amount, like 1500 or -200' : null;
