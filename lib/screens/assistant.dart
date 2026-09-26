@@ -19,8 +19,9 @@ import 'entry_form.dart';
 
 const _suggestions = [
   'How much did I spend this month?',
-  "What's my biggest expense?",
   'Spent 300 on groceries today',
+  'Rent 15000 every month',
+  'Delete the last entry',
   'Who owes me money?',
 ];
 const _maxChat = 200; // keep memory bounded on a long-running chat
@@ -32,6 +33,8 @@ class _Line {
   final bool mine;
   String text;
   Entry? draft;
+  Act? act;
+  bool done = false;
   Uint8List? photo;
   bool fromMic = false;
   bool error = false;
@@ -57,7 +60,7 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
   bool _recording = false;
   Timer? _recordTimer;
 
-  static final _gb = (Assistant.sizeBytes / 1e9).toStringAsFixed(1);
+  String get _gb => (_ai.sizeBytes / 1e9).toStringAsFixed(1);
 
   @override
   void initState() {
@@ -147,7 +150,11 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
                 const SizedBox(height: 8),
                 for (final (icon, text) in [
                   (Icons.chat_outlined, 'Answers questions like "How much did I spend on food?"'),
-                  (Icons.edit_note, 'Adds entries when you type "Spent 250 on lunch". You check them before saving.'),
+                  (
+                    Icons.edit_note,
+                    'Does things for you, like "Spent 250 on lunch", "Rent 15000 every month" or "Delete the last entry". '
+                        'Nothing changes until you tap to confirm.',
+                  ),
                   if (!kIsWeb) (Icons.mic_none, 'Listens when you tap the mic, in Nepali or English'),
                   if (!kIsWeb) (Icons.receipt_long_outlined, 'Reads the total from a photo of a receipt or bill'),
                   (
@@ -178,7 +185,7 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
   Widget _downloading(Assistant ai) {
     final t = Theme.of(context).textTheme;
     final p = ai.progress;
-    final total = Assistant.sizeBytes / 1e6;
+    final total = ai.sizeBytes / 1e6;
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(32),
@@ -266,7 +273,7 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
               decoration: const InputDecoration(
                 hintText: 'Ask, or type "spent 250 on lunch"',
                 isDense: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(24))),
+                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
               ),
             ),
           ),
@@ -359,11 +366,11 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
             crossAxisAlignment: line.mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             children: [
               DecoratedBox(
-                decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(18)),
+                decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14)),
                 // the reply keeps the photo only to save it with the draft
                 child: photo != null && line.mine
                     ? ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(14),
                         child: Image.memory(photo, width: 160, height: 160, fit: BoxFit.cover),
                       )
                     : Padding(
@@ -386,6 +393,7 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
                       ),
               ),
               if (draft != null) _draftCard(line, store),
+              if (line.act != null) _actCard(line, store),
             ],
           ),
         ),
@@ -401,6 +409,7 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
     final e = saved ?? draft;
     final category = store.category(e.category);
     final withPerson = e.kind == Kind.gave || e.kind == Kind.got;
+    final transfer = e.kind == Kind.transfer;
     return Card(
       margin: const EdgeInsets.only(top: 8),
       child: Padding(
@@ -410,7 +419,13 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
           children: [
             Row(
               children: [
-                IconBubble(withPerson ? Icons.person_outline : iconOf(category?.icon)),
+                IconBubble(
+                  transfer
+                      ? Icons.swap_horiz
+                      : withPerson
+                      ? Icons.person_outline
+                      : iconOf(category?.icon),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -423,7 +438,12 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        [e.kind.label, if (e.note.isNotEmpty) e.note, dayLabel(e.date)].join(' · '),
+                        [
+                          transfer ? '${store.account(e.account)?.name} → ${store.account(e.to)?.name}' : e.kind.label,
+                          ?e.paidIn(store.currency),
+                          if (e.note.isNotEmpty) e.note,
+                          dayLabel(e.date),
+                        ].join(' · '),
                         style: t.bodySmall,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -431,8 +451,11 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                Money(e.signed, colored: true, style: t.titleSmall),
+                // a foreign draft with no rate yet has no home amount to show
+                if (e.amount > 0) ...[
+                  const SizedBox(width: 8),
+                  Money(transfer ? e.amount : e.signed, colored: !transfer, style: t.titleSmall),
+                ],
               ],
             ),
             const SizedBox(height: 12),
@@ -480,19 +503,116 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
     );
   }
 
+  Widget _actCard(_Line line, Store store) {
+    final act = line.act!;
+    final t = Theme.of(context).textTheme;
+    final c = Theme.of(context).colorScheme;
+    final (IconData icon, String verb) = switch (act.task) {
+      Task.repeat => (Icons.repeat, 'Save'),
+      Task.remove => (Icons.delete_outline, 'Delete'),
+      Task.change => (Icons.edit_outlined, 'Change'),
+      Task.budget => (Icons.savings_outlined, 'Confirm'),
+      Task.create => (Icons.add, 'Add'),
+      Task.stop => (Icons.pause_circle_outline, 'Stop'),
+    };
+    final repeat = act.task == Task.repeat ? act.save.first as Recurring : null;
+    return Card(
+      margin: const EdgeInsets.only(top: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                IconBubble(icon),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(act.title, style: t.titleSmall, maxLines: 2, overflow: TextOverflow.ellipsis),
+                      Text(act.detail, style: t.bodySmall, maxLines: 3, overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (line.done)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, size: 16, color: c.primary),
+                    const SizedBox(width: 6),
+                    Text('Done', style: t.labelMedium),
+                  ],
+                ),
+              ),
+            Row(
+              children: [
+                if (repeat != null) ...[
+                  Expanded(
+                    child: OutlinedButton(
+                      // the form saves the repeat under the same id, which also counts as done
+                      onPressed: () async {
+                        await openEntry(context, repeat: store.recurringOf(repeat.id) ?? repeat);
+                        if (mounted) setState(() => line.done = store.recurringOf(repeat.id) != null);
+                      },
+                      child: const Text('Edit'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  child: line.done
+                      ? OutlinedButton(onPressed: () => _runAct(line, store, undo: true), child: const Text('Undo'))
+                      : act.task == Task.remove
+                      ? FilledButton(
+                          style: FilledButton.styleFrom(backgroundColor: c.error, foregroundColor: c.onError),
+                          onPressed: () => _runAct(line, store),
+                          child: Text(verb),
+                        )
+                      : FilledButton.tonal(onPressed: () => _runAct(line, store), child: Text(verb)),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _runAct(_Line line, Store store, {bool undo = false}) async {
+    // flip first so a double tap can't run it twice
+    setState(() => line.done = !undo);
+    try {
+      await (undo ? line.act!.undo(store) : line.act!.apply(store));
+      if (undo) {
+        line.act = line.act!.again();
+        if (mounted) setState(() {});
+      } else {
+        track('feature_used', {'name': 'ai_${line.act!.task.name}'});
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => line.done = undo);
+      toast(context, "Couldn't do that. Try again.");
+    }
+  }
+
   Future<void> _saveDraft(_Line line, Store store) async {
     final draft = line.draft!;
-    // a name the AI heard but isn't saved yet has to be picked or added in the form
-    if ((draft.kind == Kind.gave || draft.kind == Kind.got) && draft.person == null) {
+    // a name the AI heard but isn't saved yet has to be picked or added in the form, same for a missing home amount
+    final lost =
+        draft.kind == Kind.transfer && (store.account(draft.account) == null || store.account(draft.to) == null);
+    if ((draft.kind == Kind.gave || draft.kind == Kind.got) && draft.person == null || draft.amount == 0 || lost) {
       openEntry(context, entry: draft, photo: line.photo, guessed: true);
       return;
     }
-    final last = prefs.getString('lastAccount');
-    final account = store.accounts.any((a) => a.id == last)
-        ? last
-        : store.accounts.isNotEmpty
-        ? store.accounts.first.id
-        : null;
+    // a transfer already names its accounts
+    final account = draft.account.isNotEmpty ? draft.account : store.defaultAccount;
     if (account == null) {
       toast(context, 'Add an account first.');
       return;
@@ -506,7 +626,7 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
   // last few chat messages, oldest first, for follow-ups like "and last month?"
   List<String> _recentContext([_Line? exclude]) => [
     for (final l in _chat.reversed.where((l) => l != exclude).take(2))
-      if (!l.error && l.draft == null && l.text.isNotEmpty) l.text,
+      if (!l.error && l.draft == null && l.act == null && l.text.isNotEmpty) l.text,
   ].reversed.toList();
 
   void _stream(String text, List<String> earlier, _Line reply) {
@@ -516,7 +636,8 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
           (r) => setState(() {
             reply
               ..text = r.text
-              ..draft = r.draft;
+              ..draft = r.draft
+              ..act = r.act;
           }),
           onError: (Object e) => setState(() {
             reply

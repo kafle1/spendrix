@@ -30,13 +30,15 @@ Tap any entry in Activity to change or delete it. Search and the filters at the 
 
 ## Talk to it
 
-The **Ask** tab is a chat with a helper that runs on your own device. The first time, it asks to download the AI once (about 2.6 GB, or 2 GB in a browser). After that it works with no internet.
+The **Ask** tab is a chat with a helper that runs on your own device. The first time, it asks to download the AI once. That's about 2.6 GB on most devices and 2 GB in a browser. Devices with plenty of memory get a stronger AI of about 3.7 GB. After that it works with no internet.
 
 - **Type** it: "tea 60", "salary 50000", "lent Ram 2000".
 - **Say** it: tap the mic, say "khana 450" or "बिजुली बिल ११००", then tap stop. Nepali and English both work. Cancel throws the recording away.
 - **Snap** it: tap the camera and take a photo of a bill, or pick one you already have.
 
 Spendrix writes the entry as a card. Check it and tap **Save**, or **Edit** to change anything first. You can also ask questions like "How much did I spend on food this month?" or "Who owes me money?".
+
+It can do more than add entries. Try "Rent 15000 every month", "Delete the last entry", "Make it 300", "Move 5000 from Cash to Bank", "Food budget 5000", "Settle up with Ram", "Add eSewa as an account" or "Stop Netflix". Nothing changes until you tap the button on the card, and **Undo** puts it back.
 
 Your voice, photos and entries never leave the device.
 
@@ -58,7 +60,9 @@ Set a monthly budget and a limit for any category in Settings. Home then shows h
 
 ## Repeating bills
 
-For rent, salary or a phone bill, open **More** when adding and set **Repeat**. Spendrix adds it on each due date, the next time you open the app. Pause or delete a repeat in Settings.
+For rent, salary or a phone bill, open **More** when adding and set **Repeat**. Pick how often, like every 2 weeks or every 3 months, and an end date if it stops. Spendrix adds it on each due date, the next time you open the app.
+
+Your repeats are listed in Settings. Tap one to change it, or switch it off to pause it.
 
 ## Sync your devices
 

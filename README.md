@@ -12,8 +12,8 @@ Grab the latest build from [Releases](https://github.com/kafle1/spendrix/release
 
 | Device | File | How |
 |---|---|---|
-| Android | `Spendrix-android.apk` | Open it on your phone and allow the install. Old 32-bit phones take `Spendrix-android-32bit.apk` (no AI) |
-| iPhone | `Spendrix-ios-unsigned.ipa` | Sideload with AltStore or Sideloadly until it's on the App Store |
+| Android | `Spendrix-android.apk` | Open it on your phone and allow the install |
+| iPhone | `Spendrix-iphone.ipa` | Sideload with AltStore or Sideloadly until it's on the App Store |
 | Mac | `Spendrix-macos.dmg` | Drag to Applications. It isn't signed yet, so macOS blocks the first open. Go to System Settings, Privacy & Security, and click Open Anyway |
 | Windows | `Spendrix-windows.zip` | Unzip and run `spendrix.exe`. It isn't signed yet, so the first time Windows says it protected your PC. Click More info, then Run anyway |
 | Linux | `Spendrix-linux-x64.tar.gz` | Extract and run `./spendrix` |
@@ -26,11 +26,12 @@ On Android, `Spendrix-android.apk` updates every older Spendrix, 1.2 and older i
 ## What it does
 
 - Add money out, money in, transfers between your accounts, and money you lent or borrowed.
-- Bills that repeat add themselves on the day they're due.
+- Bills that repeat add themselves on the day they're due, every week, every 3 months or however often you set.
 - See where your money goes with monthly charts and category totals.
 - Keep track of who owes you and who you owe.
 - Ask things like "how much did I spend on food last month?"
 - Say "khana 450" or "बिजुली बिल ११००" and it drafts the entry. Tap Save.
+- Tell it what to do, like "Rent 15000 every month" or "Delete the last entry". It shows the change first and you can undo it.
 - Take a photo of a receipt and it fills in the amount, date and shop.
 - Sync between your phone, computer and browser. Everything is locked on your device before it leaves, so nobody else can read it, us included.
 - Backup to a file, export to a spreadsheet, app lock with fingerprint or face, dark mode.
@@ -39,7 +40,15 @@ The full walkthrough is in [GUIDE.md](GUIDE.md).
 
 ## The helper
 
-The helper is Google's Gemma 4 model. It runs on your device, needs no account and sends nothing anywhere. You download it once from inside the app (about 2.6 GB, or 2 GB in the browser), then it works offline.
+The helper is Google's Gemma 4 model. It runs on your device, needs no account and sends nothing anywhere. You download it once from inside the app, then it works offline.
+
+The app checks the device's memory and picks the size that runs well on it:
+
+- Phones with 12 GB of memory, Macs with 16 GB and Windows or Linux PCs with 24 GB get Gemma 4 E4B, about 3.7 GB. It reads Nepali and receipts better.
+- Every other device gets Gemma 4 E2B, about 2.6 GB, so it stays fast.
+- The browser gets a 2 GB text-only E2B.
+
+An AI that's already downloaded stays as it is. Remove it and download again to get the other size.
 
 | Where | Chat | Voice | Receipt photos |
 |---|---|---|---|
@@ -85,7 +94,7 @@ flutter build linux --release   # needs clang cmake ninja-build libgtk-3-dev lld
 flutter build web --release
 ```
 
-Pushing a tag like `v2.0.0` builds every platform on GitHub and publishes a release with `RELEASE_NOTES.md` as the notes. The Android job needs two repository secrets:
+Pushing a tag like `v2.0.0` builds every platform except the web on GitHub and publishes a release with `RELEASE_NOTES.md` as the notes. The Android job needs two repository secrets:
 
 - `ANDROID_KEYSTORE`: the release keystore, base64 encoded
 - `ANDROID_KEY_PASSWORD`: its password (the key alias is `androiddebugkey`, the same key 1.x was signed with)

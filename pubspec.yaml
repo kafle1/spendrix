@@ -1,7 +1,8 @@
 name: spendrix
 description: Spendrix, a private money diary with on-device AI.
 publish_to: 'none'
-version: 2.0.2+9
+# the build number stays above 4009, the highest android version code 2.0.2 shipped with
+version: 2.1.0+4011
 
 environment:
   sdk: ^3.13.0
@@ -9,12 +10,13 @@ environment:
 dependencies:
   cryptography: ^2.9.0
   cryptography_flutter: ^2.3.4
+  device_info_plus: ^13.2.0
   file_picker: ^13.1.0
   fl_chart: ^1.2.0
   flutter:
     sdk: flutter
   flutter_gemma: ^1.9.0
-  flutter_gemma_litertlm: ^1.8.0
+  flutter_gemma_litertlm: ^1.8.1
   hive_ce: ^2.20.0
   http: ^1.6.0
   image: ^4.10.1
@@ -47,6 +49,10 @@ flutter:
           weight: 600
         - asset: assets/fonts/Inter-Bold.ttf
           weight: 700
+    - family: Newsreader
+      fonts:
+        - asset: assets/fonts/Newsreader-SemiBold.ttf
+          weight: 600
 
 flutter_launcher_icons:
   image_path: assets/icon/icon.png

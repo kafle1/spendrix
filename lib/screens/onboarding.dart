@@ -18,7 +18,7 @@ class Onboarding extends StatefulWidget {
 
 class _OnboardingState extends State<Onboarding> {
   bool _pickCurrency = false, _askCash = false, _starting = false;
-  String _currency = guessCurrency();
+  String _currency = 'NPR';
   final _cash = TextEditingController();
   String? _cashError;
 

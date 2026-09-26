@@ -68,6 +68,10 @@ String _str(Object? v, [String fallback = '']) => v is String ? v : fallback;
 String? _opt(Object? v) => v is String && v.isNotEmpty ? v : null;
 int _int(Object? v) => v is num ? v.toInt() : 0;
 DateTime _date(Object? v) => (v is String ? DateTime.tryParse(v) : null) ?? DateTime.now();
+DateTime? _day(Object? v) => switch (v is String ? DateTime.tryParse(v) : null) {
+  final d? => dayOf(d),
+  null => null,
+};
 
 sealed class Model {
   const Model(this.id);
@@ -87,7 +91,7 @@ class Settings extends Model {
   String get type => 'settings';
 
   static Settings from(Item i) =>
-      Settings(currency: _str(i.data['currency'], 'USD'), budget: _positive(i.data['budget']));
+      Settings(currency: _str(i.data['currency'], 'NPR'), budget: _positive(i.data['budget']));
 
   @override
   Map<String, dynamic> toData() => {'currency': currency, 'budget': budget};
@@ -170,11 +174,14 @@ class Entry extends Model {
     this.note = '',
     this.photo = false,
     this.recurring,
+    this.fxCur,
+    this.fxAmount,
+    this.fxHome,
   }) : super(id);
 
   final Kind kind;
 
-  /// cents, always positive; [kind] says which way it went
+  /// cents in the home currency, always positive; [kind] says which way it went
   final int amount;
   final DateTime date;
   final String account;
@@ -186,6 +193,21 @@ class Entry extends Model {
 
   /// true when a receipt photo is stored on the device that added it
   final bool photo;
+
+  /// paid in another currency: [fxAmount] cents of [fxCur]. [fxHome] is [amount] as it was then,
+  /// so a copy whose amount an older app changed (keeping these keys) drops the pair.
+  final String? fxCur;
+  final int? fxAmount, fxHome;
+
+  /// the other currency it was paid in, while the pair still holds
+  Currency? get fx =>
+      fxAmount != null && fxHome == amount ? currencies.where((c) => c.code == fxCur).firstOrNull : null;
+
+  /// "$12.50" when it was paid in a currency other than [home]
+  String? paidIn(Currency home) {
+    final c = fx;
+    return c == null || c.code == home.code ? null : money(fxAmount!, c.besides(home));
+  }
 
   @override
   String get type => 'entry';
@@ -205,6 +227,9 @@ class Entry extends Model {
     note: _str(i.data['note']),
     photo: i.data['photo'] == true,
     recurring: _opt(i.data['recurring']),
+    fxCur: _opt(i.data['fxCur']),
+    fxAmount: _positive(i.data['fxAmount']),
+    fxHome: _positive(i.data['fxHome']),
   );
 
   @override
@@ -219,6 +244,10 @@ class Entry extends Model {
     'note': note,
     'photo': photo,
     'recurring': recurring,
+    // always written, even empty, so an edit back to the home currency clears them
+    'fxCur': fxCur,
+    'fxAmount': fxAmount,
+    'fxHome': fxHome,
   };
 
   /// A new [id] makes a separate entry: the photo and the repeat stay with the original.
@@ -233,6 +262,9 @@ class Entry extends Model {
     String? person,
     String? note,
     bool? photo,
+    String? fxCur,
+    int? fxAmount,
+    int? fxHome,
   }) => Entry(
     id: id ?? this.id,
     kind: kind ?? this.kind,
@@ -245,6 +277,9 @@ class Entry extends Model {
     note: note ?? this.note,
     photo: photo ?? (id == null && this.photo),
     recurring: id == null ? recurring : null,
+    fxCur: fxCur ?? this.fxCur,
+    fxAmount: fxAmount ?? this.fxAmount,
+    fxHome: fxHome ?? this.fxHome,
   );
 }
 
@@ -268,6 +303,8 @@ class Recurring extends Model {
     required this.account,
     required this.start,
     this.every = Every.month,
+    this.n = 1,
+    this.end,
     this.category,
     this.to,
     this.person,
@@ -282,9 +319,18 @@ class Recurring extends Model {
   final String note;
   final Every every;
 
+  /// every [n] days, weeks, months or years
+  final int n;
+
+  /// the last day it may add an entry, null to go on for good
+  final DateTime? end;
+
   /// first occurrence; its day of month is kept, clamped in short months
   final DateTime start;
   final bool active;
+
+  /// "Every month", "Every 2 weeks"
+  String get label => n == 1 ? every.label : 'Every $n ${every.name}s';
 
   @override
   String get type => 'recurring';
@@ -296,6 +342,8 @@ class Recurring extends Model {
     account: _str(i.data['account']),
     start: dayOf(_date(i.data['start'])),
     every: Every.values.asNameMap()[i.data['every']] ?? Every.month,
+    n: _int(i.data['n']).clamp(1, 999),
+    end: _day(i.data['end']),
     category: _opt(i.data['category']),
     to: _opt(i.data['to']),
     person: _opt(i.data['person']),
@@ -310,6 +358,9 @@ class Recurring extends Model {
     'account': account,
     'start': start.toIso8601String(),
     'every': every.name,
+    // always written so an edit can clear them
+    'n': n,
+    'end': end?.toIso8601String(),
     'category': category,
     'to': to,
     'person': person,
@@ -317,11 +368,27 @@ class Recurring extends Model {
     'active': active,
   };
 
-  DateTime occurrence(int n) => switch (every) {
-    Every.day => DateTime(start.year, start.month, start.day + n),
-    Every.week => DateTime(start.year, start.month, start.day + 7 * n),
-    Every.month => _clamped(start.year, start.month + n, start.day),
-    Every.year => _clamped(start.year + n, start.month, start.day),
+  Recurring copyWith({String? id, DateTime? start, bool? active}) => Recurring(
+    id: id ?? this.id,
+    kind: kind,
+    amount: amount,
+    account: account,
+    start: start ?? this.start,
+    every: every,
+    n: n,
+    end: end,
+    category: category,
+    to: to,
+    person: person,
+    note: note,
+    active: active ?? this.active,
+  );
+
+  DateTime occurrence(int i) => switch (every) {
+    Every.day => DateTime(start.year, start.month, start.day + i * n),
+    Every.week => DateTime(start.year, start.month, start.day + 7 * i * n),
+    Every.month => _clamped(start.year, start.month + i * n, start.day),
+    Every.year => _clamped(start.year + i * n, start.month, start.day),
   };
 
   static DateTime _clamped(int y, int m, int d) {
@@ -329,18 +396,21 @@ class Recurring extends Model {
     return DateTime(first.year, first.month, d.clamp(1, daysInMonth(first.year, first.month)));
   }
 
-  /// every occurrence on or before [until]
+  /// every occurrence on or before [until], stopping at [end]
   Iterable<DateTime> dueUntil(DateTime until) sync* {
-    for (var n = 0; ; n++) {
-      final d = occurrence(n);
-      if (d.isAfter(until)) return;
+    final last = end != null && end!.isBefore(until) ? end! : until;
+    for (var i = 0; ; i++) {
+      final d = occurrence(i);
+      if (d.isAfter(last)) return;
       yield d;
     }
   }
 
-  DateTime nextAfter(DateTime day) {
-    for (var n = 0; ; n++) {
-      final d = occurrence(n);
+  /// the first occurrence after [day], null once it has ended
+  DateTime? nextAfter(DateTime day) {
+    for (var i = 0; ; i++) {
+      final d = occurrence(i);
+      if (end != null && d.isAfter(end!)) return null;
       if (d.isAfter(day)) return d;
     }
   }

@@ -19,10 +19,12 @@ import 'settings.dart';
 /// - [entry] whose id is already in the store: edit it.
 /// - [entry] with a fresh id: a prefilled draft (from AI or a shortcut); an empty or unknown account means "use the default".
 /// - no [entry]: a new one of [kind], optionally for [person].
+/// - [repeat] edits a saved Recurring's schedule and template fields instead.
 /// [photo] attaches a picture; [guessed] marks the fields as AI guesses the user should check.
 Future<void> openEntry(
   BuildContext context, {
   Entry? entry,
+  Recurring? repeat,
   Kind? kind,
   String? person,
   Uint8List? photo,
@@ -31,7 +33,8 @@ Future<void> openEntry(
   MaterialPageRoute(
     settings: const RouteSettings(name: 'entry'),
     fullscreenDialog: true,
-    builder: (_) => _EntryForm(entry: entry, kind: kind, person: person, photo: photo, guessed: guessed),
+    builder: (_) =>
+        _EntryForm(entry: entry, repeat: repeat, kind: kind, person: person, photo: photo, guessed: guessed),
   ),
 );
 
@@ -60,9 +63,10 @@ Uint8List? _compressPhoto(Uint8List bytes) {
 }
 
 class _EntryForm extends StatefulWidget {
-  const _EntryForm({this.entry, this.kind, this.person, this.photo, this.guessed = false});
+  const _EntryForm({this.entry, this.repeat, this.kind, this.person, this.photo, this.guessed = false});
 
   final Entry? entry;
+  final Recurring? repeat;
   final Kind? kind;
   final String? person;
   final Uint8List? photo;
@@ -80,11 +84,22 @@ class _EntryFormState extends State<_EntryForm> {
   String? _category;
   String? _person;
   late DateTime _date;
+
+  /// what the keypad types; in [_fx] when that's set, else the home currency
   String _amount = '';
+
+  /// the other currency it was paid in, and home cents per cent of it once known
+  String? _fx;
+  double? _rate;
   late final TextEditingController _noteController;
   Uint8List? _photoBytes;
   bool _photoChanged = false;
   Every? _repeat;
+  int _every = 1;
+  DateTime? _end;
+
+  /// the date first shown for a repeat edit, so an untouched schedule keeps its old anchor
+  late final DateTime? _repeatDateShown;
   late bool _guessed;
   bool _moreExpanded = false;
   bool _cameraSupported = false;
@@ -100,27 +115,41 @@ class _EntryFormState extends State<_EntryForm> {
     super.initState();
     final store = context.read<Store>();
     final e = widget.entry;
+    final r = widget.repeat;
     isEdit = e != null && store.entry(e.id) != null;
 
-    _kind = e?.kind ?? widget.kind ?? Kind.parse(prefs.getString('lastKind'));
+    _kind = e?.kind ?? r?.kind ?? widget.kind ?? Kind.parse(prefs.getString('lastKind'));
 
-    var account = e?.account;
-    // only a fresh draft gets defaulted; an edit keeps a deleted account's id, same as category/person
-    if (!isEdit && (account == null || account.isEmpty || store.account(account) == null)) {
-      final last = prefs.getString('lastAccount');
-      // store.accounts skips archived ones, so a new entry never lands in a hidden account
-      account = store.accounts.any((a) => a.id == last) ? last : null;
-      account ??= store.accounts.isNotEmpty ? store.accounts.first.id : null;
+    var account = e?.account ?? r?.account;
+    // only a fresh draft gets defaulted; an edit (or a repeat edit) keeps a deleted account's id, same as category/person
+    if (!isEdit && r == null && (account == null || account.isEmpty || store.account(account) == null)) {
+      account = store.defaultAccount;
     }
     _account = account ?? '';
-    _toAccount = e?.to;
-    _category = e?.category;
-    _person = e?.person ?? widget.person;
-    _date = e?.date ?? DateTime.now();
-    _amount = e != null && e.amount > 0 ? centsToInput(e.amount) : '';
-    _noteController = TextEditingController(text: e?.note ?? '')..addListener(_markDirty);
+    _toAccount = e?.to ?? r?.to;
+    _category = e?.category ?? r?.category;
+    _person = e?.person ?? r?.person ?? widget.person;
+
+    if (r != null) {
+      _repeat = r.every;
+      _every = r.n;
+      _end = r.end;
+      final today = dayOf(DateTime.now());
+      // nextAfter is strict, so today - 1 lets a repeat due today still show today.
+      // an ended one shows its last day and keeps its end, else saving it would backfill every missed month
+      _date = r.nextAfter(DateTime(today.year, today.month, today.day - 1)) ?? r.dueUntil(today).lastOrNull ?? r.start;
+      _repeatDateShown = _date;
+      _amount = centsToInput(r.amount);
+    } else {
+      _date = e?.date ?? DateTime.now();
+      if (e != null) _fillAmount(e, store);
+      _repeatDateShown = null;
+    }
+
+    _noteController = TextEditingController(text: e?.note ?? r?.note ?? '')..addListener(_markDirty);
     _guessed = widget.guessed;
-    _moreExpanded = _noteController.text.isNotEmpty || widget.photo != null || (e?.photo ?? false);
+    _moreExpanded =
+        _noteController.text.isNotEmpty || widget.photo != null || (e?.photo ?? false) || _fx != null || r != null;
 
     if (widget.photo != null) {
       _photoBytes = widget.photo;
@@ -155,6 +184,60 @@ class _EntryFormState extends State<_EntryForm> {
     _photoBytes = bytes;
     _photoChanged = true;
     if (bytes != null) _repeat = null;
+  }
+
+  // a draft paid in another currency may have no home amount yet (0), then the rate stays unknown
+  void _fillAmount(Entry e, Store store) {
+    final fx = e.fx;
+    if (fx != null && fx.code != store.settings.currency) {
+      _fx = fx.code;
+      _amount = centsToInput(e.fxAmount!);
+      _rate = e.amount > 0 ? e.amount / e.fxAmount! : null;
+      _repeat = null;
+    } else if (e.amount > 0) {
+      _amount = centsToInput(e.amount);
+    }
+  }
+
+  /// home cents for [typed] cents of [_fx], null until there's a rate
+  int? _home(int typed) {
+    final cents = _rate == null ? 0 : (typed * _rate!).round();
+    return cents > 0 && cents < 100000000000000 ? cents : null;
+  }
+
+  Future<void> _pickFx(Store store) async {
+    final code = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+        child: FractionallySizedBox(
+          heightFactor: .85,
+          child: CurrencyList(selected: _fx ?? store.settings.currency, onPick: (c) => Navigator.pop(context, c)),
+        ),
+      ),
+    );
+    if (code == null || !mounted) return;
+    final fx = code == store.settings.currency ? null : code;
+    if (fx == _fx) return;
+    _touch(() {
+      _fx = fx;
+      _rate = fx == null ? null : store.rate(fx);
+      if (fx != null) _repeat = null;
+    });
+  }
+
+  Future<void> _typeHome(Store store, int typed) async {
+    final cents = await showDialog<int>(
+      context: context,
+      builder: (_) => _HomeAmountDialog(
+        home: store.currency,
+        paid: money(typed, currencyOf(_fx!).besides(store.currency)),
+        cents: _home(typed),
+      ),
+    );
+    if (cents != null && mounted) _touch(() => _rate = cents / typed);
   }
 
   void _appendDigit(String d) {
@@ -235,7 +318,7 @@ class _EntryFormState extends State<_EntryForm> {
       if (draft.note.isNotEmpty) _noteController.text = draft.note;
       _touch(() {
         _kind = draft.kind;
-        if (draft.amount > 0) _amount = centsToInput(draft.amount);
+        _fillAmount(draft, store);
         if (store.account(draft.account) != null) _account = draft.account;
         if (draft.category != null) _category = draft.category;
         if (draft.to != null) _toAccount = draft.to;
@@ -243,7 +326,7 @@ class _EntryFormState extends State<_EntryForm> {
         _date = draft.date;
         if (compressed != null) _setPhoto(compressed);
         _guessed = true;
-        _moreExpanded = _moreExpanded || _photoBytes != null || _noteController.text.isNotEmpty;
+        _moreExpanded = _moreExpanded || _photoBytes != null || _noteController.text.isNotEmpty || _fx != null;
       });
     } on AiError catch (err) {
       if (context.mounted) toast(context, err.message);
@@ -267,21 +350,7 @@ class _EntryFormState extends State<_EntryForm> {
       action: 'Stop',
     );
     if (!ok || !context.mounted) return;
-    await store.save(
-      Recurring(
-        id: r.id,
-        kind: r.kind,
-        amount: r.amount,
-        account: r.account,
-        start: r.start,
-        every: r.every,
-        category: r.category,
-        to: r.to,
-        person: r.person,
-        note: r.note,
-        active: false,
-      ),
-    );
+    await store.save(r.copyWith(active: false));
     if (context.mounted) toast(context, 'Stopped repeating');
   }
 
@@ -291,9 +360,14 @@ class _EntryFormState extends State<_EntryForm> {
   }
 
   Future<void> _save(BuildContext context, Store store) async {
-    final cents = parseCents(_amount);
-    if (cents == null) {
+    final typed = parseCents(_amount);
+    if (typed == null) {
       setState(() => _error = 'Enter an amount.');
+      return;
+    }
+    final cents = _fx == null ? typed : _home(typed);
+    if (cents == null) {
+      setState(() => _error = 'Add how much that is in ${store.currency.symbol}.');
       return;
     }
     if (_account.isEmpty) {
@@ -333,6 +407,30 @@ class _EntryFormState extends State<_EntryForm> {
     final to = _kind == Kind.transfer ? _toAccount : null;
     final person = _kind == Kind.gave || _kind == Kind.got ? _person : null;
 
+    final editing = widget.repeat;
+    if (editing != null) {
+      // only re-anchor when the schedule actually moved, else past occurrence ids stay valid
+      final sameSchedule = _repeat == editing.every && _every == editing.n && dayOf(_date) == _repeatDateShown;
+      await store.save(
+        Recurring(
+          id: editing.id,
+          kind: _kind,
+          amount: cents,
+          account: _account,
+          start: sameSchedule ? editing.start : dayOf(_date),
+          every: _repeat!,
+          n: _every.clamp(1, 99),
+          end: _end,
+          category: category,
+          to: to,
+          person: person,
+          note: _noteController.text.trim(),
+          active: editing.active,
+        ),
+      );
+      return;
+    }
+
     if (!isEdit && _repeat != null) {
       await store.save(
         Recurring(
@@ -342,6 +440,8 @@ class _EntryFormState extends State<_EntryForm> {
           account: _account,
           start: dayOf(_date),
           every: _repeat!,
+          n: _every.clamp(1, 99),
+          end: _end,
           category: category,
           to: to,
           person: person,
@@ -354,6 +454,7 @@ class _EntryFormState extends State<_EntryForm> {
     // photos stay on the device that took them, so an edit elsewhere must keep the flag it can't see
     final keepPhoto = isEdit && !_photoChanged;
     final id = widget.entry?.id ?? newId();
+    final fxAmount = _fx == null ? null : parseCents(_amount);
     await store.save(
       Entry(
         id: id,
@@ -367,6 +468,9 @@ class _EntryFormState extends State<_EntryForm> {
         note: _noteController.text.trim(),
         photo: keepPhoto ? widget.entry!.photo : _photoBytes != null,
         recurring: isEdit ? widget.entry!.recurring : null,
+        fxCur: fxAmount == null ? null : _fx,
+        fxAmount: fxAmount,
+        fxHome: fxAmount == null ? null : cents,
       ),
     );
     if (!keepPhoto) await store.setPhoto(id, _photoBytes);
@@ -391,9 +495,9 @@ class _EntryFormState extends State<_EntryForm> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(isEdit ? 'Edit' : 'New'),
+          title: Text(widget.repeat != null ? 'Edit repeat' : (isEdit ? 'Edit' : 'New')),
           actions: [
-            if (!isEdit && !kIsWeb && assistantReady)
+            if (!isEdit && widget.repeat == null && !kIsWeb && assistantReady)
               _aiLoading
                   ? const Padding(
                       padding: EdgeInsets.all(16),
@@ -467,7 +571,7 @@ class _EntryFormState extends State<_EntryForm> {
                             _sectionLabel('Date'),
                             _dateRow(),
                             const SizedBox(height: 8),
-                            _moreSection(),
+                            _moreSection(store),
                           ],
                         ),
                       ),
@@ -556,14 +660,27 @@ class _EntryFormState extends State<_EntryForm> {
 
   Widget _amountDisplay(Store store) {
     final color = _kind == Kind.transfer ? null : moneyColor(context, _kind.sign);
-    return Center(
+    final big = Center(
       child: Text(
-        typedMoney(_amount, store.currency),
+        typedMoney(_amount, _fx == null ? store.currency : currencyOf(_fx!).besides(store.currency)),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.displaySmall
-            ?.copyWith(fontWeight: FontWeight.w700, color: color, fontFeatures: const [FontFeature.tabularFigures()]),
+            ?.copyWith(color: color, fontFeatures: const [FontFeature.tabularFigures()]),
       ),
+    );
+    final typed = _fx == null ? null : parseCents(_amount);
+    if (typed == null) return big;
+    final home = _home(typed);
+    return Column(
+      children: [
+        big,
+        TextButton.icon(
+          onPressed: () => _typeHome(store, typed),
+          icon: const Icon(Icons.edit_outlined, size: 16),
+          label: Text(home == null ? 'Add how much that is in ${store.currency.symbol}' : '= ${store.fmt(home)}'),
+        ),
+      ],
     );
   }
 
@@ -595,10 +712,10 @@ class _EntryFormState extends State<_EntryForm> {
     return SizedBox(
       height: 64,
       child: Material(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: .5),
-        borderRadius: BorderRadius.circular(14),
+        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12),
         child: InkWell(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           onTap: () {
             HapticFeedback.selectionClick();
             isBackspace ? _backspace() : _appendDigit(label);
@@ -643,13 +760,13 @@ class _EntryFormState extends State<_EntryForm> {
     final c = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        width: 76,
+        width: 84,
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: selected ? Border.all(color: c.primary, width: 2) : null,
+          borderRadius: BorderRadius.circular(12),
+          border: selected ? Border.all(color: c.primary, width: 1.5) : null,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -766,42 +883,49 @@ class _EntryFormState extends State<_EntryForm> {
   // keeps the time of day, only the calendar day changes
   DateTime _keepTime(DateTime d) => DateTime(d.year, d.month, d.day, _date.hour, _date.minute);
 
+  // moving a repeat's date can't clear an end that's now before it, so drop it back to "Never"
+  void _setDate(DateTime d) => _touch(() {
+    _date = d;
+    if (_end != null && _end!.isBefore(dayOf(d))) _end = null;
+  });
+
   Widget _dateRow() {
+    final editingRepeat = widget.repeat != null;
     final today = dayOf(DateTime.now());
     final yesterday = today.subtract(const Duration(days: 1));
     final day = dayOf(_date);
     final isToday = day == today;
     final isYesterday = day == yesterday;
+    // a far-out repeat's next date can sit past the usual year-ahead cap
+    final farFuture = DateTime.now().add(const Duration(days: 365));
     return Wrap(
       spacing: 8,
       children: [
-        ChoiceChip(
-          label: const Text('Today'),
-          selected: isToday,
-          onSelected: (_) => _touch(() => _date = _keepTime(today)),
-        ),
-        ChoiceChip(
-          label: const Text('Yesterday'),
-          selected: isYesterday,
-          onSelected: (_) => _touch(() => _date = _keepTime(yesterday)),
-        ),
+        ChoiceChip(label: const Text('Today'), selected: isToday, onSelected: (_) => _setDate(_keepTime(today))),
+        // a repeat can never be moved into the past, so hide the one shortcut that would do that
+        if (!editingRepeat)
+          ChoiceChip(
+            label: const Text('Yesterday'),
+            selected: isYesterday,
+            onSelected: (_) => _setDate(_keepTime(yesterday)),
+          ),
         ActionChip(
           label: Text(!isToday && !isYesterday ? dayLabel(_date) : 'Pick date'),
           onPressed: () async {
             final picked = await showDatePicker(
               context: context,
               initialDate: _date,
-              firstDate: DateTime(2000),
-              lastDate: DateTime.now().add(const Duration(days: 365)),
+              firstDate: editingRepeat ? today : DateTime(2000),
+              lastDate: _date.isAfter(farFuture) ? _date : farFuture,
             );
-            if (picked != null && mounted) _touch(() => _date = _keepTime(picked));
+            if (picked != null && mounted) _setDate(_keepTime(picked));
           },
         ),
       ],
     );
   }
 
-  Widget _moreSection() {
+  Widget _moreSection(Store store) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -844,21 +968,95 @@ class _EntryFormState extends State<_EntryForm> {
               ],
             ),
           ],
-          if (!isEdit && _photoBytes == null) ...[const SizedBox(height: 16), _sectionLabel('Repeat'), _repeatRow()],
+          if (_repeat == null) ...[
+            const SizedBox(height: 16),
+            _sectionLabel('Paid in'),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: ActionChip(
+                avatar: const Icon(Icons.currency_exchange, size: 16),
+                label: Text(currencyOf(_fx ?? store.settings.currency).name),
+                onPressed: () => _pickFx(store),
+              ),
+            ),
+          ],
+          if (!isEdit && _photoBytes == null && _fx == null) ...[
+            const SizedBox(height: 16),
+            _sectionLabel('Repeat'),
+            _repeatSection(),
+          ],
         ],
       ],
     );
   }
 
-  Widget _repeatRow() => Wrap(
-    spacing: 8,
-    runSpacing: 8,
+  Widget _repeatSection() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      ChoiceChip(label: const Text('None'), selected: _repeat == null, onSelected: (_) => _touch(() => _repeat = null)),
-      for (final ev in Every.values)
-        ChoiceChip(label: Text(ev.label), selected: _repeat == ev, onSelected: (_) => _touch(() => _repeat = ev)),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          // pausing and deleting a saved repeat live in Settings, not here
+          if (widget.repeat == null)
+            ChoiceChip(
+              label: const Text('None'),
+              selected: _repeat == null,
+              onSelected: (_) => _touch(() => _repeat = null),
+            ),
+          for (final ev in Every.values)
+            ChoiceChip(label: Text(ev.label), selected: _repeat == ev, onSelected: (_) => _touch(() => _repeat = ev)),
+        ],
+      ),
+      if (_repeat != null) ...[const SizedBox(height: 12), _intervalRow(), const SizedBox(height: 12), _endRow()],
     ],
   );
+
+  Widget _intervalRow() {
+    final unit = _every == 1 ? _repeat!.name : '${_repeat!.name}s';
+    return Wrap(
+      spacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        const Text('Every'),
+        IconButton(
+          tooltip: 'Fewer',
+          icon: const Icon(Icons.remove_circle_outline),
+          onPressed: _every > 1 ? () => _touch(() => _every--) : null,
+        ),
+        Text('$_every', style: Theme.of(context).textTheme.titleMedium),
+        IconButton(
+          tooltip: 'More',
+          icon: const Icon(Icons.add_circle_outline),
+          onPressed: _every < 99 ? () => _touch(() => _every++) : null,
+        ),
+        Text(unit),
+      ],
+    );
+  }
+
+  Widget _endRow() => Align(
+    alignment: Alignment.centerLeft,
+    child: _end == null
+        ? ActionChip(label: const Text('Never'), onPressed: _pickEnd)
+        : InputChip(
+            label: Text('Ends ${dayLabel(_end!)}'),
+            onPressed: _pickEnd,
+            onDeleted: () => _touch(() => _end = null),
+          ),
+  );
+
+  Future<void> _pickEnd() async {
+    final start = dayOf(_date);
+    final picked = await showDatePicker(
+      context: context,
+      // an old repeat can carry an end before its start, and the picker asserts on that
+      initialDate: _end == null || _end!.isBefore(start) ? start : _end!,
+      firstDate: start,
+      lastDate: start.add(const Duration(days: 365 * 20)),
+    );
+    if (picked != null && mounted) _touch(() => _end = dayOf(picked));
+  }
 
   Widget _photoPreview() {
     final bytes = _photoBytes!;
@@ -890,6 +1088,57 @@ class _EntryFormState extends State<_EntryForm> {
       ],
     );
   }
+}
+
+/// The exact home amount a foreign one came to, say from a bank app. Pops the cents.
+class _HomeAmountDialog extends StatefulWidget {
+  const _HomeAmountDialog({required this.home, required this.paid, this.cents});
+
+  final Currency home;
+  final String paid;
+  final int? cents;
+
+  @override
+  State<_HomeAmountDialog> createState() => _HomeAmountDialogState();
+}
+
+class _HomeAmountDialogState extends State<_HomeAmountDialog> {
+  late final _controller = TextEditingController(text: widget.cents == null ? '' : centsToInput(widget.cents!));
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _done() {
+    final cents = parseCents(_controller.text);
+    if (cents == null) return setState(() => _error = 'Enter an amount.');
+    Navigator.pop(context, cents);
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text('How much in ${widget.home.symbol}?'),
+    content: TextField(
+      controller: _controller,
+      autofocus: true,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      textInputAction: TextInputAction.done,
+      onSubmitted: (_) => _done(),
+      decoration: InputDecoration(
+        prefixText: '${widget.home.symbol} ',
+        helperText: 'What ${widget.paid} came to. Your bank or card app shows it.',
+        helperMaxLines: 2,
+        errorText: _error,
+      ),
+    ),
+    actions: [
+      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+      FilledButton(onPressed: _done, child: const Text('Done')),
+    ],
+  );
 }
 
 class _PhotoViewer extends StatelessWidget {
