@@ -22,9 +22,10 @@
 <body>
   <script src="cache_api.js"></script>
   <script src="opfs_helper.js"></script>
+  <!-- litert_lm.js is npm @litert-lm/core 0.17.0 bundled with esbuild, so no outside script loads next to the sync key -->
   <script type="module">
   window.litertLmReady = (async () => {
-    const m = await import('https://cdn.jsdelivr.net/npm/@litert-lm/core@0.17.0/+esm');
+    const m = await import('./litert_lm.js');
     window.Engine = m.Engine;
     return m.Engine;
   })();

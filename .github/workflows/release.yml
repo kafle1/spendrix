@@ -4,8 +4,9 @@ on:
   push:
     tags: ['v*']
 
+# only publish can write, so a bad build step can't push to the repo or swap release files
 permissions:
-  contents: write
+  contents: read
 
 env:
   FLUTTER_VERSION: 3.47.5
@@ -15,29 +16,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with: { persist-credentials: false }
       - uses: actions/setup-java@v5
         with: { distribution: temurin, java-version: 17 }
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with: { flutter-version: '${{ env.FLUTTER_VERSION }}', cache: true }
       - name: signing key
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          echo '${{ secrets.ANDROID_KEYSTORE }}' | base64 -d > "$RUNNER_TEMP/spendrix.jks"
+          echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/spendrix.jks"
           printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=androiddebugkey\nstoreFile=%s\n' \
-            '${{ secrets.ANDROID_KEY_PASSWORD }}' '${{ secrets.ANDROID_KEY_PASSWORD }}' "$RUNNER_TEMP/spendrix.jks" > android/key.properties
-      # one apk per chip, so a phone downloads only its own native code
-      - run: flutter build apk --release --split-per-abi
+            "$KEY_PASSWORD" "$KEY_PASSWORD" "$RUNNER_TEMP/spendrix.jks" > android/key.properties
+      # one apk for every phone, so nobody has to know their chip
       - run: |
+          flutter build apk --release
           mkdir out
-          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk out/Spendrix-android.apk
-          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk out/Spendrix-android-32bit.apk
-          cp build/app/outputs/flutter-apk/app-x86_64-release.apk out/Spendrix-android-x86_64.apk
+          cp build/app/outputs/flutter-apk/app-release.apk out/Spendrix-android.apk
       # 1.3 to 2.0.1 installed as com.spendrix, and a phone only updates an app with the same id
-      - run: flutter build apk --release --split-per-abi
-        env: { SPENDRIX_APP_ID: com.spendrix }
       - run: |
-          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk out/Spendrix-android-for-1.3-and-2.0.apk
-          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk out/Spendrix-android-32bit-for-1.3-and-2.0.apk
-          cp build/app/outputs/flutter-apk/app-x86_64-release.apk out/Spendrix-android-x86_64-for-1.3-and-2.0.apk
+          flutter build apk --release
+          cp build/app/outputs/flutter-apk/app-release.apk out/Spendrix-android-for-1.3-and-2.0.apk
+        env: { SPENDRIX_APP_ID: com.spendrix }
       - uses: actions/upload-artifact@v4
         with: { name: android, path: out/* }
 
@@ -45,14 +46,15 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: subosito/flutter-action@v2
+        with: { persist-credentials: false }
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with: { flutter-version: '${{ env.FLUTTER_VERSION }}', cache: true }
       # unsigned: installable only by sideloading until there is an Apple developer account
       - run: flutter build ios --release --no-codesign
       - run: |
           mkdir -p out/Payload
           cp -R build/ios/iphoneos/Runner.app out/Payload/
-          (cd out && zip -qr Spendrix-ios-unsigned.ipa Payload && rm -r Payload)
+          (cd out && zip -qr Spendrix-iphone.ipa Payload && rm -r Payload)
       - uses: actions/upload-artifact@v4
         with: { name: ios, path: out/* }
 
@@ -60,7 +62,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: subosito/flutter-action@v2
+        with: { persist-credentials: false }
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with: { flutter-version: '${{ env.FLUTTER_VERSION }}', cache: true }
       - run: flutter build macos --release
       - run: |
@@ -73,7 +76,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: subosito/flutter-action@v2
+        with: { persist-credentials: false }
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with: { flutter-version: '${{ env.FLUTTER_VERSION }}', cache: true }
       - run: flutter build windows --release
       # intel npu runtime (~100 MB): only loaded for the npu backend, which the app never picks
@@ -90,8 +94,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with: { persist-credentials: false }
       - run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev lld
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with: { flutter-version: '${{ env.FLUTTER_VERSION }}', cache: true }
       - run: flutter build linux --release
       - run: |
@@ -100,24 +105,14 @@ jobs:
       - uses: actions/upload-artifact@v4
         with: { name: linux, path: out/* }
 
-  web:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: subosito/flutter-action@v2
-        with: { flutter-version: '${{ env.FLUTTER_VERSION }}', cache: true }
-      - run: flutter build web --release
-      - run: |
-          mkdir out
-          (cd build/web && zip -qr ../../out/Spendrix-web.zip .)
-      - uses: actions/upload-artifact@v4
-        with: { name: web, path: out/* }
-
   publish:
-    needs: [android, ios, macos, windows, linux, web]
+    needs: [android, ios, macos, windows, linux]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v5
+        with: { persist-credentials: false }
       - uses: actions/download-artifact@v5
         with: { path: out, merge-multiple: true }
       - run: gh release create "$GITHUB_REF_NAME" out/* --title "Spendrix ${GITHUB_REF_NAME#v}" --notes-file RELEASE_NOTES.md
