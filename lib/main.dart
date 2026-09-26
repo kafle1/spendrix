@@ -1,202 +1,277 @@
 import 'dart:async';
+
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'firebase_options.dart';
-import 'gen/assets.gen.dart';
-import 'providers/data_provider.dart';
-import 'screens/setup_screen.dart';
-import 'screens/home_screen.dart';
-import 'screens/login_screen.dart';
-import 'utils/app_theme.dart';
-import 'services/firebase_analytics_service.dart';
-import 'services/settings_service.dart';
 
-void main() async {
+import 'ai.dart';
+import 'legacy.dart';
+import 'screens/activity.dart';
+import 'screens/assistant.dart';
+import 'screens/entry_form.dart';
+import 'screens/home.dart';
+import 'screens/insights.dart';
+import 'screens/onboarding.dart';
+import 'screens/people.dart';
+import 'store.dart';
+import 'stats.dart';
+import 'sync.dart';
+import 'theme.dart';
+import 'widgets.dart';
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-    
-    if (!kIsWeb) {
-      FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-      PlatformDispatcher.instance.onError = (error, stack) {
-        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-        return true;
-      };
-    }
-
-    await SettingsService.initialize();
-    await FirebaseAnalyticsService.logAppOpen();
-  } catch (e) {
-    debugPrint('Firebase init error: $e');
-  }
-
-  runApp(const MyApp());
-}
-
-class MyApp extends StatefulWidget {
-  const MyApp({super.key});
-
-  @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  ThemeMode _themeMode = ThemeMode.light;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadThemeMode();
-  }
-
-  Future<void> _loadThemeMode() async {
-    final prefs = await SharedPreferences.getInstance();
-    final isDark = prefs.getBool('isDarkMode') ?? false;
-    setState(() => _themeMode = isDark ? ThemeMode.dark : ThemeMode.light);
-  }
-
-  void _updateThemeMode(ThemeMode mode) {
-    setState(() => _themeMode = mode);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MultiProvider(
+  prefs = await SharedPreferencesWithCache.create(cacheOptions: const SharedPreferencesWithCacheOptions());
+  final store = await Store.open();
+  startStats(
+    () => {
+      'entries': bucket(store.entries.length),
+      'accounts': bucket(store.accounts.length),
+      'people': bucket(store.people.length),
+      'currency': store.settings.currency,
+      'budget': store.settings.budget != null || store.categories.any((c) => c.budget != null) ? 'yes' : 'no',
+      'sync': prefs.getString('sync') != null ? 'on' : 'off',
+      'lock': prefs.getBool('lock') == true ? 'on' : 'off',
+      'theme': themeMode.value.name,
+    },
+  );
+  currentTab.addListener(() => trackScreen(Shell._tabs[currentTab.value].$3.toLowerCase()));
+  // a failed import leaves the old file in place and tries again next launch
+  await importLegacy(store).catchError((Object e, StackTrace s) {
+    debugPrint('old data import failed: $e');
+    trackError(e, s);
+  });
+  runApp(
+    MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => DataProvider()),
-        Provider<Function(ThemeMode)>.value(value: _updateThemeMode),
+        ChangeNotifierProvider.value(value: store),
+        ChangeNotifierProvider(create: (_) => Sync(store), lazy: false),
+        ChangeNotifierProvider(create: (_) => Assistant(store)),
       ],
-      child: MaterialApp(
-        title: 'Spendrix',
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: _themeMode,
-        debugShowCheckedModeBanner: false,
-        navigatorObservers: [FirebaseAnalyticsService.observer],
-        home: const SplashScreen(),
-        routes: {
-          '/setup': (context) => const SetupScreen(),
-          '/home': (context) => const HomeScreen(),
-        },
-      ),
-    );
+      child: const App(),
+    ),
+  );
+}
+
+class App extends StatelessWidget {
+  const App({super.key});
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder(
+    valueListenable: themeMode,
+    builder: (context, mode, _) => MaterialApp(
+      title: 'Spendrix',
+      debugShowCheckedModeBanner: false,
+      theme: buildTheme(Brightness.light),
+      darkTheme: buildTheme(Brightness.dark),
+      themeMode: mode,
+      navigatorObservers: [statsObserver],
+      // above the navigator, so the lock also covers a page opened on top of Home
+      builder: (context, child) => _Lock(child: child!),
+      home: const Gate(),
+    ),
+  );
+}
+
+/// Onboarding first, then the app.
+class Gate extends StatelessWidget {
+  const Gate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final resets = context.select<Store, int>((s) => s.resets);
+    return context.select<Store, bool>((s) => s.onboarded) ? Shell(key: ValueKey(resets)) : const Onboarding();
   }
 }
 
-class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+/// The app lock, when on. The app stays built underneath so unlocking returns to the same page.
+class _Lock extends StatefulWidget {
+  const _Lock({required this.child});
+
+  final Widget child;
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  State<_Lock> createState() => _LockState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+/// Turns the app lock on or off.
+Future<void> setAppLock(bool on) async {
+  await prefs.setBool('lock', on);
+  await _secureWindow(on);
+}
+
+Future<void> _secureWindow(bool on) async {
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    await const MethodChannel('spendrix/secure').invokeMethod<void>('set', on);
+  }
+}
+
+class _LockState extends State<_Lock> {
+  bool _locked = prefs.getBool('lock') == true, _covered = false;
+  DateTime? _awaySince;
+  late final AppLifecycleListener _lifecycle;
+
   @override
   void initState() {
     super.initState();
-    _initialize();
-  }
-
-  Future<void> _initialize() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final setupCompleted = prefs.getBool('setupCompleted') ?? false;
-
-      await Future.delayed(const Duration(milliseconds: 1500));
-
-      if (!mounted) return;
-
-      if (!setupCompleted) {
-        _navigateToLogin();
-      } else {
-        final dataProvider = Provider.of<DataProvider>(context, listen: false);
-        await dataProvider.loadAllData();
-        if (!mounted) return;
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
-      }
-    } catch (e) {
-      debugPrint('Splash init error: $e');
-      if (mounted) _navigateToLogin();
+    _lifecycle = AppLifecycleListener(
+      // inactive is both a phone leaving for another app and a desktop window losing focus
+      onInactive: () => _awaySince ??= DateTime.now(),
+      onResume: () {
+        // a short trip to another app (the camera, a share sheet) doesn't lock
+        final since = _awaySince;
+        _awaySince = null;
+        final away = since == null ? Duration.zero : DateTime.now().difference(since);
+        // abs, so turning the clock back still locks but a tiny automatic clock fix doesn't
+        if (prefs.getBool('lock') == true && !_locked && away.abs() > const Duration(seconds: 30)) {
+          setState(() => _locked = true);
+          _unlock();
+        }
+      },
+      // iOS snapshots the screen for the app switcher on the way out, so hide it first
+      onStateChange: (state) {
+        final covered =
+            defaultTargetPlatform == TargetPlatform.iOS &&
+            prefs.getBool('lock') == true &&
+            state != AppLifecycleState.resumed;
+        if (covered != _covered) setState(() => _covered = covered);
+      },
+    );
+    if (_locked) {
+      unawaited(_secureWindow(true));
+      WidgetsBinding.instance.addPostFrameCallback((_) => _unlock());
     }
   }
 
-  void _navigateToLogin() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => LoginScreen(
-          onLoginSuccess: () {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => const SetupScreen()),
-            );
-          },
-        ),
-      ),
-    );
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  Future<void> _unlock() async {
+    var ok = false;
+    try {
+      ok = await LocalAuthentication().authenticate(
+        localizedReason: 'Unlock Spendrix',
+        persistAcrossBackgrounding: true,
+      );
+    } on LocalAuthException catch (e) {
+      if (e.code == LocalAuthExceptionCode.noCredentialsSet) {
+        // the phone's own screen lock was removed, so this lock can never open again
+        await setAppLock(false);
+        ok = true;
+      }
+    }
+    if (!ok || !mounted) return;
+    // the pin screen hides the app, so coming back from it isn't time away
+    _awaySince = null;
+    setState(() => _locked = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(32),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.3),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(32),
-                child: Image(
-                  image: Assets.icon.icon.provider(),
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Icon(
-                    Icons.account_balance_wallet,
-                    size: 60,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 32),
-            Text(
-              'Spendrix',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).textTheme.displayLarge?.color,
-                letterSpacing: -1.0,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Smart Money Management',
-              style: TextStyle(
-                fontSize: 16,
-                color: Theme.of(context).textTheme.bodySmall?.color,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
+    final hide = _locked || _covered;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ExcludeFocus(
+          excluding: hide,
+          child: Offstage(offstage: hide, child: widget.child),
         ),
-      ),
+        if (hide) _LockScreen(onUnlock: _unlock),
+      ],
     );
   }
+}
+
+class _LockScreen extends StatelessWidget {
+  const _LockScreen({required this.onUnlock});
+
+  final VoidCallback onUnlock;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: Empty(
+      icon: Icons.lock_outline,
+      title: 'Spendrix is locked',
+      body: 'Unlock with your fingerprint, face or phone PIN.',
+      action: FilledButton.icon(onPressed: onUnlock, icon: const Icon(Icons.lock_open), label: const Text('Unlock')),
+    ),
+  );
+}
+
+class Shell extends StatelessWidget {
+  const Shell({super.key});
+
+  static const _pages = [HomeScreen(), ActivityScreen(), AssistantScreen(), InsightsScreen(), PeopleScreen()];
+  static const _tabs = [
+    (Icons.home_outlined, Icons.home, 'Home'),
+    (Icons.receipt_long_outlined, Icons.receipt_long, 'Activity'),
+    (Icons.auto_awesome_outlined, Icons.auto_awesome, 'Ask'),
+    (Icons.pie_chart_outline, Icons.pie_chart, 'Insights'),
+    (Icons.people_outline, Icons.people, 'People'),
+  ];
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder(
+    valueListenable: currentTab,
+    builder: (context, tab, _) {
+      final wide = MediaQuery.sizeOf(context).width >= 800;
+      final body = IndexedStack(index: tab, children: _pages);
+      return CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.keyN, control: true): () => openEntry(context),
+          const SingleActivator(LogicalKeyboardKey.keyN, meta: true): () => openEntry(context),
+        },
+        child: Focus(
+          autofocus: true,
+          child: PopScope(
+            // back on another tab goes Home first instead of closing the app
+            canPop: tab == 0,
+            onPopInvokedWithResult: (didPop, _) {
+              if (!didPop) currentTab.value = 0;
+            },
+            child: Scaffold(
+              body: wide
+                  ? Row(
+                      children: [
+                        NavigationRail(
+                          selectedIndex: tab,
+                          onDestinationSelected: (i) => currentTab.value = i,
+                          labelType: NavigationRailLabelType.all,
+                          groupAlignment: -.85,
+                          destinations: [
+                            for (final (icon, selected, label) in _tabs)
+                              NavigationRailDestination(
+                                icon: Icon(icon),
+                                selectedIcon: Icon(selected),
+                                label: Text(label),
+                              ),
+                          ],
+                        ),
+                        const VerticalDivider(width: 1),
+                        Expanded(child: body),
+                      ],
+                    )
+                  : body,
+              bottomNavigationBar: wide
+                  ? null
+                  : NavigationBar(
+                      selectedIndex: tab,
+                      onDestinationSelected: (i) => currentTab.value = i,
+                      destinations: [
+                        for (final (icon, selected, label) in _tabs)
+                          NavigationDestination(icon: Icon(icon), selectedIcon: Icon(selected), label: label),
+                      ],
+                    ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
 }

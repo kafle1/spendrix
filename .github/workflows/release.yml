@@ -1,0 +1,122 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+env:
+  FLUTTER_VERSION: 3.47.5
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with: { distribution: temurin, java-version: 17 }
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: '${{ env.FLUTTER_VERSION }}', cache: true }
+      - name: signing key
+        run: |
+          echo '${{ secrets.ANDROID_KEYSTORE }}' | base64 -d > "$RUNNER_TEMP/spendrix.jks"
+          printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=androiddebugkey\nstoreFile=%s\n' \
+            '${{ secrets.ANDROID_KEY_PASSWORD }}' '${{ secrets.ANDROID_KEY_PASSWORD }}' "$RUNNER_TEMP/spendrix.jks" > android/key.properties
+      # one apk per chip, so a phone downloads only its own native code
+      - run: flutter build apk --release --split-per-abi
+      - run: |
+          mkdir out
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk out/Spendrix-android.apk
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk out/Spendrix-android-32bit.apk
+          cp build/app/outputs/flutter-apk/app-x86_64-release.apk out/Spendrix-android-x86_64.apk
+      # 1.2 and older installed under another app id, and a phone only updates an app with the same id
+      - run: flutter build apk --release --split-per-abi
+        env: { SPENDRIX_APP_ID: com.example.expenses_tracker }
+      - run: |
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk out/Spendrix-android-for-1.2-and-older.apk
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk out/Spendrix-android-32bit-for-1.2-and-older.apk
+      - uses: actions/upload-artifact@v4
+        with: { name: android, path: out/* }
+
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: '${{ env.FLUTTER_VERSION }}', cache: true }
+      # unsigned: installable only by sideloading until there is an Apple developer account
+      - run: flutter build ios --release --no-codesign
+      - run: |
+          mkdir -p out/Payload
+          cp -R build/ios/iphoneos/Runner.app out/Payload/
+          (cd out && zip -qr Spendrix-ios-unsigned.ipa Payload && rm -r Payload)
+      - uses: actions/upload-artifact@v4
+        with: { name: ios, path: out/* }
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: '${{ env.FLUTTER_VERSION }}', cache: true }
+      - run: flutter build macos --release
+      - run: |
+          mkdir out
+          hdiutil create -volname Spendrix -srcfolder build/macos/Build/Products/Release/Spendrix.app -ov -format UDZO out/Spendrix-macos.dmg
+      - uses: actions/upload-artifact@v4
+        with: { name: macos, path: out/* }
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: '${{ env.FLUTTER_VERSION }}', cache: true }
+      - run: flutter build windows --release
+      # intel npu runtime (~100 MB): only loaded for the npu backend, which the app never picks
+      - run: Get-ChildItem build/windows/x64/runner/Release -Recurse -Include LiteRtDispatch.dll, openvino*.dll, tbb*.dll | Remove-Item
+      - run: |
+          mkdir out
+          Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath out/Spendrix-windows.zip
+      - uses: actions/upload-artifact@v4
+        with: { name: windows, path: out/* }
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev lld
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: '${{ env.FLUTTER_VERSION }}', cache: true }
+      - run: flutter build linux --release
+      - run: |
+          mkdir out
+          tar -czf out/Spendrix-linux-x64.tar.gz -C build/linux/x64/release/bundle .
+      - uses: actions/upload-artifact@v4
+        with: { name: linux, path: out/* }
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: '${{ env.FLUTTER_VERSION }}', cache: true }
+      - run: flutter build web --release
+      - run: |
+          mkdir out
+          (cd build/web && zip -qr ../../out/Spendrix-web.zip .)
+      - uses: actions/upload-artifact@v4
+        with: { name: web, path: out/* }
+
+  publish:
+    needs: [android, ios, macos, windows, linux, web]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
+        with: { path: out, merge-multiple: true }
+      - run: gh release create "$GITHUB_REF_NAME" out/* --title "Spendrix ${GITHUB_REF_NAME#v}" --notes-file RELEASE_NOTES.md
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -1,126 +1,110 @@
-# Spendrix 💰
+# Spendrix
 
-**Smart Money Management Made Simple**
+Spendrix is a private money diary. It works fully offline and keeps everything on your device. It has a helper that runs on your own phone or computer, so you can type, speak (Nepali or English) or snap a receipt and it writes the entry for you.
 
-Spendrix is a modern, intuitive expense tracking application built with Flutter. Track your income, expenses, and manage your finances with ease across all your devices.
+![Spendrix walkthrough](docs/walkthrough.gif)
 
-[![Flutter](https://img.shields.io/badge/Flutter-3.8.1+-blue.svg)](https://flutter.dev/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.4.1+1-green.svg)](https://github.com/kafle1/spendrix/releases)
+Sharper version: [walkthrough video](docs/walkthrough.mp4).
 
-## ✨ Features
+## Get it
 
-### 💳 Financial Management
-- **Transaction Tracking** - Record income and expenses with categories
-- **Multiple Accounts** - Manage multiple bank accounts, wallets, and payment methods
-- **Spending Limits** - Set daily, weekly, or monthly budget limits per category
-- **Lend & Borrow** - Track money lent to or borrowed from others
+Grab the latest build from [Releases](https://github.com/kafle1/spendrix/releases/latest).
 
-### 📊 Analytics & Reports
-- **Visual Analytics** - Beautiful charts and graphs for expense breakdown
-- **Custom Reports** - Generate reports for any time period
-- **Category Insights** - See spending patterns by category
-- **Budget Progress** - Track spending limits with visual indicators
+| Device | File | How |
+|---|---|---|
+| Android | `Spendrix-android.apk` | Open it on your phone and allow the install. Old 32-bit phones take `Spendrix-android-32bit.apk` (no AI) |
+| iPhone | `Spendrix-ios-unsigned.ipa` | Sideload with AltStore or Sideloadly until it's on the App Store |
+| Mac | `Spendrix-macos.dmg` | Drag to Applications. It isn't signed yet, so right-click and pick Open the first time |
+| Windows | `Spendrix-windows.zip` | Unzip and run `spendrix.exe` |
+| Linux | `Spendrix-linux-x64.tar.gz` | Extract and run `./spendrix` |
+| Browser | [spendrix.web.app](https://spendrix.web.app) | Nothing to install |
 
-### 🎨 User Experience
-- **Dark Mode** - Full support for light and dark themes
-- **Modern UI** - Clean, intuitive interface with smooth animations
-- **Customizable** - Toggle features like lend/borrow tracking
-- **Responsive** - Works seamlessly on phones and tablets
+## What it does
 
-## 📱 Screenshots
+- Add money out, money in, transfers between your accounts, and money you lent or borrowed.
+- Bills that repeat add themselves on the day they're due.
+- See where your money goes with monthly charts and category totals.
+- Keep track of who owes you and who you owe.
+- Ask things like "how much did I spend on food last month?"
+- Say "khana 450" or "बिजुली बिल ११००" and it drafts the entry. Tap Save.
+- Take a photo of a receipt and it fills in the amount, date and shop.
+- Sync between your phone, computer and browser. Everything is locked on your device before it leaves, so nobody else can read it, us included.
+- Backup to a file, export to a spreadsheet, app lock with fingerprint or face, dark mode.
 
-*Screenshots coming soon*
+The full walkthrough is in [GUIDE.md](GUIDE.md).
 
-## 🚀 Getting Started
+## The helper
 
-### Prerequisites
+The helper is Google's Gemma 4 model. It runs on your device, needs no account and sends nothing anywhere. You download it once from inside the app (about 2.6 GB, or 2 GB in the browser), then it works offline.
 
-- Flutter SDK 3.8.1 or higher
-- Dart SDK 3.8.1 or higher
-- Android Studio / Xcode (for mobile development)
+| Where | Chat | Voice | Receipt photos |
+|---|---|---|---|
+| Android (64-bit phones) | yes | yes | yes |
+| iPhone and iPad (real devices) | yes | yes | yes |
+| Mac with Apple chip | yes | yes | yes |
+| Windows and Linux (64-bit Intel or AMD) | yes | yes | yes |
+| Browser (Chrome or Edge with WebGPU) | yes | no | no |
 
-### Installation
+Phones with less than 6 GB of memory may be slow or unable to load it. Everything else in Spendrix works without the helper.
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/kafle1/spendrix.git
-   cd spendrix
-   ```
+Voice on Linux needs `parecord`, which most desktops already have (package `pulseaudio-utils`).
 
-2. **Install dependencies**
-   ```bash
-   flutter pub get
-   ```
+## Sync and privacy
 
-3. **Run the app**
-   ```bash
-   flutter run
-   ```
+Sync is optional. When you turn it on, Spendrix turns your password into two keys on your device. One signs you in. The other locks every entry with AES-256 before it's sent to Firebase. The server only ever sees locked data.
 
-## 🏗️ Project Structure
+- Forget the password and the synced copy can't be opened. Your data on each device stays safe, and you can start a fresh sync.
+- Receipt photos stay on the device they were taken on.
+- If two devices change the same entry, the newest change wins.
 
-```
-lib/
-├── main.dart                 # App entry point
-├── models/                   # Data models
-│   ├── account.dart
-│   ├── category.dart
-│   ├── transaction.dart
-│   └── spending_limit.dart
-├── screens/                  # UI screens
-│   ├── home_screen.dart
-│   ├── add_transaction_screen.dart
-│   ├── reports_screen.dart
-│   ├── lend_borrow_screen.dart
-│   └── settings_screen.dart
-├── providers/                # State management
-│   └── data_provider.dart
-├── database/                 # SQLite database
-│   └── database_helper.dart
-├── utils/                    # Utilities
-│   ├── app_theme.dart
-│   └── format_utils.dart
-└── widgets/                  # Reusable widgets
+Usage stats stay hidden until the Google Analytics ids in `lib/stats.dart` are filled in. After that they are off unless you say yes when Spendrix asks. If you do, it sends anonymous counts to Google Analytics: which screens get opened, which features get used, rough totals like "10-49 entries", and the file and line when something crashes. It never sends amounts, names, notes, photos, audio or anything you type. Turn it off in Settings and the random id and anything unsent are deleted.
+
+## Build it yourself
+
+You need Flutter 3.47 or newer.
+
+```sh
+flutter pub get
+flutter run
 ```
 
-## 🛠️ Built With
+Release builds:
 
-- **[Flutter](https://flutter.dev/)** - UI framework
-- **[Provider](https://pub.dev/packages/provider)** - State management
-- **[SQLite](https://pub.dev/packages/sqflite)** - Local database
-- **[FL Chart](https://pub.dev/packages/fl_chart)** - Beautiful charts
-- **[Google Fonts](https://pub.dev/packages/google_fonts)** - Typography
+```sh
+flutter build apk --release
+flutter build ios --release --no-codesign
+flutter build macos --release
+flutter build windows --release
+flutter build linux --release   # needs clang cmake ninja-build libgtk-3-dev lld
+flutter build web --release
+```
 
-## 🤝 Contributing
+Pushing a tag like `v2.0.0` builds every platform on GitHub and publishes a release with `RELEASE_NOTES.md` as the notes. The Android job needs two repository secrets:
 
-Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on how to submit pull requests.
+- `ANDROID_KEYSTORE`: the release keystore, base64 encoded
+- `ANDROID_KEY_PASSWORD`: its password (the key alias is `androiddebugkey`, the same key 1.x was signed with)
 
-## 📄 License
+For a local signed Android build, put the same values in `android/key.properties` (it's gitignored).
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+### Firebase
 
-## 🙏 Acknowledgments
+Sync uses Firebase Auth (email and password) and Firestore through their REST APIs. To point it at your own project, change the project id and web API key at the top of `lib/sync.dart`, enable Email/Password sign-in, then:
 
-- Thanks to the Flutter team for the amazing framework
-- Icons from [Material Design Icons](https://fonts.google.com/icons)
-- Inspiration from various personal finance apps
+```sh
+firebase deploy --only firestore:rules
+flutter build web --release && firebase deploy --only hosting
+```
 
-## 📮 Contact
+## Code map
 
-**Niraj Kafle**
-- GitHub: [@nirajkafle](https://github.com/nirajkafle)
+| File | What's in it |
+|---|---|
+| `lib/store.dart` | Local database (Hive), repeating bills, backup and export |
+| `lib/sync.dart` | Sign-in, key setup, encryption and the sync loop |
+| `lib/ai.dart` | Model download, chat, voice and receipt reading |
+| `lib/models.dart` | Entries, accounts, categories, people |
+| `lib/screens/` | One file per screen |
 
-## 🗺️ Roadmap
+## License
 
-- [ ] Export data to CSV/Excel
-- [ ] Cloud sync and backup
-- [ ] Receipt scanning with OCR
-- [ ] Multi-currency support
-- [ ] Recurring transactions
-- [ ] Financial goal tracking
-- [ ] Bank integration
-
----
-
-**Made with ❤️ using Flutter**
+MIT

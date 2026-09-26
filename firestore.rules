@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    // every record is ciphertext; the server only checks shape and owner
+    match /users/{uid}/items/{id} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['v', 's'])
+        && request.resource.data.v is bytes
+        && request.resource.data.v.size() < 16384
+        && request.resource.data.s == request.time;
+    }
+  }
+}

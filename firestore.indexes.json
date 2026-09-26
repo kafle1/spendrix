@@ -1,0 +1,6 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    { "collectionGroup": "items", "fieldPath": "v", "indexes": [] }
+  ]
+}
