@@ -77,6 +77,8 @@ jobs:
       - run: flutter build windows --release
       # intel npu runtime (~100 MB): only loaded for the npu backend, which the app never picks
       - run: Get-ChildItem build/windows/x64/runner/Release -Recurse -Include LiteRtDispatch.dll, openvino*.dll, tbb*.dll | Remove-Item
+      # flutter doesn't bundle the vc++ runtime, and a fresh windows install doesn't have it
+      - run: Copy-Item C:/Windows/System32/msvcp140.dll, C:/Windows/System32/vcruntime140.dll, C:/Windows/System32/vcruntime140_1.dll build/windows/x64/runner/Release/
       - run: |
           mkdir out
           Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath out/Spendrix-windows.zip

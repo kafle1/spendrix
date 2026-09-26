@@ -14,7 +14,7 @@ Grab the latest build from [Releases](https://github.com/kafle1/spendrix/release
 |---|---|---|
 | Android | `Spendrix-android.apk` | Open it on your phone and allow the install. Old 32-bit phones take `Spendrix-android-32bit.apk` (no AI) |
 | iPhone | `Spendrix-ios-unsigned.ipa` | Sideload with AltStore or Sideloadly until it's on the App Store |
-| Mac | `Spendrix-macos.dmg` | Drag to Applications. It isn't signed yet, so right-click and pick Open the first time |
+| Mac | `Spendrix-macos.dmg` | Drag to Applications. It isn't signed yet, so macOS blocks the first open. Go to System Settings, Privacy & Security, and click Open Anyway |
 | Windows | `Spendrix-windows.zip` | Unzip and run `spendrix.exe` |
 | Linux | `Spendrix-linux-x64.tar.gz` | Extract and run `./spendrix` |
 | Browser | [spendrix.web.app](https://spendrix.web.app) | Nothing to install |
