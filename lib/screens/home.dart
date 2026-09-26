@@ -62,7 +62,7 @@ class HomeScreen extends StatelessWidget {
               ValueListenableBuilder(valueListenable: update, builder: (context, u, _) => _updateCard(context, u)),
               Text('Total balance', style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
               const SizedBox(height: 4),
-              Money(store.total, style: t.displaySmall),
+              Money(store.total, style: t.displaySmall?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: 20),
               if (hasEntries) _monthCard(context, store, spent) else _firstRunCard(context),
               const SizedBox(height: 20),
@@ -248,7 +248,6 @@ class _AccountCard extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerLow,
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -311,7 +310,7 @@ Widget _recentSection(BuildContext context, List<Entry> recent) => Column(
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('Recent', style: Theme.of(context).textTheme.titleLarge),
+          Text('Recent', style: Theme.of(context).textTheme.titleMedium),
           TextButton(onPressed: () => currentTab.value = 1, child: const Text('See all')),
         ],
       ),

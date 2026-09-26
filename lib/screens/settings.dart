@@ -114,7 +114,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               valueListenable: themeMode,
               builder: (context, mode, _) => SegmentedButton<ThemeMode>(
                 expandedInsets: const EdgeInsets.symmetric(horizontal: 16),
-                showSelectedIcon: false,
                 segments: const [
                   ButtonSegment(value: ThemeMode.system, label: Text('System'), icon: Icon(Icons.brightness_auto)),
                   ButtonSegment(value: ThemeMode.light, label: Text('Light'), icon: Icon(Icons.light_mode_outlined)),
@@ -654,7 +653,10 @@ class _Header extends StatelessWidget {
     padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
     child: Semantics(
       header: true,
-      child: Text(text, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 20)),
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(color: Theme.of(context).colorScheme.primary),
+      ),
     ),
   );
 }
@@ -1277,7 +1279,6 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         if (c == null) ...[
           SegmentedButton<bool>(
             expandedInsets: EdgeInsets.zero,
-            showSelectedIcon: false,
             segments: const [
               ButtonSegment(value: false, label: Text('Money out')),
               ButtonSegment(value: true, label: Text('Money in')),
