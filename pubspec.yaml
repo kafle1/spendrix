@@ -1,7 +1,7 @@
 name: spendrix
 description: Spendrix, a private money diary with on-device AI.
 publish_to: 'none'
-version: 2.0.0+7
+version: 2.0.1+8
 
 environment:
   sdk: ^3.13.0
