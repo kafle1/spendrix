@@ -371,10 +371,9 @@ Widget _trend(BuildContext context, Store store, DateTime month) {
                 ),
                 barTouchData: BarTouchData(
                   touchTooltipData: BarTouchTooltipData(
-                    getTooltipColor: (_) => c.inverseSurface,
                     getTooltipItem: (group, groupIndex, rod, rodIndex) => BarTooltipItem(
                       store.fmt(rod.toY.round()),
-                      TextStyle(color: c.onInverseSurface, fontWeight: FontWeight.w600, fontSize: 12),
+                      const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12),
                     ),
                   ),
                 ),
@@ -386,7 +385,7 @@ Widget _trend(BuildContext context, Store store, DateTime month) {
                         BarChartRodData(
                           toY: s.toDouble(),
                           width: 20,
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                          borderRadius: BorderRadius.circular(6),
                           color: i == spentByMonth.length - 1 ? c.primary : c.primary.withValues(alpha: .35),
                         ),
                       ],

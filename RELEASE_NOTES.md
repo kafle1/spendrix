@@ -1,5 +1,9 @@
 Spendrix is a private money diary. It works offline and keeps everything on your device.
 
+**Fixed in 2.1.2**
+- The app looks like it did before 2.1 again, in the same green.
+- The AI no longer freezes or closes the app, and it works on more phones.
+
 **Fixed in 2.1.1**
 - "Rent 15000 every month" in the AI chat now sets up a repeat instead of a new category.
 - "Delete the last entry" now picks the entry you just added, not one from earlier in the chat.
@@ -9,7 +13,7 @@ Spendrix is a private money diary. It works offline and keeps everything on your
 - Repeats can be every 2 weeks, every 3 months, and can stop on a date. Tap one in Settings to change it.
 - Add money spent in dollars or any other currency.
 - Share a month's summary from Insights.
-- A fresh new look. Nepali rupees are the default for new users.
+- Nepali rupees are the default for new users.
 - The AI picks the right size for your phone, so it stays fast.
 
 **Which file do I download?**

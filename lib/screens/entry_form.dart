@@ -666,7 +666,7 @@ class _EntryFormState extends State<_EntryForm> {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.displaySmall
-            ?.copyWith(color: color, fontFeatures: const [FontFeature.tabularFigures()]),
+            ?.copyWith(fontWeight: FontWeight.w700, color: color, fontFeatures: const [FontFeature.tabularFigures()]),
       ),
     );
     final typed = _fx == null ? null : parseCents(_amount);
@@ -712,10 +712,10 @@ class _EntryFormState extends State<_EntryForm> {
     return SizedBox(
       height: 64,
       child: Material(
-        color: Theme.of(context).colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(12),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: .5),
+        borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           onTap: () {
             HapticFeedback.selectionClick();
             isBackspace ? _backspace() : _appendDigit(label);
@@ -760,13 +760,13 @@ class _EntryFormState extends State<_EntryForm> {
     final c = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        width: 84,
+        width: 76,
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: selected ? Border.all(color: c.primary, width: 1.5) : null,
+          borderRadius: BorderRadius.circular(16),
+          border: selected ? Border.all(color: c.primary, width: 2) : null,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,

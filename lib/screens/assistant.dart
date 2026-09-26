@@ -273,7 +273,7 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
               decoration: const InputDecoration(
                 hintText: 'Ask, or type "spent 250 on lunch"',
                 isDense: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(24))),
               ),
             ),
           ),
@@ -366,11 +366,11 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
             crossAxisAlignment: line.mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             children: [
               DecoratedBox(
-                decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14)),
+                decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(18)),
                 // the reply keeps the photo only to save it with the draft
                 child: photo != null && line.mine
                     ? ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(18),
                         child: Image.memory(photo, width: 160, height: 160, fit: BoxFit.cover),
                       )
                     : Padding(
@@ -818,7 +818,7 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
       context,
       title: 'Remove the AI?',
       body:
-          'This frees about $_gb GB on this device. Your entries stay as they are, '
+          'This frees at least $_gb GB on this device. Your entries stay as they are, '
           'and you can download the AI again any time.',
       action: 'Remove',
       destructive: true,

@@ -5,10 +5,12 @@ import 'dart:math' show max;
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart' hide Category;
+import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding, WidgetsBindingObserver;
 import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:flutter_gemma_litertlm/flutter_gemma_litertlm.dart';
 import 'package:image/image.dart' as img;
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'format.dart';
 import 'models.dart';
@@ -81,10 +83,29 @@ typedef _Model = ({String repo, String rev, String file, int size});
 /// Nothing leaves the device except the one-time download.
 /// Cheap to construct: the first read of [status] runs a quick "is it installed" check,
 /// and the model itself loads on the first question.
-class Assistant extends ChangeNotifier {
-  Assistant(this.store);
+class Assistant extends ChangeNotifier with WidgetsBindingObserver {
+  Assistant(this.store) {
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   final Store store;
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _idle?.cancel();
+    super.dispose();
+  }
+
+  // the camera or another app needs the memory, and Android closes the biggest app in the background first.
+  // a browser tab takes a minute to load it again, so there it stays
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!kIsWeb && state == AppLifecycleState.hidden) _rest(now: true);
+  }
+
+  @override
+  void didHaveMemoryPressure() => _rest(now: true);
 
   // browsers only get text, where the small one is plenty
   static const _e2b = (
@@ -229,6 +250,12 @@ class Assistant extends ChangeNotifier {
           })
           .withCancelToken(token)
           .install();
+      // the plugin only checks the file isn't empty, and a cut-off one would fail to load every time after
+      if (!kIsWeb && await File(await FlutterGemma.getModelPath(_m.file)).length() != _m.size) {
+        await FlutterGemma.clearActiveInferenceIdentity();
+        await FlutterGemma.uninstallModel(_m.file);
+        throw StateError('cut-off download');
+      }
       _installed = true;
       _set(AiStatus.installed);
       track('feature_used', {'name': 'ai_downloaded'});
@@ -279,6 +306,12 @@ class Assistant extends ChangeNotifier {
       await _init();
       await FlutterGemma.clearActiveInferenceIdentity();
       if (await FlutterGemma.isModelInstalled(_m.file)) await FlutterGemma.uninstallModel(_m.file);
+      // the engine saves a copy of the weights next to it, over 1 GB on phones, and never deletes it
+      if (!kIsWeb) {
+        await for (final f in (await getApplicationSupportDirectory()).list()) {
+          if (f.uri.pathSegments.last.startsWith('${_m.file}_')) await f.delete();
+        }
+      }
       await prefs.remove(_pending);
       _installed = false;
       _m = await _pick();
@@ -307,6 +340,8 @@ class Assistant extends ChangeNotifier {
       }
       final model = await FlutterGemma.getActiveModel(
         maxTokens: 2048,
+        // the plugin tries the graphics chip first, and a bad graphics driver closes the app with no error to catch
+        preferredBackend: kIsWeb ? null : PreferredBackend.cpu,
         supportImage: !kIsWeb,
         supportAudio: !kIsWeb,
         maxNumImages: kIsWeb ? null : 1,
@@ -339,10 +374,15 @@ class Assistant extends ChangeNotifier {
     notifyListeners();
   }
 
-  // the loaded model holds 2 to 4 GB of memory, so give it back once the chat goes quiet
-  void _rest() {
+  // the loaded model holds 1.5 to 3 GB of memory, so give it back once the chat goes quiet or the app is hidden
+  void _rest({bool now = false}) {
     _idle?.cancel();
-    _idle = Timer(const Duration(minutes: 3), () {
+    if (_model == null) return;
+    // an answer that ends while the app is hidden lets go right away too
+    final away =
+        !kIsWeb &&
+        const {AppLifecycleState.hidden, AppLifecycleState.paused}.contains(WidgetsBinding.instance.lifecycleState);
+    _idle = Timer(now || away ? Duration.zero : const Duration(minutes: 3), () {
       if (!_busy && _model != null) unawaited(_drop());
     });
   }
@@ -352,6 +392,10 @@ class Assistant extends ChangeNotifier {
     final model = _model;
     _model = null;
     _status = AiStatus.installed;
+    // a timed-out photo or voice read keeps running natively, and closing the model under it can crash
+    try {
+      await _session?.stopGeneration();
+    } catch (_) {}
     await _end();
     await _close(model);
   }
@@ -394,7 +438,8 @@ class Assistant extends ChangeNotifier {
       if (_stopped) return;
       await session.addQueryChunk(Message.text(text: question, isUser: true));
       var text = '';
-      await for (final chunk in session.getResponseAsync()) {
+      // a stalled engine would spin forever
+      await for (final chunk in session.getResponseAsync().timeout(const Duration(minutes: 2))) {
         if (_stopped) break;
         text += chunk;
         // an entry comes back as json, keep it off screen until it's parsed
@@ -446,7 +491,7 @@ class Assistant extends ChangeNotifier {
           isUser: true,
         ),
       );
-      final j = _json(await session.getResponse());
+      final j = _json(await session.getResponse().timeout(const Duration(minutes: 3)));
       final amount = _cents(j?['amount']);
       if (j == null || amount == null) return null;
       return _paidIn(
@@ -491,7 +536,7 @@ class Assistant extends ChangeNotifier {
           isUser: true,
         ),
       );
-      final text = (await session.getResponse()).trim();
+      final text = (await session.getResponse().timeout(const Duration(minutes: 3))).trim();
       return text.replaceAll(RegExp(r'^[\s"‘’“”]+|[\s"‘’“”]+$'), '');
     } on AiError {
       rethrow;
