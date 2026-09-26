@@ -1,7 +1,7 @@
 name: spendrix
 description: Spendrix, a private money diary with on-device AI.
 publish_to: 'none'
-version: 2.0.1+8
+version: 2.0.2+9
 
 environment:
   sdk: ^3.13.0
@@ -28,6 +28,7 @@ dependencies:
   share_plus: ^13.3.0
   shared_preferences: ^2.5.5
   sqflite: ^2.4.4
+  url_launcher: ^6.3.2
 dev_dependencies:
   flutter_launcher_icons: ^0.14.4
   flutter_lints: ^6.0.0

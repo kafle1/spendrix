@@ -19,6 +19,10 @@ Grab the latest build from [Releases](https://github.com/kafle1/spendrix/release
 | Linux | `Spendrix-linux-x64.tar.gz` | Extract and run `./spendrix` |
 | Browser | [spendrix.web.app](https://spendrix.web.app) | Nothing to install |
 
+To update, install the new file over the old app. Don't uninstall first, that deletes your data. From 2.0.2 on, Spendrix shows a card on Home when a new version is out and links you to the right file.
+
+On Android, `Spendrix-android.apk` updates every older Spendrix, 1.2 and older included. The one exception: if you have 1.3, or got 2.0.0 or 2.0.1 from `Spendrix-android.apk`, take `Spendrix-android-for-1.3-and-2.0.apk` once instead. Those were installed under a different app id, and a phone only updates an app with the same id.
+
 ## What it does
 
 - Add money out, money in, transfers between your accounts, and money you lent or borrowed.
@@ -57,6 +61,8 @@ Sync is optional. When you turn it on, Spendrix turns your password into two key
 - Receipt photos stay on the device they were taken on.
 - If two devices change the same entry, the newest change wins.
 
+Each time it opens, Spendrix asks GitHub for the latest version number so it can tell you about updates. That request carries nothing about you or your money. The browser version skips it, since it's always the newest.
+
 Usage stats stay hidden until the Google Analytics ids in `lib/stats.dart` are filled in. After that they are off unless you say yes when Spendrix asks. If you do, it sends anonymous counts to Google Analytics: which screens get opened, which features get used, rough totals like "10-49 entries", and the file and line when something crashes. It never sends amounts, names, notes, photos, audio or anything you type. Turn it off in Settings and the random id and anything unsent are deleted.
 
 ## Build it yourself
@@ -85,6 +91,8 @@ Pushing a tag like `v2.0.0` builds every platform on GitHub and publishes a rele
 - `ANDROID_KEY_PASSWORD`: its password (the key alias is `androiddebugkey`, the same key 1.x was signed with)
 
 For a local signed Android build, put the same values in `android/key.properties` (it's gitignored).
+
+The Android app id defaults to `com.example.expenses_tracker`, the id 1.2 and older used. Set `SPENDRIX_APP_ID=com.spendrix` to build the file for people on 1.3 to 2.0.1.
 
 ### Firebase
 

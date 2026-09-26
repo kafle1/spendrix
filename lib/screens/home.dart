@@ -5,6 +5,7 @@ import '../models.dart';
 import '../stats.dart';
 import '../store.dart';
 import '../sync.dart';
+import '../update.dart';
 import '../widgets.dart';
 import 'activity.dart';
 import 'entry_form.dart';
@@ -58,6 +59,7 @@ class HomeScreen extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
             children: [
+              ValueListenableBuilder(valueListenable: update, builder: (context, u, _) => _updateCard(context, u)),
               Text('Total balance', style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
               const SizedBox(height: 4),
               Money(store.total, style: t.displaySmall?.copyWith(fontWeight: FontWeight.w700)),
@@ -265,6 +267,27 @@ class _AccountCard extends StatelessWidget {
     ),
   );
 }
+
+Widget _updateCard(BuildContext context, ({String version, String url})? u) => u == null
+    ? const SizedBox.shrink()
+    : Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Card(
+          child: ListTile(
+            leading: const Icon(Icons.system_update_outlined),
+            title: Text('Spendrix ${u.version} is out'),
+            subtitle: const Text('Tap to download it, then open the file to install. Your data stays.'),
+            trailing: IconButton(
+              icon: const Icon(Icons.close),
+              tooltip: 'Not now',
+              onPressed: () => update.value = null,
+            ),
+            onTap: () async {
+              if (!await openUpdate(u.url) && context.mounted) toast(context, "Couldn't open the browser");
+            },
+          ),
+        ),
+      );
 
 Widget _owedRow(BuildContext context, Store store, int owedToYou, int youOwe) => Card(
   child: ListTile(

@@ -20,6 +20,7 @@ import 'store.dart';
 import 'stats.dart';
 import 'sync.dart';
 import 'theme.dart';
+import 'update.dart';
 import 'widgets.dart';
 
 Future<void> main() async {
@@ -54,6 +55,7 @@ Future<void> main() async {
       child: const App(),
     ),
   );
+  unawaited(checkForUpdate());
 }
 
 class App extends StatelessWidget {

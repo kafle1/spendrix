@@ -17,8 +17,8 @@ android {
     }
 
     defaultConfig {
-        // 1.2 and older shipped as com.example.expenses_tracker; CI builds a second apk with that id so those installs update too
-        applicationId = System.getenv("SPENDRIX_APP_ID") ?: "com.spendrix"
+        // 1.2 and older installed as com.example.expenses_tracker, so the main apk keeps it. CI builds a second one for 1.3 to 2.0.1
+        applicationId = System.getenv("SPENDRIX_APP_ID") ?: "com.example.expenses_tracker"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

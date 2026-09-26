@@ -80,6 +80,10 @@ Turn on **Lock with fingerprint or PIN** in Settings. Spendrix then asks for you
 
 ![Settings](docs/settings.png)
 
+## Updates
+
+When a new version is out, a card on Home says so. Tap it to download the new file, then open the file to install it over the old app. Your data stays. Tap the cross to hide the card until the next time you open Spendrix. The browser version is always the newest, so it never shows the card.
+
 ## Where the helper works
 
 | Device | Chat | Voice | Receipt photos |
