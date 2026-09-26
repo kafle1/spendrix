@@ -7,7 +7,7 @@ Spendrix is a private money diary. It works offline, keeps everything on your de
 **Downloads**
 - Android: `Spendrix-android.apk`. Older 32-bit phones use `Spendrix-android-32bit.apk`, and Intel Chromebooks use `Spendrix-android-x86_64.apk`. Neither of those can run the AI.
 - Android, if you have Spendrix 1.2 or older: `Spendrix-android-for-1.2-and-older.apk` (or `Spendrix-android-32bit-for-1.2-and-older.apk`). Those versions were installed under an older name, so only this file updates them in place.
-- Windows: `Spendrix-windows.zip`, unzip and run `spendrix.exe`
+- Windows: `Spendrix-windows.zip`, unzip and run `spendrix.exe`. It isn't signed yet, so the first time Windows says it protected your PC. Click More info, then Run anyway
 - macOS: `Spendrix-macos.dmg`. The app isn't signed yet, so macOS blocks the first open. Go to System Settings, Privacy & Security, and click Open Anyway.
 - Linux: `Spendrix-linux-x64.tar.gz`, extract and run `./spendrix`
 - iPhone: `Spendrix-ios-unsigned.ipa`, sideload only (AltStore or Sideloadly) until it is on the App Store
