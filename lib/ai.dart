@@ -401,6 +401,8 @@ class Assistant extends ChangeNotifier {
         if (!text.contains('{') && !text.contains('`')) yield Reply(text.replaceAll('**', '').trim());
       }
       final j = _json(text);
+      // the small model fills find from the chat or the data list, so "delete the last entry" hit an old rent
+      if (j != null && !_typed(_text(j['find']), question)) j['find'] = '';
       if (j != null) {
         yield acts ? _act(j, digits ? _cents(j['amount']) : null) : const Reply(_noAnswer);
       } else if (!_stopped) {
@@ -717,6 +719,17 @@ class Assistant extends ChangeNotifier {
     );
   }
 
+  /// whether the user typed a word of [find]; Devanagari can't be compared to the model's word, so it passes
+  bool _typed(String find, String question) {
+    final q = question.toLowerCase().replaceAll(',', '');
+    if (find.isEmpty || q.codeUnits.any((c) => c >= 0x0900 && c <= 0x097F)) return true;
+    const filler = {'the', 'and', 'one', 'last', 'entry'};
+    return RegExp('[a-z0-9]+')
+        .allMatches(find.toLowerCase().replaceAll(',', ''))
+        .map((m) => m[0]!)
+        .any((w) => (w.length > 2 || int.tryParse(w) != null) && !filler.contains(w) && q.contains(w));
+  }
+
   /// the entry the user means: the last one they added or edited, or the newest that matches [find]
   Entry? _find(String find) {
     if (find.isEmpty) return store.lastTouched;
@@ -811,6 +824,10 @@ class Assistant extends ChangeNotifier {
           'If it repeats, like rent every month, add "every":"month" (day, week, month or year), '
           '"n":2 for every 2 months, and "until":"YYYY-MM-DD" only if they say when it ends.',
         )
+        ..writeln(
+          'Netflix 1200 every month: {"do":"add","kind":"expense","amount":1200,"currency":"","category":"",'
+          '"person":"","note":"Netflix","every":"month"}',
+        )
         ..writeln('Move money between accounts: {"do":"move","amount":5000,"from":"Cash","to":"Bank"}')
         ..writeln(
           'Delete an entry: {"do":"delete","find":""}. Change one: {"do":"change","find":"","amount":0,'
@@ -820,8 +837,8 @@ class Assistant extends ChangeNotifier {
         ..writeln('Settle up with someone: {"do":"settle","person":"Ram"}')
         ..writeln('Monthly budget: {"do":"budget","amount":20000,"category":""}. Amount 0 removes it.')
         ..writeln(
-          'Add a person, account or category: {"do":"new","person":"Hari"}, {"do":"new","account":"eSewa"}, '
-          '{"do":"new","category":"Rent","kind":"expense"}',
+          'Add a person, account or category by name, never for money with an amount: {"do":"new","person":"Hari"}, '
+          '{"do":"new","account":"eSewa"}, {"do":"new","category":"Pets","kind":"expense"}',
         )
         ..writeln('Stop something that repeats: {"do":"stop","find":"Netflix"}');
     }

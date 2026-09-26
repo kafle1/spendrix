@@ -1,5 +1,9 @@
 Spendrix is a private money diary. It works offline and keeps everything on your device.
 
+**Fixed in 2.1.1**
+- "Rent 15000 every month" in the AI chat now sets up a repeat instead of a new category.
+- "Delete the last entry" now picks the entry you just added, not one from earlier in the chat.
+
 **New in 2.1**
 - Tell the AI what to do: "Rent 15000 every month", "Delete the last entry", "Food budget 5000". It shows you the change first, and you can undo it.
 - Repeats can be every 2 weeks, every 3 months, and can stop on a date. Tap one in Settings to change it.
