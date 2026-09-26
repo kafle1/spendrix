@@ -1,44 +1,64 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
-    id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.gms.google-services")
-    id("com.google.firebase.crashlytics")
 }
 
 android {
     namespace = "com.spendrix"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973"
+    ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.spendrix"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 23
+        // 1.2 and older shipped as com.example.expenses_tracker; CI builds a second apk with that id so those installs update too
+        applicationId = System.getenv("SPENDRIX_APP_ID") ?: "com.spendrix"
+        minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        multiDexEnabled = true
+    }
+
+    // android/key.properties is never committed; CI writes it from secrets
+    val keys = Properties().apply {
+        rootProject.file("key.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
+    }
+    signingConfigs {
+        create("release") {
+            keyAlias = keys.getProperty("keyAlias")
+            keyPassword = keys.getProperty("keyPassword")
+            storePassword = keys.getProperty("storePassword")
+            storeFile = keys.getProperty("storeFile")?.let { file(it) }
+        }
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
+    }
+
+    // qualcomm npu libs (the app never picks the npu) and webgpu libs whose dawn runtime isn't shipped on android
+    packaging {
+        jniLibs.excludes += listOf(
+            "**/libQnn*.so",
+            "**/libLiteRtDispatch_Qualcomm.so",
+            "**/libLiteRtGpuAccelerator.so",
+            "**/libLiteRtWebGpuAccelerator.so",
+            "**/libLiteRtTopKWebGpuSampler.so",
+        )
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
 
