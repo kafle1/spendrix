@@ -40,11 +40,8 @@ Future<void> main() async {
     },
   );
   currentTab.addListener(() => trackScreen(Shell._tabs[currentTab.value].$3.toLowerCase()));
-  // a failed import leaves the old file in place and tries again next launch
-  await importLegacy(store).catchError((Object e, StackTrace s) {
-    debugPrint('old data import failed: $e');
-    trackError(e, s);
-  });
+  await runLegacyImport(store);
+  unawaited(checkOtherApp());
   runApp(
     MultiProvider(
       providers: [

@@ -12,7 +12,7 @@ Tap **Get started**, pick your currency, then type how much cash you have on you
 
 ![Home](docs/home.png)
 
-Already use Spendrix on another device? Tap **I already use Spendrix** and sign in with your sync email and password. Your entries come down and unlock on this device.
+Already use Spendrix on another device? Tap **I already use Spendrix** and continue with the same Google account. Your entries come down and unlock on this device.
 
 ## Add money in and out
 
@@ -66,9 +66,11 @@ Your repeats are listed in Settings. Tap one to change it, or switch it off to p
 
 ## Sync your devices
 
-Sync is optional. In Settings, tap **Create account** and pick an email and password. Then sign in with the same email and password on your other phone, computer or at [spendrix.web.app](https://spendrix.web.app).
+Sync is optional. In Settings, tap **Continue with Google**. Then do the same with the same Google account on your other phone, computer or at [spendrix.web.app/app](https://spendrix.web.app/app/).
 
-Your entries are locked with your password on the device before they're sent. The server only stores locked data, so nobody else can read it. That also means **Spendrix can't reset your password**. If you forget it, your data on each device is still safe, but the synced copy can't be opened. Delete the account and start a new one.
+Your entries are locked on the device with a private key before they're sent. Only your devices hold that key, and the server only stores locked data, so nobody else can read it, not even us. Spendrix keeps a copy of the key in a hidden folder in your Google Drive, so a new device finds it by itself. If a device ever asks for it, open Settings on a device that syncs and tap **Show sync key**.
+
+Used sync before? A device that still syncs shows **Sync now uses Google**. Tap it once and nothing uploads again. Then sign in with Google on your other devices.
 
 Receipt photos stay on the device they were taken on.
 

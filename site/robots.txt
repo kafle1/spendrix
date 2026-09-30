@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://spendrix.web.app/sitemap.xml

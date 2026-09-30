@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../format.dart';
+import '../legacy.dart';
 import '../models.dart';
 import '../store.dart';
 import '../sync.dart';
@@ -82,11 +83,16 @@ class _OnboardingState extends State<Onboarding> {
                   ] else ...[
                     Text(problem.message, style: Theme.of(context).textTheme.titleMedium, textAlign: TextAlign.center),
                     const SizedBox(height: 24),
-                    // retrying can't fix a password problem, Cancel and signing in again can
-                    if (!sync.needsPassword) FilledButton(onPressed: sync.syncNow, child: const Text('Try again')),
+                    // retrying can't fix a sign-in problem, Cancel and signing in again can
+                    if (!sync.needsSignIn) FilledButton(onPressed: sync.syncNow, child: const Text('Try again')),
                   ],
                   const SizedBox(height: 8),
-                  TextButton(onPressed: () => sync.signOut(removeData: true), child: const Text('Cancel')),
+                  TextButton(
+                    onPressed: () async {
+                      if (await keySaved(context, sync)) await sync.signOut(removeData: true);
+                    },
+                    child: const Text('Cancel'),
+                  ),
                 ],
               ),
             ),
@@ -108,6 +114,7 @@ class _OnboardingState extends State<Onboarding> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const OldDataCard(),
                   Center(
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(24),
@@ -126,7 +133,7 @@ class _OnboardingState extends State<Onboarding> {
                   for (final (icon, text) in const [
                     (Icons.bolt, 'Add money in and out in seconds'),
                     (Icons.auto_awesome, 'AI help that stays on your device'),
-                    (Icons.lock_outline, 'Optional sync, locked with your password'),
+                    (Icons.lock_outline, 'Optional sync with Google, locked with your own key'),
                   ])
                     Padding(
                       padding: const EdgeInsets.only(bottom: 16),
@@ -147,7 +154,7 @@ class _OnboardingState extends State<Onboarding> {
                   const SizedBox(height: 8),
                   TextButton(
                     style: TextButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                    onPressed: () => showAccountSheet(context, create: false, fresh: true),
+                    onPressed: () => showAccountSheet(context),
                     child: const Text('I already use Spendrix'),
                   ),
                 ],

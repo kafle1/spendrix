@@ -1,9 +1,11 @@
 {
     "name": "Spendrix",
     "short_name": "Spendrix",
-    "start_url": ".",
+    "id": "/",
+    "start_url": "/app/",
+    "scope": "/app/",
     "display": "standalone",
-    "background_color": "#000000",
+    "background_color": "#062F27",
     "theme_color": "#0E7C66",
     "description": "A private money diary with on-device AI. Works offline.",
     "prefer_related_applications": false,

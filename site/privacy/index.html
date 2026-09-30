@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Privacy | Spendrix</title>
+<meta name="description" content="What Spendrix keeps, where it keeps it, and what it does with your Google account when you turn on sync.">
+<link rel="canonical" href="https://spendrix.web.app/privacy/">
+<link rel="icon" href="/favicon.png" type="image/png">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="sec"><div class="wrap">
+<p><a href="/">Spendrix</a></p>
+<h2>Privacy</h2>
+<p class="lead">Last updated 30 September 2026.</p>
+
+<h3>Your entries stay on your device</h3>
+<p>Spendrix keeps your entries, accounts, people, budgets and photos on your phone or computer. You don't need an account to use it. There are no ads and no trackers, and the app sends no usage stats.</p>
+
+<h3>The AI helper runs on your device</h3>
+<p>The first time you use the helper, Spendrix downloads the model file from Hugging Face. After that, your voice, photos and typed questions are handled on your device and never sent anywhere.</p>
+
+<h3>Sync is optional</h3>
+<p>If you turn on sync, you sign in with Google. Spendrix locks your entries on your device before they leave it, then stores the locked copy in Google Firebase. The key that unlocks them is kept in a hidden Spendrix folder in your own Google Drive, so only your devices can read your entries. We can't read them.</p>
+
+<h3>What Spendrix does with your Google account</h3>
+<p>When you sign in, Spendrix asks Google for:</p>
+<ul>
+<li>your email address and name, to know which sync account is yours</li>
+<li>its own hidden folder in your Google Drive, to save and read your sync key</li>
+</ul>
+<p>Spendrix can't see your other Drive files. It doesn't sell, share or use your Google data for ads, and it uses it only to run sync for you. Spendrix's use of information received from Google APIs follows the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+
+<h3>Deleting your data</h3>
+<p>In the app's Settings, tap Delete account. That removes the locked copy from Firebase and the key from your Drive, and closes the sync account. Uninstalling the app removes everything on that device.</p>
+
+<h3>Updates</h3>
+<p>The app checks GitHub for a newer version. That request carries no personal data.</p>
+
+<h3>Contact</h3>
+<p>Questions? Open an issue on <a href="https://github.com/kafle1/spendrix/issues">GitHub</a>.</p>
+</div></main>
+</body>
+</html>

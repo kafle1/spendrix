@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Spendrix</title>
+</head>
+<body style="font-family: sans-serif; margin: 3em; text-align: center">
+  <p>You can close this window and go back to Spendrix.</p>
+  <!-- Google's reply arrives in the fragment. The app window picks it up from localStorage. -->
+  <script>
+    var reply = location.hash.slice(1) || location.search.slice(1);
+    history.replaceState(null, '', location.pathname);
+    if (reply) localStorage.setItem('spendrix-google', reply);
+    window.close();
+  </script>
+</body>
+</html>

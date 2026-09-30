@@ -2,7 +2,7 @@ name: spendrix
 description: Spendrix, a private money diary with on-device AI.
 publish_to: 'none'
 # the build number stays above 4009, the highest android version code 2.0.2 shipped with
-version: 2.1.2+4013
+version: 2.2.0+4014
 
 environment:
   sdk: ^3.13.0
@@ -17,6 +17,9 @@ dependencies:
     sdk: flutter
   flutter_gemma: ^1.9.0
   flutter_gemma_litertlm: ^1.8.1
+  google_sign_in_android: ^7.2.17
+  google_sign_in_ios: ^6.3.6
+  google_sign_in_platform_interface: ^3.1.0
   hive_ce: ^2.20.0
   http: ^1.6.0
   image: ^4.10.1
@@ -31,6 +34,7 @@ dependencies:
   shared_preferences: ^2.5.5
   sqflite: ^2.4.4
   url_launcher: ^6.3.2
+  web: ^1.1.1
 dev_dependencies:
   flutter_launcher_icons: ^0.14.4
   flutter_lints: ^6.0.0
@@ -53,17 +57,19 @@ flutter:
 flutter_launcher_icons:
   image_path: assets/icon/icon.png
   android: true
-  adaptive_icon_background: "#000000"
+  adaptive_icon_background: assets/icon/icon-bg.png
   adaptive_icon_foreground: assets/icon/icon-fg.png
-  adaptive_icon_monochrome: assets/icon/icon-fg.png
+  adaptive_icon_monochrome: assets/icon/icon-mono.png
   ios: true
   remove_alpha_ios: true
+  image_path_ios_dark_transparent: assets/icon/icon-ios-dark.png
+  image_path_ios_tinted_grayscale: assets/icon/icon-ios-tinted.png
+  # web icons are made by hand (rounded "any" icons, square maskable ones), so don't overwrite them
   web:
-    generate: true
-    background_color: "#000000"
-    theme_color: "#0E7C66"
+    generate: false
   windows:
     generate: true
+    image_path: assets/icon/icon-round.png
     icon_size: 256
   macos:
     generate: true

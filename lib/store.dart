@@ -86,6 +86,8 @@ class Store extends ChangeNotifier {
 
   /// newest first
   List<Entry> entries = [];
+
+  Iterable<String> get ids => _items.keys;
   List<Recurring> recurring = [];
   final _byId = <String, Model>{};
   final _balance = <String, int>{};
@@ -427,6 +429,14 @@ class Store extends ChangeNotifier {
       if (!i.dirty) i.withDirty(true),
   ]);
 
+  /// Joining an account from a device with nothing of its own: the account's
+  /// settings beat the ones picked here, the way the starter set already does.
+  Future<void> yieldSettings() async {
+    if (_items['settings'] case final s? when s.updated > _seeded) {
+      await _putAll([Item(id: s.id, type: s.type, data: s.data, updated: _seeded, dev: s.dev, deleted: s.deleted)]);
+    }
+  }
+
   /// Empties this device. With [keepSettings] the currency stays and the
   /// starter set is put back, ready to be filled from the account.
   Future<void> wipe({bool keepSettings = false}) async {
@@ -434,7 +444,7 @@ class Store extends ChangeNotifier {
     resets++;
     await _box.clear();
     await _photos.clear();
-    await dropLegacy();
+    // the old app's file stays: it's the last untouched copy if the account's data turns out wrong
     _items.clear();
     if (keepSettings) await _seed(s);
     _index();

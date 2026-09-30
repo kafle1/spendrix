@@ -74,5 +74,17 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- Google sign-in: the iOS OAuth client id, and the same id reversed as a URL scheme. Keep both in step with googleIosClientId in lib/google_auth.dart. -->
+	<key>GIDClientID</key>
+	<string>551388193568-qi2goappemdthm2t9cj3kchtgpmjpdll.apps.googleusercontent.com</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.551388193568-qi2goappemdthm2t9cj3kchtgpmjpdll</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

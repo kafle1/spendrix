@@ -46,10 +46,10 @@ class GuideScreen extends StatelessWidget {
     ),
     (
       Icons.sync,
-      'Sync and your password',
-      'Sync is optional. Create an account in Settings. Your entries are locked with your password before they '
-          "leave this device, so only your devices can read them. Spendrix can't reset this password, "
-          'so keep it somewhere safe.',
+      'Sync with Google',
+      'Sync is optional. In Settings, tap Continue with Google. Your entries are locked with a private key '
+          'before they leave this device, and only your devices hold it, so nobody else can read them. '
+          'The key waits in a hidden folder in your Google Drive, so your other devices find it by themselves.',
     ),
     (
       Icons.backup_outlined,

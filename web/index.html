@@ -6,6 +6,8 @@
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="A private money diary with on-device AI. Works offline.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#062F27">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -20,6 +22,8 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <!-- a Google reply from a sign-in that never finished still holds live tokens -->
+  <script>try { localStorage.removeItem('spendrix-google'); } catch (e) {}</script>
   <script src="cache_api.js"></script>
   <script src="opfs_helper.js"></script>
   <!-- litert_lm.js is npm @litert-lm/core 0.17.0 bundled with esbuild, so no outside script loads next to the sync key -->
