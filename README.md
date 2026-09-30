@@ -64,9 +64,10 @@ Voice on Linux needs `parecord`, which most desktops already have (package `puls
 
 ## Sync and privacy
 
-Sync is optional. When you turn it on, Spendrix turns your password into two keys on your device. One signs you in. The other locks every entry with AES-256 before it's sent to Firebase. The server only ever sees locked data.
+Sync is optional. You sign in with Google, and a random key made on your device locks every entry with AES-256 before it's sent to Firebase. The server only ever sees locked data.
 
-- Forget the password and the synced copy can't be opened. Your data on each device stays safe, and you can start a fresh sync.
+- The key lives on your devices and in a hidden app folder in your Google Drive (the `drive.appdata` scope), so a new device finds it by itself. Settings has **Show sync key** as a backup.
+- Accounts from 2.1 were locked with a key made from the password. That key stays; a device can unlock it once with the old password and then puts it in Drive.
 - Receipt photos stay on the device they were taken on.
 - If two devices change the same entry, the newest change wins.
 
@@ -105,7 +106,7 @@ The Android app id defaults to `com.example.expenses_tracker`, the id 1.2 and ol
 
 ### Firebase
 
-Sync uses Firebase Auth (email and password) and Firestore through their REST APIs. To point it at your own project, change the project id and web API key at the top of `lib/sync.dart`, enable Email/Password sign-in, then:
+Sync uses Firebase Auth (Google sign-in) and Firestore through their REST APIs, and Google Drive for the key. To point it at your own project, change the project id and web API key at the top of `lib/sync.dart`, fill in the OAuth client ids at the top of `lib/google_auth.dart`, enable Google sign-in and the Drive API, then:
 
 ```sh
 firebase deploy --only firestore:rules
@@ -118,6 +119,7 @@ flutter build web --release && firebase deploy --only hosting
 |---|---|
 | `lib/store.dart` | Local database (Hive), repeating bills, backup and export |
 | `lib/sync.dart` | Sign-in, key setup, encryption and the sync loop |
+| `lib/google_auth.dart` | Google sign-in on every platform, and the client ids at the top |
 | `lib/ai.dart` | Model download, chat, voice and receipt reading |
 | `lib/models.dart` | Entries, accounts, categories, people |
 | `lib/screens/` | One file per screen |

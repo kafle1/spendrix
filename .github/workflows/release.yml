@@ -65,7 +65,7 @@ jobs:
         with: { persist-credentials: false }
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with: { flutter-version: '${{ env.FLUTTER_VERSION }}', cache: true }
-      - run: flutter build macos --release
+      - run: flutter build macos --release --dart-define=GOOGLE_DESKTOP_SECRET=${{ secrets.GOOGLE_DESKTOP_SECRET }}
       - run: |
           mkdir out
           hdiutil create -volname Spendrix -srcfolder build/macos/Build/Products/Release/Spendrix.app -ov -format UDZO out/Spendrix-macos.dmg
@@ -79,7 +79,7 @@ jobs:
         with: { persist-credentials: false }
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with: { flutter-version: '${{ env.FLUTTER_VERSION }}', cache: true }
-      - run: flutter build windows --release
+      - run: flutter build windows --release --dart-define=GOOGLE_DESKTOP_SECRET=${{ secrets.GOOGLE_DESKTOP_SECRET }}
       # intel npu runtime (~100 MB): only loaded for the npu backend, which the app never picks
       - run: Get-ChildItem build/windows/x64/runner/Release -Recurse -Include LiteRtDispatch.dll, openvino*.dll, tbb*.dll | Remove-Item
       # flutter doesn't bundle the vc++ runtime, and a fresh windows install doesn't have it
@@ -98,7 +98,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev lld
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with: { flutter-version: '${{ env.FLUTTER_VERSION }}', cache: true }
-      - run: flutter build linux --release
+      - run: flutter build linux --release --dart-define=GOOGLE_DESKTOP_SECRET=${{ secrets.GOOGLE_DESKTOP_SECRET }}
       - run: |
           mkdir out
           tar -czf out/Spendrix-linux-x64.tar.gz -C build/linux/x64/release/bundle .
