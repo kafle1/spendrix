@@ -66,7 +66,7 @@ Your repeats are listed in Settings. Tap one to change it, or switch it off to p
 
 ## Sync your devices
 
-Sync is optional. In Settings, tap **Continue with Google**. Then do the same with the same Google account on your other phone, computer or at [spendrix.web.app](https://spendrix.web.app).
+Sync is optional. In Settings, tap **Continue with Google**. Then do the same with the same Google account on your other phone, computer or at [spendrix.web.app/app](https://spendrix.web.app/app/).
 
 Your entries are locked on the device with a private key before they're sent. Only your devices hold that key, and the server only stores locked data, so nobody else can read it, not even us. Spendrix keeps a copy of the key in a hidden folder in your Google Drive, so a new device finds it by itself. If a device ever asks for it, open Settings on a device that syncs and tap **Show sync key**.
 
