@@ -7,7 +7,12 @@ import 'sync.dart' show SyncError;
 
 /// Opens Google in the system browser and waits for it to come back to a
 /// one-off server on 127.0.0.1. Returns the reply's query plus 'redirect'.
-Future<Map<String, String>> signInInBrowser(Future<void> over, Uri Function(String redirect) consent) async {
+/// Only a reply carrying [state] ends the wait.
+Future<Map<String, String>> signInInBrowser(
+  Future<void> over,
+  String state,
+  Uri Function(String redirect) consent,
+) async {
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
   // a cancel or timeout ends the wait below
   unawaited(over.whenComplete(() => server.close(force: true)));
@@ -17,9 +22,9 @@ Future<Map<String, String>> signInInBrowser(Future<void> over, Uri Function(Stri
       throw const SyncError("Couldn't open your browser for Google sign-in.");
     }
     await for (final req in server) {
-      // the browser also asks for /favicon.ico and such
-      if (req.uri.path != '/' || req.uri.queryParameters.isEmpty) {
-        req.response.statusCode = HttpStatus.notFound;
+      // the browser also asks for /favicon.ico, and anything else on this machine can knock too
+      if (req.uri.path != '/' || req.uri.queryParameters['state'] != state) {
+        req.response.statusCode = req.uri.path != '/' ? HttpStatus.notFound : HttpStatus.badRequest;
         await req.response.close();
         continue;
       }

@@ -8,8 +8,8 @@ const _slot = 'spendrix-google';
 
 /// Opens Google in a popup that returns to web/auth.html, which drops the
 /// reply in localStorage. Google's script never loads next to the sync key.
-/// Returns the reply's fragment plus 'redirect'.
-Future<Map<String, String>> signInInBrowser(Future<void> over, Uri Function(String redirect) consent) {
+/// Returns the reply's fragment plus 'redirect'. Only a reply carrying [state] ends the wait.
+Future<Map<String, String>> signInInBrowser(Future<void> over, String state, Uri Function(String redirect) consent) {
   final store = web.window.localStorage;
   store.removeItem(_slot);
   // baseURI follows <base href>, so this is /app/auth.html live and /auth.html on localhost
@@ -26,7 +26,10 @@ Future<Map<String, String>> signInInBrowser(Future<void> over, Uri Function(Stri
     final reply = store.getItem(_slot);
     if (reply == null || done.isCompleted) return;
     store.removeItem(_slot);
-    done.complete({...Uri.splitQueryString(reply), 'redirect': redirect});
+    final p = Uri.splitQueryString(reply);
+    // a leftover from an older sign-in; keep waiting for this one
+    if (p['state'] != state) return;
+    done.complete({...p, 'redirect': redirect});
   }
 
   final sub = web.EventStreamProviders.storageEvent.forTarget(web.window).listen((_) => check());

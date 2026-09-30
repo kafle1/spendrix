@@ -97,6 +97,7 @@ Future<GoogleTokens> _web() async {
   final p = await _wait(
     (over) => browser.signInInBrowser(
       over,
+      state,
       (redirect) => _consent(googleWebClientId, redirect, {
         'response_type': 'id_token token',
         'state': state,
@@ -117,6 +118,7 @@ Future<GoogleTokens> _desktop() async {
   final p = await _wait(
     (over) => browser.signInInBrowser(
       over,
+      state,
       (redirect) => _consent(googleDesktopClientId, redirect, {
         'response_type': 'code',
         'state': state,

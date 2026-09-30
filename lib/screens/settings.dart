@@ -217,7 +217,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           const Text(
             'Use Spendrix on your phone and computer. Sign in with Google, and your entries are locked '
-            'with a private key only your devices hold, so nobody else can read them, not even us.',
+            'with a private key that only your devices and a hidden folder in your Google Drive hold, '
+            'so nobody else can read them, not even us.',
           ),
           const SizedBox(height: 16),
           FilledButton(onPressed: () => showAccountSheet(context), child: const Text('Continue with Google')),
@@ -264,8 +265,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ListTile(
           leading: const Icon(Icons.key),
           title: const Text('Show sync key'),
-          subtitle: const Text('For a new device that asks for it'),
-          onTap: () => _showKey(key),
+          subtitle: Text(
+            sync.keyInDrive
+                ? 'For a new device that asks for it'
+                : 'Not in your Google Drive. Keep a copy somewhere safe.',
+          ),
+          onTap: () => _showKey(context, key),
         ),
       ListTile(
         leading: const Icon(Icons.logout),
@@ -294,19 +299,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return (Icons.cloud_outlined, 'Not synced yet');
   }
 
-  Future<void> _reauth(Sync sync) => showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (_) => _GoogleDialog(
-      title: 'Sign in again',
-      body:
-          'Continue with the Google account you use for Spendrix to keep syncing. '
-          'Nothing on this device changes until it works.',
-      action: 'Continue with Google',
-      run: sync.reauth,
-      finish: sync.resume,
-    ),
-  );
+  Future<void> _reauth(Sync sync) async {
+    final done = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _GoogleDialog(
+        title: 'Sign in again',
+        body:
+            'Continue with the Google account you use for Spendrix to keep syncing. '
+            'Nothing on this device changes until it works.',
+        action: 'Continue with Google',
+        run: sync.reauth,
+        finish: sync.resume,
+      ),
+    );
+    if (done == true && !sync.keyInDrive && mounted) toast(context, _keyNotInDrive);
+  }
 
   Future<void> _moveOver(Sync sync) async {
     var inDrive = true;
@@ -334,42 +342,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Future<void> _showKey(List<int> key) {
-    final text = showKey(key);
-    return showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        scrollable: true,
-        title: const Text('Your sync key'),
-        content: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'New devices usually find this key in your Google Drive by themselves. If one asks for it, '
-                'type or paste it there. Anyone with this key and your Google account can read your entries, '
-                'so keep it private.',
-              ),
-              const SizedBox(height: 16),
-              SelectableText(text, style: const TextStyle(fontFamily: 'monospace', fontSize: 16)),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              await Clipboard.setData(ClipboardData(text: text));
-              if (context.mounted) toast(context, 'Sync key copied');
-            },
-            child: const Text('Copy'),
-          ),
-          FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
-        ],
-      ),
-    );
-  }
-
   Future<void> _deleteAccount(Sync sync) async {
     final done = await showDialog<bool>(
       context: context,
@@ -391,6 +363,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _signOut(Store store, Sync sync) async {
+    if (!await keySaved(context, sync) || !mounted) return;
     final waiting = store.pending;
     final remove = await _choice<bool>(
       context,
@@ -652,6 +625,62 @@ Future<bool> _lockAvailable() async {
 
 String _message(Object e) => e is SyncError ? e.message : 'Something went wrong. Try again.';
 
+const _keyNotInDrive = "Your sync key didn't reach Google Drive, so save it from Show sync key to add another device.";
+
+Future<void> _showKey(BuildContext context, List<int> key) {
+  final text = showKey(key);
+  return showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      scrollable: true,
+      title: const Text('Your sync key'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 400),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'New devices usually find this key in your Google Drive by themselves. If one asks for it, '
+              'type or paste it there. Anyone with this key and your Google account can read your entries, '
+              'so keep it private.',
+            ),
+            const SizedBox(height: 16),
+            SelectableText(text, style: const TextStyle(fontFamily: 'monospace', fontSize: 16)),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () async {
+            await Clipboard.setData(ClipboardData(text: text));
+            if (context.mounted) toast(context, 'Sync key copied');
+          },
+          child: const Text('Copy'),
+        ),
+        FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
+      ],
+    ),
+  );
+}
+
+/// Before signing out while Google Drive doesn't hold the key, offers to show it. False means stop.
+Future<bool> keySaved(BuildContext context, Sync sync) async {
+  final key = sync.key;
+  if (sync.keyInDrive || key == null || key.isEmpty) return true;
+  final show = await _choice<bool>(
+    context,
+    title: 'Save your sync key first',
+    body:
+        "Your sync key isn't in your Google Drive, so this device may hold the only copy. Without it, your "
+        'synced entries can\'t be opened on another device. Copy it somewhere safe first.',
+    destructive: ('Go on without it', false),
+    keep: ('Show sync key', true),
+  );
+  if (show == null || !context.mounted) return false;
+  if (show) await _showKey(context, key);
+  return context.mounted;
+}
+
 Widget _showHide(bool shown, VoidCallback toggle) => IconButton(
   tooltip: shown ? 'Hide password' : 'Show password',
   icon: Icon(shown ? Icons.visibility_off_outlined : Icons.visibility_outlined),
@@ -734,7 +763,8 @@ class _Header extends StatelessWidget {
 
 /// Signs in with Google and starts syncing. Returns true once signed in.
 /// Call it straight from a tap: on the web the Google popup has to open before anything is awaited.
-Future<bool> showAccountSheet(BuildContext context) async {
+/// [existing] is "I already use Spendrix": a Google account with no sync asks before starting a new one.
+Future<bool> showAccountSheet(BuildContext context, {bool existing = false}) async {
   final google = googleSignIn()..ignore();
   final sync = context.read<Sync>();
   Login? joined;
@@ -748,6 +778,7 @@ Future<bool> showAccountSheet(BuildContext context) async {
           'so your other devices can open your entries.',
       action: 'Continue with Google',
       started: google,
+      askIfNew: existing,
       run: sync.google,
       finish: (l) async {
         await sync.start(l);
@@ -755,8 +786,13 @@ Future<bool> showAccountSheet(BuildContext context) async {
       },
     ),
   );
-  if (done == true && joined?.google.drive == null && context.mounted) {
-    toast(context, 'Google Drive access was off, so use Show sync key to add another device.');
+  if (done == true && !sync.keyInDrive && context.mounted) {
+    toast(
+      context,
+      joined?.google.drive == null
+          ? 'Google Drive access was off, so use Show sync key to add another device.'
+          : _keyNotInDrive,
+    );
   }
   return done == true;
 }
@@ -773,6 +809,7 @@ class _GoogleDialog extends StatefulWidget {
     this.finish,
     this.started,
     this.destructive = false,
+    this.askIfNew = false,
   });
 
   final String title, body, action;
@@ -783,6 +820,9 @@ class _GoogleDialog extends StatefulWidget {
   final Future<GoogleTokens>? started;
   final bool destructive;
 
+  /// a brand new sync asks first whether this person had an email and password sync before
+  final bool askIfNew;
+
   @override
   State<_GoogleDialog> createState() => _GoogleDialogState();
 }
@@ -790,7 +830,7 @@ class _GoogleDialog extends StatefulWidget {
 enum _Stage { idle, google, checking, unlock }
 
 class _GoogleDialogState extends State<_GoogleDialog> {
-  final _field = TextEditingController();
+  final _field = TextEditingController(), _email = TextEditingController();
   var _stage = _Stage.idle;
   bool _busy = false, _password = false, _show = false;
   Login? _login;
@@ -806,8 +846,12 @@ class _GoogleDialogState extends State<_GoogleDialog> {
   void dispose() {
     if (_stage == _Stage.google) cancelGoogleSignIn();
     _field.dispose();
+    _email.dispose();
     super.dispose();
   }
+
+  /// the old sign-in's email, which can differ from Google's, is only needed before there's an account
+  bool get _askEmail => _password && _login?.account == null;
 
   Future<void> _go(Future<GoogleTokens> google) async {
     setState(() {
@@ -821,8 +865,16 @@ class _GoogleDialogState extends State<_GoogleDialog> {
       final l = await widget.run(g);
       if (!mounted) return;
       if (l == null) return Navigator.pop(context, true);
+      if (widget.askIfNew && l.isNew) {
+        final sync = context.read<Sync>();
+        final old = await _askOld();
+        if (old != false) await sync.dropNew(l);
+        if (!mounted) return;
+        if (old == null) return setState(() => _stage = _Stage.idle);
+      }
       if (l.unlocked) return await _finish(l);
       _field.clear();
+      _email.text = l.email;
       setState(() {
         _login = l;
         _password = l.account == null;
@@ -838,6 +890,23 @@ class _GoogleDialogState extends State<_GoogleDialog> {
     }
   }
 
+  /// true for "I used email and password", false to start new, null to cancel
+  Future<bool?> _askOld() => showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      scrollable: true,
+      title: const Text('No sync on this account'),
+      content: const Text(
+        'No Spendrix sync on this Google account. Start new, or did you use an email and password before?',
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('I used email and password')),
+        FilledButton(onPressed: () => Navigator.pop(context, false), child: const Text('Start new')),
+      ],
+    ),
+  );
+
   Future<void> _finish(Login l) async {
     await widget.finish?.call(l);
     if (mounted) Navigator.pop(context, true);
@@ -846,18 +915,23 @@ class _GoogleDialogState extends State<_GoogleDialog> {
   Future<void> _unlock() async {
     if (_busy) return;
     final text = _field.text.trim();
+    final noEmail = _askEmail && _email.text.trim().isEmpty;
     setState(() {
-      _error = text.isEmpty ? (_password ? 'Type your old password.' : 'Paste your sync key.') : null;
-      _busy = text.isNotEmpty;
+      _error = noEmail
+          ? 'Type the email you used for Spendrix sync before.'
+          : text.isEmpty
+          ? (_password ? 'Type your old password.' : 'Paste your sync key.')
+          : null;
+      _busy = _error == null;
     });
-    if (text.isEmpty) return;
+    if (!_busy) return;
     final sync = context.read<Sync>();
     try {
       // let "Unlocking..." paint before the slow key stretching starts
       await WidgetsBinding.instance.endOfFrame;
       final l = _login!;
       if (_password) {
-        await sync.unlockWithPassword(l, _field.text);
+        await sync.unlockWithPassword(l, _field.text, email: _askEmail ? _email.text : null);
       } else {
         await sync.unlockWithKey(l, text);
       }
@@ -893,7 +967,8 @@ class _GoogleDialogState extends State<_GoogleDialog> {
                     ? "This Google account isn't linked to your sync yet. Enter your old Spendrix password once to "
                           'link it, or cancel and pick another Google account.'
                     : _login!.account == null
-                    ? 'This Google account matches an older Spendrix account. Enter its old password once to link them.'
+                    ? 'Enter the email and password you used for Spendrix sync before. You only need them once, '
+                          'to link this Google account to your entries.'
                     : _password
                     ? 'Enter the password you used for Spendrix sync before. You only need it once.'
                     : "Your entries are locked with a key this device doesn't have yet. On a device that syncs, "
@@ -901,10 +976,24 @@ class _GoogleDialogState extends State<_GoogleDialog> {
               ),
               if (unlock) ...[
                 const SizedBox(height: 16),
+                if (_askEmail) ...[
+                  TextField(
+                    controller: _email,
+                    enabled: !_busy,
+                    autofocus: _email.text.isEmpty,
+                    keyboardType: TextInputType.emailAddress,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    autofillHints: const [AutofillHints.email],
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(labelText: 'Old email'),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 TextField(
                   controller: _field,
                   enabled: !_busy,
-                  autofocus: true,
+                  autofocus: !_askEmail || _email.text.isNotEmpty,
                   obscureText: _password && !_show,
                   autocorrect: false,
                   enableSuggestions: false,

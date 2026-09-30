@@ -22,6 +22,8 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <!-- a Google reply from a sign-in that never finished still holds live tokens -->
+  <script>try { localStorage.removeItem('spendrix-google'); } catch (e) {}</script>
   <script src="cache_api.js"></script>
   <script src="opfs_helper.js"></script>
   <!-- litert_lm.js is npm @litert-lm/core 0.17.0 bundled with esbuild, so no outside script loads next to the sync key -->

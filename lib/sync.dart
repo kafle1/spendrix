@@ -22,7 +22,7 @@ const _apiKey = 'AIzaSyDes5BCZnBlJX6HhKWZCBmF-Xq5JVZWbGw';
 const _docs = 'projects/kaudi-app/databases/(default)/documents';
 const _page = 300;
 
-enum Problem { offline, quota, signIn, update, failed }
+enum Problem { offline, quota, signIn, update, key, failed }
 
 class SyncError implements Exception {
   const SyncError(this.message, [this.problem = Problem.failed]);
@@ -42,6 +42,7 @@ class Session {
     required this.key,
     this.cursor,
     this.google = false,
+    this.inDrive = false,
   });
 
   final String uid, email;
@@ -56,6 +57,9 @@ class Session {
   /// false for a 2.1 password sign-in that hasn't moved over to Google yet
   final bool google;
 
+  /// the key is known to sit in Google Drive; false means this device may hold the only copy
+  bool inDrive;
+
   String? idToken;
   DateTime expires = DateTime(0);
 
@@ -66,6 +70,7 @@ class Session {
     'key': base64Encode(key),
     'cursor': cursor,
     'google': google,
+    'inDrive': inDrive,
   };
 
   static Session? load() {
@@ -78,6 +83,7 @@ class Session {
         key: base64Decode(j['key'] as String),
         cursor: j['cursor'] as String?,
         google: j['google'] == true,
+        inDrive: j['inDrive'] == true,
       );
     } catch (_) {
       return null;
@@ -105,6 +111,12 @@ class Login {
 
   /// set when a device signs in again: the account it has to be
   String? expect;
+
+  // the sign-in that just made a brand new account, see [Sync.dropNew]
+  Map<String, dynamic>? _made;
+
+  /// Firebase had never seen this Google account, so it's an empty new sync
+  bool get isNew => _made != null;
 
   bool get unlocked => account?.key.isNotEmpty ?? false;
 }
@@ -171,6 +183,9 @@ class Sync extends ChangeNotifier {
   /// for "Show sync key"
   List<int>? get key => _session?.key;
 
+  /// false when the key didn't reach Google Drive, so people should save it themselves
+  bool get keyInDrive => _session?.inDrive ?? true;
+
   @override
   void dispose() {
     _debounce?.cancel();
@@ -186,20 +201,29 @@ class Sync extends ChangeNotifier {
     'That Google account syncs a different set of entries. Pick the one you use for Spendrix.',
   );
   static const _wrongPassword = SyncError("That password isn't right.");
+  static const _taken = SyncError(
+    "That Google account already syncs other entries. Pick another Google account, or sign out here, keep this "
+    "device's data, then sign in with that Google account to add these entries to it.",
+  );
 
   /// Signs in on a device that isn't syncing yet and looks for the key.
   /// Nothing on this device changes until [start].
   Future<Login> google(GoogleTokens g) => _guard(() async {
     final res = await _idp(g);
     final l = Login._(g, '${res['email'] ?? ''}'.trim().toLowerCase());
-    if (res['needConfirmation'] == true) {
-      if (l.email.isEmpty) throw const SyncError("Google sign-in didn't go through. Try again.");
-      return l;
-    }
+    // with email enumeration protection Firebase leaves the email out; the unlock asks for it
+    if (res['needConfirmation'] == true) return l;
     final a = l.account = _fresh(res, email: l.email, key: const []);
     final docs = await _sample(a);
     l.hasData = docs.isNotEmpty;
-    var drive = g.drive;
+    final saved = _savedKey(a.uid);
+    if (l.hasData && saved != null && await _fits(a, saved, docs)) {
+      a.key = saved;
+      return l;
+    }
+    // an account made just now has nothing in Drive yet, and may still be undone, see [dropNew]
+    if (res['isNewUser'] == true) l._made = res;
+    var drive = l.isNew ? null : g.drive;
     if (drive != null) {
       try {
         if (await _driveKey(a, drive, docs) case final k?) {
@@ -213,7 +237,7 @@ class Sync extends ChangeNotifier {
     }
     // only a brand new sync gets a new key; data already there needs the one that locked it
     if (l.hasData) return l;
-    a.key = List.generate(32, (_) => Random.secure().nextInt(256));
+    a.key = saved ?? List.generate(32, (_) => Random.secure().nextInt(256));
     if (drive != null) {
       try {
         a.key = await _driveCreate(a, drive);
@@ -235,7 +259,8 @@ class Sync extends ChangeNotifier {
   });
 
   /// "Unlock with your old password", once, for data a 2.1 device synced.
-  Future<void> unlockWithPassword(Login l, String password) => _guard(() async {
+  /// [email] is the old sign-in's email when there's no account yet; it can differ from Google's.
+  Future<void> unlockWithPassword(Login l, String password, {String? email}) => _guard(() async {
     if (l.account case final a?) {
       // the old key came from the password and the account's email, so the data itself says if it's right
       final keys = await _derive(await _accountEmail(a) ?? l.email, password);
@@ -244,25 +269,36 @@ class Sync extends ChangeNotifier {
       return;
     }
     // Firebase keeps this Google account out until the old password proves it's the same person
-    final keys = await _derive(l.email, password);
+    final old = (email ?? l.email).trim().toLowerCase();
+    if (old.isEmpty) throw const SyncError('Type the email you used for Spendrix sync before.');
+    final keys = await _derive(old, password);
     final res = await _post(Uri.parse('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=$_apiKey'), {
-      'email': l.email,
+      'email': old,
       'password': keys.auth,
       'returnSecureToken': true,
     });
     if (l.expect != null && res['localId'] != l.expect) throw _elsewhere;
     final linked = await _idp(l.google, link: res['idToken'] as String);
-    final a = _fresh(linked, email: l.email, key: keys.key);
+    final a = _fresh(linked, email: old, key: keys.key);
     final docs = await _sample(a);
     l.hasData = docs.isNotEmpty;
     l.account = a;
   });
 
+  /// Undoes the empty account [google] just made, for "I used email and password before" or a cancel.
+  Future<void> dropNew(Login l) async {
+    if (l._made case final res?) await _drop(res);
+    l._made = null;
+    l.account = null;
+  }
+
   /// Makes a finished [Login] the active account. Nothing on this device is
   /// removed: its own entries join the account, and with none of its own the
   /// account's settings win over the ones picked here.
+  /// Check [keyInDrive] after it to warn when the key only lives here.
   Future<void> start(Login l) async {
     final a = l.account!;
+    a.inDrive = l.inDrive || await _driveKeep(a, l.google.drive);
     if (!store.hasOwnData) await store.yieldSettings();
     await store.markAllDirty();
     _session = a;
@@ -270,7 +306,6 @@ class Sync extends ChangeNotifier {
     problem = null;
     notifyListeners();
     unawaited(syncNow());
-    if (!l.inDrive) unawaited(_driveKeep(a, l.google.drive));
     track('feature_used', {'name': l.hasData ? 'sync_join' : 'sync_on'});
   }
 
@@ -282,12 +317,13 @@ class Sync extends ChangeNotifier {
     final res = await _idpFor(g, old);
     if (res['needConfirmation'] == true || res['localId'] != old.uid) {
       await _drop(res);
-      throw _elsewhere;
+      // this Google account already belongs to another sync, so linking can never work
+      throw res['needConfirmation'] == true || res['isNewUser'] == true ? _elsewhere : _taken;
     }
     final s = _resumed(old, res);
-    final inDrive = await _driveKeep(s, g.drive);
+    s.inDrive = await _driveKeep(s, g.drive);
     await _swap(s);
-    return inDrive;
+    return s.inDrive;
   });
 
   /// After the server stopped taking the saved sign-in. Returns a login that
@@ -295,18 +331,18 @@ class Sync extends ChangeNotifier {
   Future<Login?> reauth(GoogleTokens g) => _guard(() async {
     final old = _session!;
     final res = await _idpFor(g, old);
-    if (res['needConfirmation'] != true) {
-      if (res['localId'] == old.uid) {
-        final s = _resumed(old, res);
-        await _swap(s);
-        unawaited(_driveKeep(s, g.drive));
-        return null;
+    if (res['needConfirmation'] != true && res['localId'] == old.uid) {
+      final s = _resumed(old, res);
+      if (!s.inDrive) {
+        s.inDrive = await _driveKeep(s, g.drive);
       }
-      if (res['isNewUser'] != true) throw _elsewhere;
-      // Firebase had never seen this Google account; drop the empty account it just made
-      // and let the old password link it instead
-      await _drop(res);
+      await _swap(s);
+      return null;
     }
+    // Firebase had never seen this Google account; drop the empty account it just made
+    await _drop(res);
+    // only a 2.1 password account can take a new Google account, and only with its old password
+    if (old.google || (res['needConfirmation'] != true && res['isNewUser'] != true)) throw _elsewhere;
     return Login._(g, old.email)..expect = old.uid;
   });
 
@@ -315,11 +351,21 @@ class Sync extends ChangeNotifier {
     final old = _session!;
     final a = l.account!;
     if (a.uid != old.uid) throw _elsewhere;
-    final s = Session(uid: old.uid, email: old.email, refresh: a.refresh, key: old.key, cursor: old.cursor, google: true)
+    final s = Session(
+      uid: old.uid,
+      email: old.email,
+      refresh: a.refresh,
+      key: old.key,
+      cursor: old.cursor,
+      google: true,
+      inDrive: old.inDrive,
+    )
       ..idToken = a.idToken
       ..expires = a.expires;
+    if (!s.inDrive) {
+      s.inDrive = await _driveKeep(s, l.google.drive);
+    }
     await _swap(s);
-    unawaited(_driveKeep(s, l.google.drive));
   }
 
   Future<void> signOut({required bool removeData}) async {
@@ -327,6 +373,8 @@ class Sync extends ChangeNotifier {
     _closing = true;
     await _running;
     _closing = false;
+    // the key may live nowhere else, so keep it for this account's next sign-in here, even when data goes
+    if (_session case final s? when s.key.isNotEmpty) await prefs.setString('key-${s.uid}', base64Url.encode(s.key));
     _session = null;
     problem = null;
     lastSync = null;
@@ -374,6 +422,10 @@ class Sync extends ChangeNotifier {
           ],
         }, auth: true);
       }
+      await _post(Uri.parse('https://identitytoolkit.googleapis.com/v1/accounts:delete?key=$_apiKey'), {
+        'idToken': await _token(),
+      });
+      // only once the account is gone: if that failed, the data uploads again and still needs this key
       if (g.drive case final drive?) {
         try {
           for (final id in await _driveList(s, drive)) {
@@ -384,9 +436,6 @@ class Sync extends ChangeNotifier {
           debugPrint('drive: $e');
         }
       }
-      await _post(Uri.parse('https://identitytoolkit.googleapis.com/v1/accounts:delete?key=$_apiKey'), {
-        'idToken': await _token(),
-      });
     } catch (_) {
       // a half-emptied account would hand the next device partial data, so upload it all again
       await store.markAllDirty();
@@ -395,6 +444,7 @@ class Sync extends ChangeNotifier {
       _closing = false;
     }
     await signOut(removeData: false);
+    await prefs.remove('key-${old.uid}');
   });
 
   // swaps in a new sign-in for the same account, only once it's known to work
@@ -461,19 +511,24 @@ class Sync extends ChangeNotifier {
         ..idToken = res['idToken'] as String
         ..expires = _expiry(res['expiresIn']);
 
-  static Session _resumed(Session old, Map<String, dynamic> res) =>
-      _fresh(res, email: old.email, key: old.key)..cursor = old.cursor;
+  static Session _resumed(Session old, Map<String, dynamic> res) => _fresh(res, email: old.email, key: old.key)
+    ..cursor = old.cursor
+    ..inDrive = old.inDrive;
 
+  /// the key [signOut] kept for [uid], if any
+  static List<int>? _savedKey(String uid) => switch (prefs.getString('key-$uid')) {
+    final t? => _readKey(t),
+    null => null,
+  };
+
+  // a network error must reach the person, not turn into "wrong password" by salting with the wrong email
   Future<String?> _accountEmail(Session a) async {
-    try {
-      final res = await _post(Uri.parse('https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=$_apiKey'), {
-        'idToken': await _token(a),
-      });
-      return ((res['users'] as List).first['email'] as String?)?.trim().toLowerCase();
-    } catch (e) {
-      debugPrint('sign-in: $e');
-      return null;
-    }
+    final res = await _post(Uri.parse('https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=$_apiKey'), {
+      'idToken': await _token(a),
+    });
+    final users = res is Map ? res['users'] : null;
+    final email = users is List && users.isNotEmpty ? users.first['email'] : null;
+    return email is String ? email.trim().toLowerCase() : null;
   }
 
   static Uri _query(String uid) => Uri.parse('https://firestore.googleapis.com/v1/$_docs/users/$uid:runQuery');
@@ -641,7 +696,7 @@ class Sync extends ChangeNotifier {
         // retries repeat the same problem every few minutes, so only a change counts
         if (problem!.problem != before) track('sync_problem', {'type': problem!.problem.name});
         if (e is! SyncError) debugPrint('sync: $e');
-        if (problem!.problem != Problem.signIn && problem!.problem != Problem.update) {
+        if (!const [Problem.signIn, Problem.update, Problem.key].contains(problem!.problem)) {
           // 30 s, 1 min, 2 min ... capped at 30 min; a quota stop clears at midnight Pacific anyway
           _retry = Timer(Duration(seconds: min(30 << min(_failures++, 6), 1800)), syncNow);
         }
@@ -657,6 +712,7 @@ class Sync extends ChangeNotifier {
     final since = s.cursor;
     String? readTime;
     List<Object>? after;
+    var seen = 0, opened = 0;
     while (true) {
       final rows = await _post(_query(s.uid), {
         'structuredQuery': {
@@ -698,6 +754,8 @@ class Sync extends ChangeNotifier {
         final item = await _open(d);
         if (item != null) items.add(item);
       }
+      seen += docs.length;
+      opened += items.length;
       await store.merge(items);
       if (docs.length < _page) break;
       final last = docs.last;
@@ -705,6 +763,14 @@ class Sync extends ChangeNotifier {
         {'timestampValue': last['fields']['s']['timestampValue']},
         {'referenceValue': last['name']},
       ];
+    }
+    // nothing opened at all: a wrong key, and pushing now would mix two keys in one account
+    if (since == null && seen > 0 && opened == 0) {
+      throw const SyncError(
+        'This device has a different sync key. Sign out, sign in again, and enter the key from '
+        'Show sync key on another device.',
+        Problem.key,
+      );
     }
     // a commit can land up to a few seconds behind its own timestamp, so the
     // next pull re-reads the last two minutes instead of trusting readTime exactly
@@ -876,9 +942,11 @@ class Sync extends ChangeNotifier {
       return _elsewhere;
     }
     if (const ['INVALID_LOGIN_CREDENTIALS', 'INVALID_PASSWORD', 'EMAIL_NOT_FOUND'].any(code.startsWith)) {
-      return _wrongPassword;
+      // only the old email and password sign-in gets these
+      return const SyncError("That email or password isn't right.");
     }
     const messages = {
+      'INVALID_EMAIL': "That email address doesn't look right.",
       'EMAIL_EXISTS': "That Google account's email already has its own Spendrix account. Pick another Google account.",
       'INVALID_IDP_RESPONSE': "Google sign-in didn't go through. Try again.",
       'MISSING_OR_INVALID_NONCE': "Google sign-in didn't go through. Try again.",

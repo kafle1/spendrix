@@ -87,7 +87,12 @@ class _OnboardingState extends State<Onboarding> {
                     if (!sync.needsSignIn) FilledButton(onPressed: sync.syncNow, child: const Text('Try again')),
                   ],
                   const SizedBox(height: 8),
-                  TextButton(onPressed: () => sync.signOut(removeData: true), child: const Text('Cancel')),
+                  TextButton(
+                    onPressed: () async {
+                      if (await keySaved(context, sync)) await sync.signOut(removeData: true);
+                    },
+                    child: const Text('Cancel'),
+                  ),
                 ],
               ),
             ),
@@ -149,7 +154,7 @@ class _OnboardingState extends State<Onboarding> {
                   const SizedBox(height: 8),
                   TextButton(
                     style: TextButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                    onPressed: () => showAccountSheet(context),
+                    onPressed: () => showAccountSheet(context, existing: true),
                     child: const Text('I already use Spendrix'),
                   ),
                 ],
