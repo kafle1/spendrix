@@ -256,7 +256,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ListTile(
             leading: const Icon(Icons.swap_horiz),
             title: const Text('Sync now uses Google'),
-            subtitle: const Text('Tap to sign in with Google instead of your password. Nothing uploads again.'),
+            subtitle: const Text('Tap once to keep syncing with your Google account. Nothing uploads again.'),
             enabled: !_signingOut,
             onTap: () => _moveOver(sync),
           ),
@@ -309,8 +309,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             'Continue with the Google account you use for Spendrix to keep syncing. '
             'Nothing on this device changes until it works.',
         action: 'Continue with Google',
-        run: sync.reauth,
-        finish: sync.resume,
+        run: (g) async {
+          await sync.reauth(g);
+          return null;
+        },
       ),
     );
     if (done == true && !sync.keyInDrive && mounted) toast(context, _keyNotInDrive);
@@ -681,12 +683,6 @@ Future<bool> keySaved(BuildContext context, Sync sync) async {
   return context.mounted;
 }
 
-Widget _showHide(bool shown, VoidCallback toggle) => IconButton(
-  tooltip: shown ? 'Hide password' : 'Show password',
-  icon: Icon(shown ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-  onPressed: toggle,
-);
-
 /// Cancel, a destructive choice, and a safe choice. Same shape as the sign-out and keep-data prompts.
 Future<T?> _choice<T>(
   BuildContext context, {
@@ -763,8 +759,7 @@ class _Header extends StatelessWidget {
 
 /// Signs in with Google and starts syncing. Returns true once signed in.
 /// Call it straight from a tap: on the web the Google popup has to open before anything is awaited.
-/// [existing] is "I already use Spendrix": a Google account with no sync asks before starting a new one.
-Future<bool> showAccountSheet(BuildContext context, {bool existing = false}) async {
+Future<bool> showAccountSheet(BuildContext context) async {
   final google = googleSignIn()..ignore();
   final sync = context.read<Sync>();
   Login? joined;
@@ -778,7 +773,6 @@ Future<bool> showAccountSheet(BuildContext context, {bool existing = false}) asy
           'so your other devices can open your entries.',
       action: 'Continue with Google',
       started: google,
-      askIfNew: existing,
       run: sync.google,
       finish: (l) async {
         await sync.start(l);
@@ -798,7 +792,7 @@ Future<bool> showAccountSheet(BuildContext context, {bool existing = false}) asy
 }
 
 /// Asks Google who this is, then runs [run]. When [run] hands back a [Login]
-/// without its key, asks for the sync key or old password, then [finish]es it.
+/// without its key, asks for the sync key, then [finish]es it.
 /// Pops true when everything went through; until then nothing on the device changed.
 class _GoogleDialog extends StatefulWidget {
   const _GoogleDialog({
@@ -809,7 +803,6 @@ class _GoogleDialog extends StatefulWidget {
     this.finish,
     this.started,
     this.destructive = false,
-    this.askIfNew = false,
   });
 
   final String title, body, action;
@@ -820,9 +813,6 @@ class _GoogleDialog extends StatefulWidget {
   final Future<GoogleTokens>? started;
   final bool destructive;
 
-  /// a brand new sync asks first whether this person had an email and password sync before
-  final bool askIfNew;
-
   @override
   State<_GoogleDialog> createState() => _GoogleDialogState();
 }
@@ -830,9 +820,9 @@ class _GoogleDialog extends StatefulWidget {
 enum _Stage { idle, google, checking, unlock }
 
 class _GoogleDialogState extends State<_GoogleDialog> {
-  final _field = TextEditingController(), _email = TextEditingController();
+  final _field = TextEditingController();
   var _stage = _Stage.idle;
-  bool _busy = false, _password = false, _show = false;
+  bool _busy = false;
   Login? _login;
   String? _error;
 
@@ -846,12 +836,8 @@ class _GoogleDialogState extends State<_GoogleDialog> {
   void dispose() {
     if (_stage == _Stage.google) cancelGoogleSignIn();
     _field.dispose();
-    _email.dispose();
     super.dispose();
   }
-
-  /// the old sign-in's email, which can differ from Google's, is only needed before there's an account
-  bool get _askEmail => _password && _login?.account == null;
 
   Future<void> _go(Future<GoogleTokens> google) async {
     setState(() {
@@ -865,19 +851,10 @@ class _GoogleDialogState extends State<_GoogleDialog> {
       final l = await widget.run(g);
       if (!mounted) return;
       if (l == null) return Navigator.pop(context, true);
-      if (widget.askIfNew && l.isNew) {
-        final sync = context.read<Sync>();
-        final old = await _askOld();
-        if (old != false) await sync.dropNew(l);
-        if (!mounted) return;
-        if (old == null) return setState(() => _stage = _Stage.idle);
-      }
       if (l.unlocked) return await _finish(l);
       _field.clear();
-      _email.text = l.email;
       setState(() {
         _login = l;
-        _password = l.account == null;
         _stage = _Stage.unlock;
       });
     } catch (e) {
@@ -890,23 +867,6 @@ class _GoogleDialogState extends State<_GoogleDialog> {
     }
   }
 
-  /// true for "I used email and password", false to start new, null to cancel
-  Future<bool?> _askOld() => showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      scrollable: true,
-      title: const Text('No sync on this account'),
-      content: const Text(
-        'No Spendrix sync on this Google account. Start new, or did you use an email and password before?',
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('I used email and password')),
-        FilledButton(onPressed: () => Navigator.pop(context, false), child: const Text('Start new')),
-      ],
-    ),
-  );
-
   Future<void> _finish(Login l) async {
     await widget.finish?.call(l);
     if (mounted) Navigator.pop(context, true);
@@ -915,26 +875,15 @@ class _GoogleDialogState extends State<_GoogleDialog> {
   Future<void> _unlock() async {
     if (_busy) return;
     final text = _field.text.trim();
-    final noEmail = _askEmail && _email.text.trim().isEmpty;
     setState(() {
-      _error = noEmail
-          ? 'Type the email you used for Spendrix sync before.'
-          : text.isEmpty
-          ? (_password ? 'Type your old password.' : 'Paste your sync key.')
-          : null;
+      _error = text.isEmpty ? 'Paste your sync key.' : null;
       _busy = _error == null;
     });
     if (!_busy) return;
     final sync = context.read<Sync>();
     try {
-      // let "Unlocking..." paint before the slow key stretching starts
-      await WidgetsBinding.instance.endOfFrame;
       final l = _login!;
-      if (_password) {
-        await sync.unlockWithPassword(l, _field.text, email: _askEmail ? _email.text : null);
-      } else {
-        await sync.unlockWithKey(l, text);
-      }
+      await sync.unlockWithKey(l, text);
       await _finish(l);
     } catch (e) {
       if (mounted) setState(() => _error = _message(e));
@@ -963,62 +912,21 @@ class _GoogleDialogState extends State<_GoogleDialog> {
               Text(
                 !unlock
                     ? widget.body
-                    : _login!.account == null && _login!.expect != null
-                    ? "This Google account isn't linked to your sync yet. Enter your old Spendrix password once to "
-                          'link it, or cancel and pick another Google account.'
-                    : _login!.account == null
-                    ? 'Enter the email and password you used for Spendrix sync before. You only need them once, '
-                          'to link this Google account to your entries.'
-                    : _password
-                    ? 'Enter the password you used for Spendrix sync before. You only need it once.'
                     : "Your entries are locked with a key this device doesn't have yet. On a device that syncs, "
                           'open Settings and tap Show sync key.',
               ),
               if (unlock) ...[
                 const SizedBox(height: 16),
-                if (_askEmail) ...[
-                  TextField(
-                    controller: _email,
-                    enabled: !_busy,
-                    autofocus: _email.text.isEmpty,
-                    keyboardType: TextInputType.emailAddress,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    autofillHints: const [AutofillHints.email],
-                    textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(labelText: 'Old email'),
-                  ),
-                  const SizedBox(height: 8),
-                ],
                 TextField(
                   controller: _field,
                   enabled: !_busy,
-                  autofocus: !_askEmail || _email.text.isNotEmpty,
-                  obscureText: _password && !_show,
+                  autofocus: true,
                   autocorrect: false,
                   enableSuggestions: false,
-                  autofillHints: _password ? const [AutofillHints.password] : null,
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _unlock(),
-                  decoration: InputDecoration(
-                    labelText: _password ? 'Old password' : 'Sync key',
-                    suffixIcon: _password ? _showHide(_show, () => setState(() => _show = !_show)) : null,
-                  ),
+                  decoration: const InputDecoration(labelText: 'Sync key'),
                 ),
-                if (_login!.account != null)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton(
-                      onPressed: _busy
-                          ? null
-                          : () => setState(() {
-                              _password = !_password;
-                              _error = null;
-                              _field.clear();
-                            }),
-                      child: Text(_password ? 'Use sync key instead' : 'Use old password instead'),
-                    ),
-                  ),
               ],
               if (_error != null) ...[
                 const SizedBox(height: 12),

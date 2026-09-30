@@ -154,7 +154,7 @@ class _OnboardingState extends State<Onboarding> {
                   const SizedBox(height: 8),
                   TextButton(
                     style: TextButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                    onPressed: () => showAccountSheet(context, existing: true),
+                    onPressed: () => showAccountSheet(context),
                     child: const Text('I already use Spendrix'),
                   ),
                 ],

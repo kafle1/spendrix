@@ -4,8 +4,6 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
-import 'package:cryptography/dart.dart';
-import 'package:cryptography_flutter/cryptography_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
@@ -97,10 +95,8 @@ class Login {
 
   final GoogleTokens google;
 
-  /// the account's email, which the old password was salted with
   final String email;
 
-  /// null while Firebase wants the account's old password before it lets Google in
   Session? account;
 
   /// the account already holds synced entries
@@ -108,15 +104,6 @@ class Login {
 
   /// the key came from Drive, so there's nothing to copy there
   bool inDrive = false;
-
-  /// set when a device signs in again: the account it has to be
-  String? expect;
-
-  // the sign-in that just made a brand new account, see [Sync.dropNew]
-  Map<String, dynamic>? _made;
-
-  /// Firebase had never seen this Google account, so it's an empty new sync
-  bool get isNew => _made != null;
 
   bool get unlocked => account?.key.isNotEmpty ?? false;
 }
@@ -200,7 +187,14 @@ class Sync extends ChangeNotifier {
   static const _elsewhere = SyncError(
     'That Google account syncs a different set of entries. Pick the one you use for Spendrix.',
   );
-  static const _wrongPassword = SyncError("That password isn't right.");
+  static const _stuck = SyncError(
+    'Pick the Google account with the email you synced with before. Or sign out here, keep this '
+    "device's data, then sign in with any Google account to upload it again.",
+  );
+  static const _oldSync = SyncError(
+    "This Google account's email synced with an older Spendrix. Update Spendrix on a device that still syncs "
+    'and tap Sync now uses Google there, then sign in here again.',
+  );
   static const _taken = SyncError(
     "That Google account already syncs other entries. Pick another Google account, or sign out here, keep this "
     "device's data, then sign in with that Google account to add these entries to it.",
@@ -211,8 +205,8 @@ class Sync extends ChangeNotifier {
   Future<Login> google(GoogleTokens g) => _guard(() async {
     final res = await _idp(g);
     final l = Login._(g, '${res['email'] ?? ''}'.trim().toLowerCase());
-    // with email enumeration protection Firebase leaves the email out; the unlock asks for it
-    if (res['needConfirmation'] == true) return l;
+    // Firebase won't hand a 2.1 account to Google here; the device that still syncs moves it over
+    if (res['needConfirmation'] == true) throw _oldSync;
     final a = l.account = _fresh(res, email: l.email, key: const []);
     final docs = await _sample(a);
     l.hasData = docs.isNotEmpty;
@@ -221,9 +215,8 @@ class Sync extends ChangeNotifier {
       a.key = saved;
       return l;
     }
-    // an account made just now has nothing in Drive yet, and may still be undone, see [dropNew]
-    if (res['isNewUser'] == true) l._made = res;
-    var drive = l.isNew ? null : g.drive;
+    // an account made just now has nothing in Drive yet
+    var drive = res['isNewUser'] == true ? null : g.drive;
     if (drive != null) {
       try {
         if (await _driveKey(a, drive, docs) case final k?) {
@@ -257,40 +250,6 @@ class Sync extends ChangeNotifier {
     if (!await _fits(a, k, await _sample(a))) throw const SyncError("That sync key doesn't open this account's entries.");
     a.key = k;
   });
-
-  /// "Unlock with your old password", once, for data a 2.1 device synced.
-  /// [email] is the old sign-in's email when there's no account yet; it can differ from Google's.
-  Future<void> unlockWithPassword(Login l, String password, {String? email}) => _guard(() async {
-    if (l.account case final a?) {
-      // the old key came from the password and the account's email, so the data itself says if it's right
-      final keys = await _derive(await _accountEmail(a) ?? l.email, password);
-      if (!await _fits(a, keys.key, await _sample(a))) throw _wrongPassword;
-      a.key = keys.key;
-      return;
-    }
-    // Firebase keeps this Google account out until the old password proves it's the same person
-    final old = (email ?? l.email).trim().toLowerCase();
-    if (old.isEmpty) throw const SyncError('Type the email you used for Spendrix sync before.');
-    final keys = await _derive(old, password);
-    final res = await _post(Uri.parse('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=$_apiKey'), {
-      'email': old,
-      'password': keys.auth,
-      'returnSecureToken': true,
-    });
-    if (l.expect != null && res['localId'] != l.expect) throw _elsewhere;
-    final linked = await _idp(l.google, link: res['idToken'] as String);
-    final a = _fresh(linked, email: old, key: keys.key);
-    final docs = await _sample(a);
-    l.hasData = docs.isNotEmpty;
-    l.account = a;
-  });
-
-  /// Undoes the empty account [google] just made, for "I used email and password before" or a cancel.
-  Future<void> dropNew(Login l) async {
-    if (l._made case final res?) await _drop(res);
-    l._made = null;
-    l.account = null;
-  }
 
   /// Makes a finished [Login] the active account. Nothing on this device is
   /// removed: its own entries join the account, and with none of its own the
@@ -326,9 +285,8 @@ class Sync extends ChangeNotifier {
     return s.inDrive;
   });
 
-  /// After the server stopped taking the saved sign-in. Returns a login that
-  /// still needs the old password, or null when sync is back on.
-  Future<Login?> reauth(GoogleTokens g) => _guard(() async {
+  /// After the server stopped taking the saved sign-in.
+  Future<void> reauth(GoogleTokens g) => _guard(() async {
     final old = _session!;
     final res = await _idpFor(g, old);
     if (res['needConfirmation'] != true && res['localId'] == old.uid) {
@@ -337,36 +295,12 @@ class Sync extends ChangeNotifier {
         s.inDrive = await _driveKeep(s, g.drive);
       }
       await _swap(s);
-      return null;
+      return;
     }
     // Firebase had never seen this Google account; drop the empty account it just made
     await _drop(res);
-    // only a 2.1 password account can take a new Google account, and only with its old password
-    if (old.google || (res['needConfirmation'] != true && res['isNewUser'] != true)) throw _elsewhere;
-    return Login._(g, old.email)..expect = old.uid;
+    throw old.google ? _elsewhere : _stuck;
   });
-
-  /// Finishes [reauth] once the old password linked Google.
-  Future<void> resume(Login l) async {
-    final old = _session!;
-    final a = l.account!;
-    if (a.uid != old.uid) throw _elsewhere;
-    final s = Session(
-      uid: old.uid,
-      email: old.email,
-      refresh: a.refresh,
-      key: old.key,
-      cursor: old.cursor,
-      google: true,
-      inDrive: old.inDrive,
-    )
-      ..idToken = a.idToken
-      ..expires = a.expires;
-    if (!s.inDrive) {
-      s.inDrive = await _driveKeep(s, l.google.drive);
-    }
-    await _swap(s);
-  }
 
   Future<void> signOut({required bool removeData}) async {
     // stops a long first pull at the next page instead of waiting it out
@@ -520,16 +454,6 @@ class Sync extends ChangeNotifier {
     final t? => _readKey(t),
     null => null,
   };
-
-  // a network error must reach the person, not turn into "wrong password" by salting with the wrong email
-  Future<String?> _accountEmail(Session a) async {
-    final res = await _post(Uri.parse('https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=$_apiKey'), {
-      'idToken': await _token(a),
-    });
-    final users = res is Map ? res['users'] : null;
-    final email = users is List && users.isNotEmpty ? users.first['email'] : null;
-    return email is String ? email.trim().toLowerCase() : null;
-  }
 
   static Uri _query(String uid) => Uri.parse('https://firestore.googleapis.com/v1/$_docs/users/$uid:runQuery');
 
@@ -812,21 +736,6 @@ class Sync extends ChangeNotifier {
 
   static final _aes = AesGcm.with256bits();
 
-  /// password -> PBKDF2 (600k rounds) -> two separate keys: one Firebase checks
-  /// as the account password, one that encrypts and never leaves the device
-  static Future<({String auth, List<int> key})> _derive(String email, String password) async {
-    // windows and linux have no native pbkdf2, and the dart one takes ~16s, so keep it off the ui thread
-    final pbkdf2 = FlutterCryptography.isPluginPresent || kIsWeb
-        ? Pbkdf2(macAlgorithm: Hmac.sha256(), iterations: 600000, bits: 256)
-        : BackgroundPbkdf2(macAlgorithm: Hmac.sha256(), iterations: 600000, bits: 256);
-    final master = await pbkdf2.deriveKeyFromPassword(password: password, nonce: utf8.encode('spendrix:$email'));
-    // android's native hmac rejects hkdf's empty salt, and this step is cheap anyway
-    const hkdf = DartHkdf(hmac: DartHmac(DartSha256()), outputLength: 32);
-    final auth = await hkdf.deriveKey(secretKey: master, info: utf8.encode('auth'));
-    final key = await hkdf.deriveKey(secretKey: master, info: utf8.encode('enc'));
-    return (auth: base64Url.encode(await auth.extractBytes()), key: await key.extractBytes());
-  }
-
   static List<int> _aad(Session s, String id) => utf8.encode('${s.uid}/$id');
 
   /// format byte 1, then 12-byte nonce, ciphertext, 16-byte tag
@@ -941,12 +850,7 @@ class Sync extends ChangeNotifier {
     if (code.startsWith('FEDERATED_USER_ID_ALREADY_LINKED') || code.startsWith('PROVIDER_ALREADY_LINKED')) {
       return _elsewhere;
     }
-    if (const ['INVALID_LOGIN_CREDENTIALS', 'INVALID_PASSWORD', 'EMAIL_NOT_FOUND'].any(code.startsWith)) {
-      // only the old email and password sign-in gets these
-      return const SyncError("That email or password isn't right.");
-    }
     const messages = {
-      'INVALID_EMAIL': "That email address doesn't look right.",
       'EMAIL_EXISTS': "That Google account's email already has its own Spendrix account. Pick another Google account.",
       'INVALID_IDP_RESPONSE': "Google sign-in didn't go through. Try again.",
       'MISSING_OR_INVALID_NONCE': "Google sign-in didn't go through. Try again.",

@@ -70,7 +70,7 @@ Sync is optional. In Settings, tap **Continue with Google**. Then do the same wi
 
 Your entries are locked on the device with a private key before they're sent. Only your devices hold that key, and the server only stores locked data, so nobody else can read it, not even us. Spendrix keeps a copy of the key in a hidden folder in your Google Drive, so a new device finds it by itself. If a device ever asks for it, open Settings on a device that syncs and tap **Show sync key**.
 
-Used sync with a password before? A device that still syncs shows **Sync now uses Google**. Tap it once and nothing uploads again. A new device can also unlock your entries once with your old password.
+Used sync before? A device that still syncs shows **Sync now uses Google**. Tap it once and nothing uploads again. Then sign in with Google on your other devices.
 
 Receipt photos stay on the device they were taken on.
 

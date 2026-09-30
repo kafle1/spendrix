@@ -2,7 +2,7 @@ Spendrix is a private money diary. It works offline and keeps everything on your
 
 **New in 2.2**
 - Sync now signs in with Google. No password to remember. Your entries are still locked on your device before they leave, and the key is kept in a hidden Spendrix folder in your own Google Drive, so a new device finds it by itself.
-- Used sync with a password before? Tap **Sync now uses Google** on a device that syncs. A new device can unlock your entries once with your old password.
+- Used sync before? Update Spendrix on a device that still syncs and tap **Sync now uses Google** there. Then sign in with Google on your other devices.
 - A new app icon.
 - Spendrix has a website: https://spendrix.web.app. The browser app is now at https://spendrix.web.app/app.
 - If Spendrix can't bring over data from an old version, Home says so and you can tap to try again, instead of the app opening empty.

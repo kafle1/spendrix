@@ -69,7 +69,7 @@ Voice on Linux needs `parecord`, which most desktops already have (package `puls
 Sync is optional. You sign in with Google, and a random key made on your device locks every entry with AES-256 before it's sent to Firebase. The server only ever sees locked data.
 
 - The key lives on your devices and in a hidden app folder in your Google Drive (the `drive.appdata` scope), so a new device finds it by itself. Settings has **Show sync key** as a backup.
-- Accounts from 2.1 were locked with a key made from the password. That key stays; a device can unlock it once with the old password and then puts it in Drive.
+- Accounts from 2.1 were locked with a key made from the password. That key stays. A 2.1 device that still syncs links Google to the account and puts the key in Drive, so no password is ever asked for again.
 - Receipt photos stay on the device they were taken on.
 - If two devices change the same entry, the newest change wins.
 
