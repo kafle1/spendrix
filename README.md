@@ -2,6 +2,8 @@
 
 Spendrix is a private money diary. It works fully offline and keeps everything on your device. It has a helper that runs on your own phone or computer, so you can type, speak (Nepali or English) or snap a receipt and it writes the entry for you.
 
+Website: [spendrix.web.app](https://spendrix.web.app) · Privacy: [spendrix.web.app/privacy](https://spendrix.web.app/privacy/)
+
 ![Spendrix walkthrough](docs/walkthrough.gif)
 
 Sharper version: [walkthrough video](docs/walkthrough.mp4).
@@ -83,6 +85,8 @@ You need Flutter 3.47 or newer.
 flutter pub get
 flutter run
 ```
+
+Google sign-in has two local catches. On Mac, Windows and Linux, pass the desktop client secret with `--dart-define=GOOGLE_DESKTOP_SECRET=...` (CI takes it from the repo secret of the same name). In the browser, run on port 7357, the only local port the web client allows: `flutter run -d chrome --web-port 7357`.
 
 Release builds:
 

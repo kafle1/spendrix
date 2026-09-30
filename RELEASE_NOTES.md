@@ -1,5 +1,12 @@
 Spendrix is a private money diary. It works offline and keeps everything on your device.
 
+**New in 2.2**
+- Sync now signs in with Google. No password to remember. Your entries are still locked on your device before they leave, and the key is kept in a hidden Spendrix folder in your own Google Drive, so a new device finds it by itself.
+- Used sync with a password before? Tap **Sync now uses Google** on a device that syncs. A new device can unlock your entries once with your old password.
+- A new app icon.
+- Spendrix has a website: https://spendrix.web.app. The browser app is now at https://spendrix.web.app/app.
+- If Spendrix can't bring over data from an old version, Home says so and you can tap to try again, instead of the app opening empty.
+
 **Fixed in 2.1.2**
 - The app looks like it did before 2.1 again, in the same green.
 - The AI no longer freezes or closes the app, and it works on more phones.
@@ -23,10 +30,10 @@ Spendrix is a private money diary. It works offline and keeps everything on your
 - Mac: `Spendrix-macos.dmg`
 - Windows: `Spendrix-windows.zip`, unzip it and run `spendrix.exe`
 - Linux: `Spendrix-linux-x64.tar.gz`, extract it and run `./spendrix`
-- Browser: open https://spendrix.web.app, nothing to download
+- Browser: open https://spendrix.web.app/app, nothing to download
 
 **Good to know**
 - Install the new file over the old app. Don't uninstall first, or your data goes with it.
 - If Spendrix opens empty after an update on Android, install the other Android file instead.
-- Update Spendrix on every device you sync. An older version ignores the new repeat settings.
+- Update Spendrix on every device you sync. A device still on 2.1 stops syncing once you switch to Google.
 - The Mac and Windows apps aren't signed yet, so the first open shows a warning. On a Mac, go to System Settings, Privacy & Security, and click Open Anyway. On Windows, click More info, then Run anyway.
