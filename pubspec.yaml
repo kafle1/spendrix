@@ -53,17 +53,19 @@ flutter:
 flutter_launcher_icons:
   image_path: assets/icon/icon.png
   android: true
-  adaptive_icon_background: "#000000"
+  adaptive_icon_background: assets/icon/icon-bg.png
   adaptive_icon_foreground: assets/icon/icon-fg.png
-  adaptive_icon_monochrome: assets/icon/icon-fg.png
+  adaptive_icon_monochrome: assets/icon/icon-mono.png
   ios: true
   remove_alpha_ios: true
+  image_path_ios_dark_transparent: assets/icon/icon-ios-dark.png
+  image_path_ios_tinted_grayscale: assets/icon/icon-ios-tinted.png
+  # web icons are made by hand (rounded "any" icons, square maskable ones), so don't overwrite them
   web:
-    generate: true
-    background_color: "#000000"
-    theme_color: "#0E7C66"
+    generate: false
   windows:
     generate: true
+    image_path: assets/icon/icon-round.png
     icon_size: 256
   macos:
     generate: true
