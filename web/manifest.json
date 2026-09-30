@@ -1,7 +1,9 @@
 {
     "name": "Spendrix",
     "short_name": "Spendrix",
-    "start_url": ".",
+    "id": "/",
+    "start_url": "/app/",
+    "scope": "/app/",
     "display": "standalone",
     "background_color": "#062F27",
     "theme_color": "#0E7C66",

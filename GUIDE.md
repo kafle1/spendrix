@@ -66,7 +66,7 @@ Your repeats are listed in Settings. Tap one to change it, or switch it off to p
 
 ## Sync your devices
 
-Sync is optional. In Settings, tap **Create account** and pick an email and password. Then sign in with the same email and password on your other phone, computer or at [spendrix.web.app](https://spendrix.web.app).
+Sync is optional. In Settings, tap **Create account** and pick an email and password. Then sign in with the same email and password on your other phone, computer or at [spendrix.web.app/app](https://spendrix.web.app/app/).
 
 Your entries are locked with your password on the device before they're sent. The server only stores locked data, so nobody else can read it. That also means **Spendrix can't reset your password**. If you forget it, your data on each device is still safe, but the synced copy can't be opened. Delete the account and start a new one.
 

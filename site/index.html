@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- people who already use the web app go straight to it: 2.x writes "dev", older versions wrote "flutter.*" -->
+<script>try{if(matchMedia('(display-mode: standalone)').matches||(!/^#[a-z]/.test(location.hash)&&(localStorage.getItem('dev')||Object.keys(localStorage).some(function(k){return k.indexOf('flutter.')===0}))))location.replace('/app/')}catch(e){}</script>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Spendrix: free expense tracker and money diary for Nepal</title>
+<meta name="description" content="Spendrix is a free money diary for your daily kharcha and hisab kitab. Add spending in seconds, see who owes you, and say it in Nepali. Works offline.">
+<link rel="canonical" href="https://spendrix.web.app/">
+<link rel="alternate" hreflang="en" href="https://spendrix.web.app/">
+<link rel="alternate" hreflang="ne" href="https://spendrix.web.app/ne/">
+<link rel="alternate" hreflang="x-default" href="https://spendrix.web.app/">
+<meta name="theme-color" content="#062F27">
+<link rel="icon" href="/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preload" href="/fonts/mukta-700-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/style.css">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Spendrix">
+<meta property="og:url" content="https://spendrix.web.app/">
+<meta property="og:title" content="Spendrix: a free money diary that stays on your phone">
+<meta property="og:description" content="Add spending in seconds, see who owes you, and say it in Nepali. Works offline. Free on Android, iPhone, Mac, Windows, Linux and the web.">
+<meta property="og:image" content="https://spendrix.web.app/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Spendrix on a phone, with the line: every rupee, noted in seconds">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="ne_NP">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Spendrix: a free money diary that stays on your phone">
+<meta name="twitter:description" content="Add spending in seconds, see who owes you, and say it in Nepali. Works offline.">
+<meta name="twitter:image" content="https://spendrix.web.app/og.png">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+{"@type":"SoftwareApplication","name":"Spendrix","url":"https://spendrix.web.app/","applicationCategory":"FinanceApplication","operatingSystem":"Android, iOS, macOS, Windows, Linux, Web","description":"A free money diary and expense tracker made in Nepal. Add money in and out in seconds, track who owes you, and use an on-device helper that understands Nepali voice and receipt photos. Works offline.","image":"https://spendrix.web.app/og.png","inLanguage":["en","ne"],"downloadUrl":"https://github.com/kafle1/spendrix/releases/latest","author":{"@type":"Person","name":"Niraj Kafle","url":"https://github.com/kafle1"},"offers":{"@type":"Offer","price":"0","priceCurrency":"NPR"}},
+{"@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"Is Spendrix really free?","acceptedAnswer":{"@type":"Answer","text":"Yes. There's no paid plan and no ads."}},
+{"@type":"Question","name":"Do I need the internet?","acceptedAnswer":{"@type":"Answer","text":"No. Everything works offline. You only need the internet to download the AI helper once, and to sync if you turn it on."}},
+{"@type":"Question","name":"Where is my data kept?","acceptedAnswer":{"@type":"Answer","text":"On your device. If you turn on sync, your entries are locked on your device before they leave, and only your devices hold the key."}},
+{"@type":"Question","name":"What if I lose my phone?","acceptedAnswer":{"@type":"Answer","text":"Turn on sync, or back up to a file from Settings now and then. Either way you can bring everything back on a new phone."}},
+{"@type":"Question","name":"Why isn't it on the Play Store?","acceptedAnswer":{"@type":"Answer","text":"Not yet. Until then you install the file from GitHub. Every release there is built from the public code."}},
+{"@type":"Question","name":"How do I update?","acceptedAnswer":{"@type":"Answer","text":"Spendrix shows a card on Home when a new version is out. Install the new file over the old app. Don't uninstall first, that deletes your data."}},
+{"@type":"Question","name":"Does it work in Nepali?","acceptedAnswer":{"@type":"Answer","text":"The AI helper understands Nepali and English, typed or spoken. The app's screens are in English for now, and new users start with Nepali rupees."}},
+{"@type":"Question","name":"Which devices can run the AI helper?","acceptedAnswer":{"@type":"Answer","text":"Most 64-bit Android phones, iPhones, Macs with Apple chips, and 64-bit Windows and Linux PCs. In a browser it needs Chrome or Edge. Phones with less than 6 GB of memory may be slow. Everything else in Spendrix works without it."}},
+{"@type":"Question","name":"I used Spendrix in my browser before. Where did my entries go?","acceptedAnswer":{"@type":"Answer","text":"Nowhere. The web app moved to spendrix.web.app/app/. Open it in the same browser and your entries are right there."}}
+]}]}
+</script>
+</head>
+<body id="top">
+<header class="hero">
+  <div class="wrap">
+    <nav class="top" aria-label="Main">
+      <a class="brand" href="#top"><img src="/img/icon-64.png" alt="" width="34" height="34">Spendrix</a>
+      <a href="/ne/" hreflang="ne" lang="ne">नेपाली</a>
+      <a href="/app/">Open in browser</a>
+    </nav>
+    <div class="hero-in">
+      <div>
+        <h1>Every rupee, noted in seconds.</h1>
+        <p class="lead">Spendrix is a free money diary for your daily kharcha and hisab kitab. Type it, say it in Nepali, or snap the bill. It works offline and keeps your money on your phone.</p>
+        <div class="cta">
+          <a class="btn" id="get" href="#download" data-android="Download for Android" data-iphone="Get it for iPhone" data-macos="Download for Mac" data-windows="Download for Windows" data-linux="Download for Linux"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0 5-5m-5 5-5-5M5 20h14"/></svg><span>Download Spendrix</span></a>
+          <a class="alt" href="/app/">Or open it in your browser</a>
+        </div>
+        <p class="note">Free. No account needed. No ads. <a href="#download" style="color:inherit">Other devices</a></p>
+      </div>
+      <div class="hero-phone"><div class="phone"><img src="/img/home.webp" alt="Spendrix home screen with the total balance, this month's spending, accounts and recent entries" width="720" height="1558" fetchpriority="high"></div></div>
+    </div>
+  </div>
+</header>
+
+<main>
+<section class="sec video" id="video" hidden aria-label="Promo video">
+  <div class="wrap">
+    <video controls playsinline preload="metadata" poster="/media/promo-poster.jpg" onloadedmetadata="this.closest('section').hidden=false"><source src="/media/promo.mp4" type="video/mp4"></video>
+  </div>
+</section>
+
+<section class="sec feat" id="features">
+  <div class="wrap">
+    <h2>Money in, money out, and who owes whom</h2>
+    <p class="lead">An offline expense tracker made in Nepal. Everything you need for daily kharcha, and nothing you have to learn.</p>
+    <div class="shots">
+      <figure><div class="phone"><img src="/img/home.webp" alt="Home screen with this month's totals" width="720" height="1558" loading="lazy"></div><figcaption><b>Home</b>See what's left this month at a glance.</figcaption></figure>
+      <figure><div class="phone"><img src="/img/add.webp" alt="Adding an entry with the number keypad" width="720" height="1558" loading="lazy"></div><figcaption><b>Add</b>Type the amount, pick a category, save. That's it.</figcaption></figure>
+      <figure><div class="phone"><img src="/img/insights.webp" alt="Insights screen with a chart by category" width="720" height="1558" loading="lazy"></div><figcaption><b>Insights</b>A chart for each month shows where the money went.</figcaption></figure>
+      <figure><div class="phone"><img src="/img/people.webp" alt="People screen listing who owes you and whom you owe" width="720" height="1558" loading="lazy"></div><figcaption><b>People</b>Who owes you, whom you owe, and when it's settled.</figcaption></figure>
+    </div>
+    <ul class="extras">
+      <li>Rent, salary and other bills that repeat add themselves on the due day.</li>
+      <li>Set a monthly budget and a limit for any category.</li>
+      <li>Move money between cash, bank and eSewa without counting it as spending.</li>
+      <li>Nepali rupees by default. Any other currency works too.</li>
+      <li>Lock it with your fingerprint, face or PIN.</li>
+      <li>Back up to one file, or export a spreadsheet for Excel.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="sec ai" id="ai">
+  <div class="wrap ai-in">
+    <div>
+      <h2>Say it in Nepali. It writes the entry.</h2>
+      <p class="say" lang="ne" aria-hidden="true">बिजुली बिल ११००</p>
+      <div class="card" aria-hidden="true"><span>Draft entry</span><strong>Electricity bill</strong><em>Rs 1,100</em><i><u>Save</u><u>Edit</u></i></div>
+      <p class="lead">The helper runs on your own phone or computer. Download it once, 2 to 4 GB depending on the device, and it works with no internet. Your voice, photos and entries never leave the device.</p>
+      <ul class="ways">
+        <li><b>Type it.</b> "tea 60", "salary 50000", "lent Ram 2000".</li>
+        <li><b>Say it.</b> Tap the mic and say "khana 450". Nepali and English both work.</li>
+        <li><b>Snap it.</b> Take a photo of a bill. It fills in the amount, date and shop.</li>
+        <li><b>Ask it.</b> "How much did I spend on food this month?" or "Who owes me money?"</li>
+      </ul>
+      <p class="small muted" style="margin-top:24px">Nothing is saved until you tap Save, and Undo puts it back. In a browser the helper can chat, but voice and photos need the app. Phones with less than 6 GB of memory may be slow.</p>
+    </div>
+    <div class="ai-phone"><div class="phone"><img src="/img/ai.webp" alt="The Ask tab explaining the on-device helper before its one-time download" width="720" height="1558" loading="lazy"></div></div>
+  </div>
+</section>
+
+<section class="sec" id="privacy">
+  <div class="wrap">
+    <h2>Your money stays yours</h2>
+    <div class="priv">
+      <p><b>No account needed.</b>Open it and start writing. Nobody asks for your phone number or email.</p>
+      <p><b>Saved on your device.</b>Everything lives on your phone or computer and works offline.</p>
+      <p><b>Sync only if you want it.</b>Sign in with Google to see the same entries on every device. They're locked on your device before they leave, and only your devices hold the key. Nobody else can read them, us included.</p>
+      <p><b>No ads, no trackers.</b>Not in the app, not on this page. The code is public on <a href="https://github.com/kafle1/spendrix">GitHub</a> for anyone to check.</p>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="download" style="padding-top:0">
+  <div class="wrap">
+    <h2>Get Spendrix</h2>
+    <p class="lead">Free on every device. To update, install the new file over the old app. Don't uninstall first, or your data goes with it.</p>
+    <ul class="dl">
+      <li id="dl-android"><h3>Android</h3><p>Open the file on your phone and allow the install.</p><a class="get" href="https://github.com/kafle1/spendrix/releases/latest/download/Spendrix-android.apk">Download .apk</a>
+        <p class="old">Installed Spendrix 1.3, 2.0.0 or 2.0.1 before? Take <a href="https://github.com/kafle1/spendrix/releases/latest/download/Spendrix-android-for-1.3-and-2.0.apk">this other file</a> once instead. It's only for those versions.</p></li>
+      <li id="dl-iphone"><h3>iPhone</h3><p>Not on the App Store yet. Install it with AltStore or Sideloadly.</p><a class="get" href="https://github.com/kafle1/spendrix/releases/latest/download/Spendrix-iphone.ipa">Download .ipa</a></li>
+      <li id="dl-macos"><h3>Mac</h3><p>Drag it to Applications. The first time, go to System Settings, Privacy &amp; Security, and click Open Anyway.</p><a class="get" href="https://github.com/kafle1/spendrix/releases/latest/download/Spendrix-macos.dmg">Download .dmg</a></li>
+      <li id="dl-windows"><h3>Windows</h3><p>Unzip it and run <code>spendrix.exe</code>. If Windows says it protected your PC, click More info, then Run anyway.</p><a class="get" href="https://github.com/kafle1/spendrix/releases/latest/download/Spendrix-windows.zip">Download .zip</a></li>
+      <li id="dl-linux"><h3>Linux</h3><p>Extract it and run <code>./spendrix</code>. For 64-bit Intel or AMD.</p><a class="get" href="https://github.com/kafle1/spendrix/releases/latest/download/Spendrix-linux-x64.tar.gz">Download .tar.gz</a></li>
+      <li id="dl-web"><h3>Browser</h3><p>Nothing to install. The AI helper needs Chrome or Edge.</p><a class="get" href="/app/">Open app</a></li>
+    </ul>
+    <p class="small muted" style="margin-top:20px">Every version and its notes are on <a href="https://github.com/kafle1/spendrix/releases">GitHub releases</a>.</p>
+  </div>
+</section>
+
+<section class="sec" id="faq" style="padding-top:0">
+  <div class="wrap faq">
+    <h2>Questions</h2>
+    <details><summary>Is Spendrix really free?</summary><p>Yes. There's no paid plan and no ads.</p></details>
+    <details><summary>Do I need the internet?</summary><p>No. Everything works offline. You only need the internet to download the AI helper once, and to sync if you turn it on.</p></details>
+    <details><summary>Where is my data kept?</summary><p>On your device. If you turn on sync, your entries are locked on your device before they leave, and only your devices hold the key.</p></details>
+    <details><summary>What if I lose my phone?</summary><p>Turn on sync, or back up to a file from Settings now and then. Either way you can bring everything back on a new phone.</p></details>
+    <details><summary>Why isn't it on the Play Store?</summary><p>Not yet. Until then you install the file from GitHub. Every release there is built from the public code.</p></details>
+    <details><summary>How do I update?</summary><p>Spendrix shows a card on Home when a new version is out. Install the new file over the old app. Don't uninstall first, that deletes your data.</p></details>
+    <details><summary>Does it work in Nepali?</summary><p>The AI helper understands Nepali and English, typed or spoken. The app's screens are in English for now, and new users start with Nepali rupees.</p></details>
+    <details><summary>Which devices can run the AI helper?</summary><p>Most 64-bit Android phones, iPhones, Macs with Apple chips, and 64-bit Windows and Linux PCs. In a browser it needs Chrome or Edge. Phones with less than 6 GB of memory may be slow. Everything else in Spendrix works without it.</p></details>
+    <details><summary>I used Spendrix in my browser before. Where did my entries go?</summary><p>Nowhere. The web app moved to <a href="/app/">spendrix.web.app/app/</a>. Open it in the same browser and your entries are right there.</p></details>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Spendrix, a private money diary made in Nepal by Niraj Kafle.</p>
+    <a href="https://github.com/kafle1/spendrix">GitHub</a>
+    <a href="https://github.com/kafle1/spendrix/blob/main/LICENSE">License</a>
+    <a href="https://github.com/kafle1/spendrix#sync-and-privacy">Privacy</a>
+    <a href="/ne/" hreflang="ne" lang="ne">नेपाली</a>
+  </div>
+</footer>
+<script src="/os.js" defer></script>
+</body>
+</html>

@@ -17,7 +17,7 @@ Grab the latest build from [Releases](https://github.com/kafle1/spendrix/release
 | Mac | `Spendrix-macos.dmg` | Drag to Applications. It isn't signed yet, so macOS blocks the first open. Go to System Settings, Privacy & Security, and click Open Anyway |
 | Windows | `Spendrix-windows.zip` | Unzip and run `spendrix.exe`. It isn't signed yet, so the first time Windows says it protected your PC. Click More info, then Run anyway |
 | Linux | `Spendrix-linux-x64.tar.gz` | Extract and run `./spendrix` |
-| Browser | [spendrix.web.app](https://spendrix.web.app) | Nothing to install |
+| Browser | [spendrix.web.app/app](https://spendrix.web.app/app/) | Nothing to install |
 
 To update, install the new file over the old app. Don't uninstall first, that deletes your data. From 2.0.2 on, Spendrix shows a card on Home when a new version is out and links you to the right file.
 
@@ -91,7 +91,7 @@ flutter build ios --release --no-codesign
 flutter build macos --release
 flutter build windows --release
 flutter build linux --release   # needs clang cmake ninja-build libgtk-3-dev lld
-flutter build web --release
+flutter build web --release --base-href /app/
 ```
 
 Pushing a tag like `v2.0.0` builds every platform except the web on GitHub and publishes a release with `RELEASE_NOTES.md` as the notes. The Android job needs two repository secrets:
@@ -109,8 +109,10 @@ Sync uses Firebase Auth (email and password) and Firestore through their REST AP
 
 ```sh
 firebase deploy --only firestore:rules
-flutter build web --release && firebase deploy --only hosting
+site/build.sh && firebase deploy --only hosting
 ```
+
+`site/build.sh` builds the web app into `build/site/app/` and copies the landing pages from `site/` next to it, so the website is at `/` and the app at `/app/`. To look at it before deploying, run `python3 site/serve.py` and open http://localhost:8080.
 
 ## Code map
 
