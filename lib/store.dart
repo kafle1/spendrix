@@ -86,6 +86,8 @@ class Store extends ChangeNotifier {
 
   /// newest first
   List<Entry> entries = [];
+
+  Iterable<String> get ids => _items.keys;
   List<Recurring> recurring = [];
   final _byId = <String, Model>{};
   final _balance = <String, int>{};
@@ -434,7 +436,7 @@ class Store extends ChangeNotifier {
     resets++;
     await _box.clear();
     await _photos.clear();
-    await dropLegacy();
+    // the old app's file stays: it's the last untouched copy if the account's data turns out wrong
     _items.clear();
     if (keepSettings) await _seed(s);
     _index();

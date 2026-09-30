@@ -5,6 +5,7 @@ import '../models.dart';
 import '../stats.dart';
 import '../store.dart';
 import '../sync.dart';
+import '../legacy.dart';
 import '../update.dart';
 import '../widgets.dart';
 import 'activity.dart';
@@ -60,6 +61,7 @@ class HomeScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
             children: [
               ValueListenableBuilder(valueListenable: update, builder: (context, u, _) => _updateCard(context, u)),
+              const OldDataCard(),
               Text('Total balance', style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
               const SizedBox(height: 4),
               Money(store.total, style: t.displaySmall?.copyWith(fontWeight: FontWeight.w700)),

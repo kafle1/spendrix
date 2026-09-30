@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../format.dart';
+import '../legacy.dart';
 import '../models.dart';
 import '../store.dart';
 import '../sync.dart';
@@ -108,6 +109,7 @@ class _OnboardingState extends State<Onboarding> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const OldDataCard(),
                   Center(
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(24),

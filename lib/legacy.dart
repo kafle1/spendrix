@@ -2,13 +2,44 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart' show ThemeMode;
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 
 import 'models.dart';
+import 'stats.dart';
 import 'store.dart';
 import 'theme.dart';
+import 'update.dart';
+import 'widgets.dart';
+
+/// The old data is on the phone but couldn't be read. Cleared by a later run that works.
+final legacyFailed = ValueNotifier(false);
+
+/// The release file to install when the other Android app id still holds the old data.
+final otherApp = ValueNotifier<String?>(null);
+
+bool _running = false;
+
+/// [importLegacy] that never throws, so startup always gets to the app.
+Future<void> runLegacyImport(Store store) async {
+  if (_running) return;
+  _running = true;
+  try {
+    await importLegacy(store);
+    legacyFailed.value = false;
+  } catch (e, s) {
+    // the old file stays in place, so nothing is lost and the next run tries again
+    debugPrint('old data import failed: $e');
+    trackError(e, s);
+    legacyFailed.value = true;
+  } finally {
+    _running = false;
+  }
+}
 
 /// Spendrix 1.x kept everything in sqlite. The first launch after the update copies it into
 /// the store, then renames the file. It's never deleted, so a failed run just retries next launch.
@@ -17,7 +48,8 @@ Future<void> importLegacy(Store store) async {
   final path = '${await getDatabasesPath()}/expense_tracker.db';
   if (!File(path).existsSync()) return;
   // killed after saving but before the rename, a second import would undo edits made since
-  if (prefs.getBool('legacy.done') != true) {
+  // the v1- ids also catch a lost prefs file, where legacy.done and the dev id are gone
+  if (prefs.getBool('legacy.done') != true && !store.ids.any((id) => id.startsWith('v1-'))) {
     // read-write on purpose, sqlite has to replay the journal the old app left when it was killed
     final db = await openDatabase(path, singleInstance: false);
     final List<Model> models;
@@ -36,11 +68,70 @@ Future<void> importLegacy(Store store) async {
   await File(path).rename('$path.imported');
 }
 
-/// Emptying this device also removes the old app's copy kept after the import.
+/// Erase all also removes the old app's copy kept after the import.
 Future<void> dropLegacy() async {
   if (kIsWeb || !Platform.isAndroid) return;
   final f = File('${await getDatabasesPath()}/expense_tracker.db.imported');
   if (f.existsSync()) await f.delete();
+}
+
+/// Android: 1.2 and older installed as com.example.expenses_tracker, 1.3 to 2.0.1 as com.spendrix.
+/// A first install of the wrong file sits next to the old app and can't see its data.
+Future<void> checkOtherApp() async {
+  if (kIsWeb || !Platform.isAndroid) return;
+  try {
+    final me = (await PackageInfo.fromPlatform()).packageName;
+    final other = me == 'com.spendrix' ? 'com.example.expenses_tracker' : 'com.spendrix';
+    if (await const MethodChannel('spendrix/apps').invokeMethod<bool>('installed', other) == true) {
+      otherApp.value = other == 'com.spendrix' ? 'Spendrix-android-for-1.3-and-2.0.apk' : 'Spendrix-android.apk';
+    }
+  } catch (e) {
+    debugPrint('other app check failed: $e');
+  }
+}
+
+/// Welcome page and Home: old data this copy can't show yet.
+class OldDataCard extends StatelessWidget {
+  const OldDataCard({super.key});
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: Listenable.merge([legacyFailed, otherApp]),
+    builder: (context, _) {
+      final store = context.watch<Store>();
+      if (legacyFailed.value) {
+        return _card(
+          Icons.history,
+          "Couldn't bring over your old data",
+          "It's still safe on this phone, so don't uninstall Spendrix. Tap to try again.",
+          () async {
+            await runLegacyImport(store);
+            if (context.mounted) toast(context, legacyFailed.value ? 'Still not working. Your old data is untouched.' : 'Your old data is back');
+          },
+        );
+      }
+      final file = otherApp.value;
+      if (file != null && store.entries.isEmpty) {
+        return _card(
+          Icons.phone_android,
+          'Your old Spendrix is still on this phone',
+          "This copy can't see its data. Tap to get the right file and install it, then remove this empty copy.",
+          () async {
+            final url = 'https://github.com/kafle1/spendrix/releases/latest/download/$file';
+            if (!await openUpdate(url) && context.mounted) toast(context, "Couldn't open the browser");
+          },
+        );
+      }
+      return const SizedBox.shrink();
+    },
+  );
+
+  Widget _card(IconData icon, String title, String subtitle, VoidCallback onTap) => Padding(
+    padding: const EdgeInsets.only(bottom: 16),
+    child: Card(
+      child: ListTile(leading: Icon(icon), title: Text(title), subtitle: Text(subtitle), onTap: onTap),
+    ),
+  );
 }
 
 const _kinds = {
