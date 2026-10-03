@@ -91,22 +91,24 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   : ListView(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                       children: [
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                statColumn(context, 'Money in', Money(earned, colored: true)),
-                                statColumn(context, 'Money out', Money(-spent, colored: true)),
-                                statColumn(context, "What's left", Money(earned - spent, colored: true)),
-                              ],
-                            ),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surfaceContainer,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            children: [
+                              statColumn(context, 'Money in', Money(earned, colored: true)),
+                              statColumn(context, 'Money out', Money(-spent, colored: true)),
+                              statColumn(context, "What's left", Money(earned - spent, colored: true)),
+                            ],
                           ),
                         ),
                         if (spent > 0) ...[const SizedBox(height: 16), _donut(context, store, from, to, spent)],
-                        const SizedBox(height: 16),
+                        ..._gap,
                         _budgets(context, store, from, to),
-                        const SizedBox(height: 16),
+                        ..._gap,
                         _trend(context, store, _month),
                       ],
                     ),
@@ -148,6 +150,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
 const _palette = [Color(0xFF0072B2), Color(0xFFE69F00), Color(0xFF009E73), Color(0xFFCC79A7), Color(0xFF56B4E9)];
 const _otherColor = Color(0xFF9E9E9E);
 
+// sections are split by space and a thin line instead of boxes
+const _gap = [SizedBox(height: 16), Divider(), SizedBox(height: 16)];
+
 class _Slice {
   const _Slice(this.id, this.name, this.icon, this.amount, this.color);
   final String? id;
@@ -173,49 +178,46 @@ Widget _donut(BuildContext context, Store store, DateTime from, DateTime to, int
     if (rest > 0) _Slice(null, 'Other', Icons.more_horiz, rest, _otherColor),
   ];
 
-  return Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Spending by category', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 180,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                PieChart(
-                  PieChartData(
-                    sections: [
-                      for (final s in slices)
-                        PieChartSectionData(value: s.amount.toDouble(), color: s.color, showTitle: false, radius: 28),
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 4),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        sectionHeader(context, 'Spending by category'),
+        SizedBox(
+          height: 180,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              PieChart(
+                PieChartData(
+                  sections: [
+                    for (final s in slices)
+                      PieChartSectionData(value: s.amount.toDouble(), color: s.color, showTitle: false, radius: 28),
+                  ],
+                  centerSpaceRadius: 52,
+                  sectionsSpace: 2,
+                ),
+              ),
+              // big totals shrink to stay inside the ring's 104px hole
+              SizedBox(
+                width: 88,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Column(
+                    children: [
+                      Text(store.fmt(total), style: Theme.of(context).textTheme.titleLarge),
+                      Text('spent', style: Theme.of(context).textTheme.bodySmall),
                     ],
-                    centerSpaceRadius: 52,
-                    sectionsSpace: 2,
                   ),
                 ),
-                // big totals shrink to stay inside the ring's 104px hole
-                SizedBox(
-                  width: 88,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Column(
-                      children: [
-                        Text(store.fmt(total), style: Theme.of(context).textTheme.titleLarge),
-                        Text('spent', style: Theme.of(context).textTheme.bodySmall),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          for (final s in slices) _legendRow(context, store, from, s, total),
-        ],
-      ),
+        ),
+        const SizedBox(height: 8),
+        for (final s in slices) _legendRow(context, store, from, s, total),
+      ],
     ),
   );
 }
@@ -233,10 +235,18 @@ Widget _legendRow(BuildContext context, Store store, DateTime month, _Slice s, i
               builder: (_) => ActivityScreen(category: s.id, month: month),
             ),
           ),
+    borderRadius: BorderRadius.circular(12),
     child: Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
+          // the slice colour ties the row to the ring
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(color: s.color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 12),
           IconBubble(s.icon, size: 32),
           const SizedBox(width: 12),
           Expanded(child: Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis)),
@@ -256,35 +266,30 @@ Widget _budgets(BuildContext context, Store store, DateTime from, DateTime to) {
   ];
   final overall = store.settings.budget;
   if (overall == null && catBudgets.isEmpty) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            const Expanded(child: Text('Set budgets in Settings')),
-            const SizedBox(width: 12),
-            OutlinedButton(onPressed: () => openSettings(context), child: const Text('Settings')),
-          ],
-        ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Row(
+        children: [
+          const Expanded(child: Text('Set budgets in Settings')),
+          const SizedBox(width: 12),
+          OutlinedButton(onPressed: () => openSettings(context), child: const Text('Settings')),
+        ],
       ),
     );
   }
-  return Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Budgets', style: Theme.of(context).textTheme.titleMedium),
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 4),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        sectionHeader(context, 'Budgets'),
+        if (overall != null)
+          _budgetBar(context, store, 'This month', Icons.calendar_month, store.spent(from, to), overall),
+        for (final c in catBudgets) ...[
           const SizedBox(height: 12),
-          if (overall != null)
-            _budgetBar(context, store, 'This month', Icons.calendar_month, store.spent(from, to), overall),
-          for (final c in catBudgets) ...[
-            const SizedBox(height: 12),
-            _budgetBar(context, store, c.name, iconOf(c.icon), store.spent(from, to, category: c.id), c.budget!),
-          ],
+          _budgetBar(context, store, c.name, iconOf(c.icon), store.spent(from, to, category: c.id), c.budget!),
         ],
-      ),
+      ],
     ),
   );
 }
@@ -316,7 +321,7 @@ Widget _budgetBar(BuildContext context, Store store, String label, IconData icon
         borderRadius: BorderRadius.circular(6),
         child: LinearProgressIndicator(
           value: (spent / budget).clamp(0, 1),
-          minHeight: 8,
+          minHeight: 6,
           backgroundColor: c.surfaceContainerHighest,
           color: over ? c.error : c.primary,
         ),
@@ -333,69 +338,67 @@ Widget _trend(BuildContext context, Store store, DateTime month) {
   final maxSpent = spentByMonth.fold(0, (a, b) => a > b ? a : b);
   final c = Theme.of(context).colorScheme;
 
-  return Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Money out, last 6 months', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 160,
-            child: BarChart(
-              BarChartData(
-                maxY: maxSpent == 0 ? 100 : maxSpent * 1.2,
-                minY: 0,
-                alignment: BarChartAlignment.spaceAround,
-                gridData: const FlGridData(show: false),
-                borderData: FlBorderData(show: false),
-                titlesData: FlTitlesData(
-                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 24,
-                      getTitlesWidget: (value, meta) {
-                        final i = value.toInt();
-                        if (i < 0 || i >= points.length) return const SizedBox.shrink();
-                        return SideTitleWidget(
-                          meta: meta,
-                          child: Text(_monthNames[points[i].month - 1], style: Theme.of(context).textTheme.bodySmall),
-                        );
-                      },
-                    ),
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 4),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        sectionHeader(context, 'Money out, last 6 months'),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 160,
+          child: BarChart(
+            BarChartData(
+              maxY: maxSpent == 0 ? 100 : maxSpent * 1.2,
+              minY: 0,
+              alignment: BarChartAlignment.spaceAround,
+              gridData: const FlGridData(show: false),
+              borderData: FlBorderData(show: false),
+              titlesData: FlTitlesData(
+                leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 24,
+                    getTitlesWidget: (value, meta) {
+                      final i = value.toInt();
+                      if (i < 0 || i >= points.length) return const SizedBox.shrink();
+                      return SideTitleWidget(
+                        meta: meta,
+                        child: Text(_monthNames[points[i].month - 1], style: Theme.of(context).textTheme.bodySmall),
+                      );
+                    },
                   ),
                 ),
-                barTouchData: BarTouchData(
-                  touchTooltipData: BarTouchTooltipData(
-                    getTooltipItem: (group, groupIndex, rod, rodIndex) => BarTooltipItem(
-                      store.fmt(rod.toY.round()),
-                      const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12),
-                    ),
-                  ),
-                ),
-                barGroups: [
-                  for (final (i, s) in spentByMonth.indexed)
-                    BarChartGroupData(
-                      x: i,
-                      barRods: [
-                        BarChartRodData(
-                          toY: s.toDouble(),
-                          width: 20,
-                          borderRadius: BorderRadius.circular(6),
-                          color: i == spentByMonth.length - 1 ? c.primary : c.primary.withValues(alpha: .35),
-                        ),
-                      ],
-                    ),
-                ],
               ),
+              barTouchData: BarTouchData(
+                touchTooltipData: BarTouchTooltipData(
+                  getTooltipItem: (group, groupIndex, rod, rodIndex) => BarTooltipItem(
+                    store.fmt(rod.toY.round()),
+                    const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12),
+                  ),
+                ),
+              ),
+              barGroups: [
+                for (final (i, s) in spentByMonth.indexed)
+                  BarChartGroupData(
+                    x: i,
+                    barRods: [
+                      BarChartRodData(
+                        toY: s.toDouble(),
+                        width: 20,
+                        borderRadius: BorderRadius.circular(6),
+                        color: i == spentByMonth.length - 1 ? c.primary : c.primary.withValues(alpha: .35),
+                      ),
+                    ],
+                  ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     ),
   );
 }

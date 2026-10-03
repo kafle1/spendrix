@@ -161,6 +161,10 @@ class _ActivityScreenState extends State<ActivityScreen> {
                   onChanged: (_) => setState(() {}),
                   decoration: InputDecoration(
                     hintText: 'Search',
+                    border: const OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(28)),
+                      borderSide: BorderSide.none,
+                    ),
                     prefixIcon: const Icon(Icons.search),
                     suffixIcon: _searchCtrl.text.isEmpty
                         ? null
@@ -259,11 +263,17 @@ class _ActivityScreenState extends State<ActivityScreen> {
                           final row = rows[i];
                           if (row is _Day) {
                             return Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                              padding: EdgeInsets.fromLTRB(16, i == 0 ? 8 : 20, 16, 4),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(dayLabel(row.date), style: t.labelLarge?.copyWith(fontWeight: FontWeight.w600)),
+                                  Text(
+                                    dayLabel(row.date),
+                                    style: t.labelLarge?.copyWith(
+                                      color: c.onSurfaceVariant,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                   Money(row.total, colored: true, style: t.labelLarge),
                                 ],
                               ),
