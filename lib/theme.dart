@@ -41,7 +41,6 @@ ColorScheme _scheme(Brightness brightness) => brightness == Brightness.dark
         surface: Color(0xFF131314),
         onSurface: Color(0xFFE3E3E3),
         onSurfaceVariant: Color(0xFFC4C7C5),
-        surfaceDim: Color(0xFF131314),
         surfaceBright: Color(0xFF37393A),
         surfaceContainerLowest: Color(0xFF0E0E0F),
         surfaceContainerLow: Color(0xFF1B1B1C),
@@ -50,8 +49,6 @@ ColorScheme _scheme(Brightness brightness) => brightness == Brightness.dark
         surfaceContainerHighest: Color(0xFF353637),
         outline: Color(0xFF8E918F),
         outlineVariant: Color(0xFF3A3C3C),
-        shadow: Color(0xFF000000),
-        scrim: Color(0xFF000000),
         inverseSurface: Color(0xFFE3E3E3),
         onInverseSurface: Color(0xFF2F3030),
         inversePrimary: Color(0xFF0E7C66),
@@ -79,16 +76,12 @@ ColorScheme _scheme(Brightness brightness) => brightness == Brightness.dark
         onSurface: Color(0xFF1F1F1F),
         onSurfaceVariant: Color(0xFF5F6368),
         surfaceDim: Color(0xFFDADCDC),
-        surfaceBright: Color(0xFFFFFFFF),
-        surfaceContainerLowest: Color(0xFFFFFFFF),
         surfaceContainerLow: Color(0xFFF8F9F9),
         surfaceContainer: Color(0xFFF3F4F4),
         surfaceContainerHigh: Color(0xFFEDEEEE),
         surfaceContainerHighest: Color(0xFFE6E8E8),
         outline: Color(0xFF747878),
         outlineVariant: Color(0xFFE3E5E4),
-        shadow: Color(0xFF000000),
-        scrim: Color(0xFF000000),
         inverseSurface: Color(0xFF2F3030),
         onInverseSurface: Color(0xFFF1F1F1),
         inversePrimary: Color(0xFF7FD8C0),
@@ -103,15 +96,12 @@ ThemeData buildTheme(Brightness brightness) {
   final text = base.textTheme;
   final muted = scheme.onSurfaceVariant;
   return base.copyWith(
-    scaffoldBackgroundColor: scheme.surface,
     textTheme: text.copyWith(
       bodySmall: text.bodySmall?.copyWith(color: muted),
       labelSmall: text.labelSmall?.copyWith(color: muted),
       titleMedium: text.titleMedium?.copyWith(fontWeight: FontWeight.w600),
     ),
     appBarTheme: AppBarTheme(
-      backgroundColor: scheme.surface,
-      surfaceTintColor: Colors.transparent,
       scrolledUnderElevation: 0,
       centerTitle: false,
       titleTextStyle: TextStyle(
@@ -153,23 +143,15 @@ ThemeData buildTheme(Brightness brightness) {
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(minimumSize: const Size(48, 48), shape: pill),
     ),
-    floatingActionButtonTheme: FloatingActionButtonThemeData(
-      elevation: 1,
-      highlightElevation: 2,
-      shape: pill,
-      backgroundColor: scheme.primaryContainer,
-      foregroundColor: scheme.onPrimaryContainer,
-    ),
+    floatingActionButtonTheme: FloatingActionButtonThemeData(elevation: 1, highlightElevation: 2, shape: pill),
     listTileTheme: ListTileThemeData(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16),
       subtitleTextStyle: text.bodyMedium?.copyWith(color: muted),
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: scheme.surface,
-      surfaceTintColor: Colors.transparent,
       elevation: 0,
       height: 68,
-      indicatorColor: scheme.secondaryContainer,
       labelTextStyle: WidgetStateProperty.resolveWith(
         (s) => TextStyle(
           fontFamily: 'Inter',
@@ -178,10 +160,6 @@ ThemeData buildTheme(Brightness brightness) {
           color: s.contains(WidgetState.selected) ? scheme.onSurface : muted,
         ),
       ),
-    ),
-    navigationRailTheme: NavigationRailThemeData(
-      backgroundColor: scheme.surface,
-      indicatorColor: scheme.secondaryContainer,
     ),
     segmentedButtonTheme: SegmentedButtonThemeData(
       style: SegmentedButton.styleFrom(
@@ -196,16 +174,9 @@ ThemeData buildTheme(Brightness brightness) {
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     ),
-    dialogTheme: DialogThemeData(
-      backgroundColor: scheme.surfaceContainerHigh,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-    ),
-    bottomSheetTheme: BottomSheetThemeData(
-      showDragHandle: true,
-      backgroundColor: scheme.surfaceContainerLow,
-      surfaceTintColor: Colors.transparent,
-    ),
-    popupMenuTheme: PopupMenuThemeData(color: scheme.surfaceContainerHigh, surfaceTintColor: Colors.transparent),
+    dialogTheme: DialogThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))),
+    bottomSheetTheme: const BottomSheetThemeData(showDragHandle: true),
+    popupMenuTheme: PopupMenuThemeData(color: scheme.surfaceContainerHigh),
     chipTheme: ChipThemeData(
       shape: pill,
       // a selected chip is filled green, so it needs no outline

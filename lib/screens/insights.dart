@@ -150,7 +150,6 @@ class _InsightsScreenState extends State<InsightsScreen> {
 const _palette = [Color(0xFF0072B2), Color(0xFFE69F00), Color(0xFF009E73), Color(0xFFCC79A7), Color(0xFF56B4E9)];
 const _otherColor = Color(0xFF9E9E9E);
 
-// sections are split by space and a thin line instead of boxes
 const _gap = [SizedBox(height: 16), Divider(), SizedBox(height: 16)];
 
 class _Slice {
@@ -322,7 +321,6 @@ Widget _budgetBar(BuildContext context, Store store, String label, IconData icon
         child: LinearProgressIndicator(
           value: (spent / budget).clamp(0, 1),
           minHeight: 6,
-          backgroundColor: c.surfaceContainerHighest,
           color: over ? c.error : c.primary,
         ),
       ),

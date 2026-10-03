@@ -727,7 +727,7 @@ class _EntryFormState extends State<_EntryForm> {
           child: Center(
             child: isBackspace
                 ? const Icon(Icons.backspace_outlined)
-                : Text(label, style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: c.onSurface)),
+                : Text(label, style: Theme.of(context).textTheme.headlineSmall),
           ),
         ),
       ),

@@ -71,29 +71,27 @@ class _PeopleScreenState extends State<PeopleScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.all(16),
-              child: DecoratedBox(
+              child: Container(
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surfaceContainer,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      statColumn(
-                        context,
-                        "You'll get",
-                        Money(youGet, colored: true),
-                        valueStyle: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      statColumn(
-                        context,
-                        "You'll give",
-                        Money(-youGive, colored: true),
-                        valueStyle: Theme.of(context).textTheme.titleLarge,
-                      ),
-                    ],
-                  ),
+                child: Row(
+                  children: [
+                    statColumn(
+                      context,
+                      "You'll get",
+                      Money(youGet, colored: true),
+                      valueStyle: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    statColumn(
+                      context,
+                      "You'll give",
+                      Money(-youGive, colored: true),
+                      valueStyle: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ],
                 ),
               ),
             ),

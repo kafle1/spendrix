@@ -358,10 +358,8 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
         Text('Ask me about your money', style: t.titleMedium, textAlign: TextAlign.center),
         const SizedBox(height: 8),
         Text(
-          kIsWeb
-              ? 'I only use the entries in this app, and it all stays on this device.'
-              : 'I only use the entries in this app, and it all stays on this device. '
-                    'Speak, snap a receipt, or type.',
+          'I only use the entries in this app, and it all stays on this device.'
+          '${kIsWeb ? '' : ' Speak, snap a receipt, or type.'}',
           style: t.bodyMedium,
           textAlign: TextAlign.center,
         ),
@@ -440,10 +438,7 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
               ),
             )
           else
-            SelectableText(
-              line.text,
-              style: t.bodyLarge?.copyWith(color: line.error ? c.error : c.onSurface, height: 1.5),
-            ),
+            SelectableText(line.text, style: t.bodyLarge?.copyWith(color: line.error ? c.error : null, height: 1.5)),
           if (draft != null) _draftCard(line, store),
           if (line.act != null) _actCard(line, store),
         ],
@@ -454,6 +449,17 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
       child: body,
     );
   }
+
+  Widget _doneRow(String label) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Row(
+      children: [
+        Icon(Icons.check_circle, size: 16, color: Theme.of(context).colorScheme.primary),
+        const SizedBox(width: 6),
+        Text(label, style: Theme.of(context).textTheme.labelMedium),
+      ],
+    ),
+  );
 
   Widget _draftCard(_Line line, Store store) {
     final draft = line.draft!;
@@ -513,17 +519,7 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
               ],
             ),
             const SizedBox(height: 12),
-            if (saved != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Icon(Icons.check_circle, size: 16, color: Theme.of(context).colorScheme.primary),
-                    const SizedBox(width: 6),
-                    Text('Saved', style: t.labelMedium),
-                  ],
-                ),
-              ),
+            if (saved != null) _doneRow('Saved'),
             Row(
               children: saved == null
                   ? [
@@ -599,17 +595,7 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
               ],
             ),
             const SizedBox(height: 12),
-            if (line.done)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Icon(Icons.check_circle, size: 16, color: c.primary),
-                    const SizedBox(width: 6),
-                    Text('Done', style: t.labelMedium),
-                  ],
-                ),
-              ),
+            if (line.done) _doneRow('Done'),
             Row(
               children: [
                 if (repeat != null) ...[

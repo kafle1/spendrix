@@ -299,6 +299,7 @@ class _FadeStack extends StatefulWidget {
 
 class _FadeStackState extends State<_FadeStack> with SingleTickerProviderStateMixin {
   late final _fade = AnimationController(vsync: this, duration: const Duration(milliseconds: 220), value: 1);
+  late final _curve = CurvedAnimation(parent: _fade, curve: Curves.easeOut);
 
   @override
   void didUpdateWidget(_FadeStack old) {
@@ -308,13 +309,14 @@ class _FadeStackState extends State<_FadeStack> with SingleTickerProviderStateMi
 
   @override
   void dispose() {
+    _curve.dispose();
     _fade.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => FadeTransition(
-    opacity: CurvedAnimation(parent: _fade, curve: Curves.easeOut),
+    opacity: _curve,
     child: IndexedStack(index: widget.index, children: widget.children),
   );
 }

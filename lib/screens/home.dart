@@ -98,7 +98,6 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// no box: the month sits right under the balance as one calm header
 Widget _monthSummary(BuildContext context, Store store, int spent) {
   final budget = store.settings.budget;
   final over = budget != null && spent > budget;
@@ -125,7 +124,6 @@ Widget _monthSummary(BuildContext context, Store store, int spent) {
           child: LinearProgressIndicator(
             value: (spent / budget).clamp(0, 1).toDouble(),
             minHeight: 6,
-            backgroundColor: c.surfaceContainerHighest,
             color: over ? c.error : c.primary,
           ),
         ),
@@ -218,12 +216,7 @@ Widget _accountsRow(BuildContext context, Store store) {
             padding: const EdgeInsets.only(right: 10),
             child: _AccountCard(account: a, balance: store.balance(a.id)),
           ),
-        Material(
-          color: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: c.outlineVariant),
-          ),
+        Card(
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: () => editAccount(context),
@@ -258,7 +251,6 @@ class _AccountCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = Theme.of(context).colorScheme;
     final t = Theme.of(context).textTheme;
-    // one flat grey tile, the icon sits on white so it doesn't stack grey on grey
     return Material(
       color: c.surfaceContainer,
       borderRadius: BorderRadius.circular(16),
