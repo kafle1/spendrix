@@ -298,7 +298,10 @@ Widget _owedRow(BuildContext context, Store store, int owedToYou, int youOwe) =>
   contentPadding: const EdgeInsets.symmetric(horizontal: 4),
   leading: const IconBubble(Icons.people_outline),
   title: Text(
-    'People owe you ${store.fmt(owedToYou)} · You owe ${store.fmt(youOwe)}',
+    [
+      if (owedToYou != 0) 'People owe you ${store.fmt(owedToYou)}',
+      if (youOwe != 0) 'You owe ${store.fmt(youOwe)}',
+    ].join(' · '),
     maxLines: 2,
     overflow: TextOverflow.ellipsis,
   ),
