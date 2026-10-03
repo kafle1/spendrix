@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -70,25 +71,27 @@ class _PeopleScreenState extends State<PeopleScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.all(16),
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      statColumn(
-                        context,
-                        "You'll get",
-                        Money(youGet, colored: true),
-                        valueStyle: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      statColumn(
-                        context,
-                        "You'll give",
-                        Money(-youGive, colored: true),
-                        valueStyle: Theme.of(context).textTheme.titleLarge,
-                      ),
-                    ],
-                  ),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainer,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    statColumn(
+                      context,
+                      "You'll get",
+                      Money(youGet, colored: true),
+                      valueStyle: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    statColumn(
+                      context,
+                      "You'll give",
+                      Money(-youGive, colored: true),
+                      valueStyle: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -98,9 +101,17 @@ class _PeopleScreenState extends State<PeopleScreen> {
                 child: TextField(
                   controller: _search,
                   onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Search people'),
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.search),
+                    hintText: 'Search people',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(28)),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
                 ),
               ),
+            const SizedBox(height: 8),
             Expanded(
               child: filtered.isEmpty
                   ? Center(child: Text('No one matches "${_search.text.trim()}"'))
@@ -279,7 +290,8 @@ class PersonScreen extends StatelessWidget {
                   ],
                 ),
               ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
+            const Divider(),
             Expanded(
               child: history.isEmpty
                   ? const Empty(icon: Icons.receipt_long_outlined, title: 'No history yet')
@@ -351,5 +363,6 @@ Future<Person?> editPerson(BuildContext context, [Person? person]) async {
   final phone = phoneCtrl.text.trim();
   final result = Person(id: person?.id ?? newId(), name: nameCtrl.text.trim(), phone: phone.isEmpty ? null : phone);
   await store.save(result);
+  HapticFeedback.lightImpact();
   return result;
 }

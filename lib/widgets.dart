@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'format.dart';
@@ -88,23 +89,41 @@ class Money extends StatelessWidget {
   }
 }
 
+/// A round icon on neutral grey; [selected] turns it brand green.
 class IconBubble extends StatelessWidget {
-  const IconBubble(this.icon, {super.key, this.size = 40});
+  const IconBubble(this.icon, {super.key, this.size = 40, this.selected = false});
 
   final IconData icon;
   final double size;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
     final c = Theme.of(context).colorScheme;
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
       width: size,
       height: size,
-      decoration: BoxDecoration(color: c.secondaryContainer, shape: BoxShape.circle),
-      child: Icon(icon, size: size * .5, color: c.onSecondaryContainer),
+      decoration: BoxDecoration(color: selected ? c.primary : c.surfaceContainerHigh, shape: BoxShape.circle),
+      child: Icon(icon, size: size * .5, color: selected ? c.onPrimary : c.onSurfaceVariant),
     );
   }
 }
+
+/// A quiet section heading, with an optional action on the right.
+Widget sectionHeader(BuildContext context, String title, {Widget? action}) => Padding(
+  padding: const EdgeInsets.only(bottom: 4),
+  child: ConstrainedBox(
+    constraints: const BoxConstraints(minHeight: 48),
+    child: Row(
+      children: [
+        Expanded(child: Text(title, style: Theme.of(context).textTheme.titleMedium)),
+        ?action,
+      ],
+    ),
+  ),
+);
 
 /// One row of history. Tap opens it for editing.
 class EntryTile extends StatelessWidget {
@@ -244,6 +263,7 @@ Future<void> removeWithUndo(BuildContext context, List<Model> models, String mes
   final store = context.read<Store>();
   final messenger = ScaffoldMessenger.of(context);
   await store.remove([for (final m in models) m.id]);
+  HapticFeedback.lightImpact();
   messenger
     ..hideCurrentSnackBar()
     ..showSnackBar(
@@ -251,7 +271,13 @@ Future<void> removeWithUndo(BuildContext context, List<Model> models, String mes
         content: Text(message),
         persist: false,
         duration: const Duration(seconds: 5),
-        action: SnackBarAction(label: 'Undo', onPressed: () => store.saveAll(models)),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            store.saveAll(models);
+          },
+        ),
       ),
     );
 }

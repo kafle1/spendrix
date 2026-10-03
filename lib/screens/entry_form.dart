@@ -393,6 +393,7 @@ class _EntryFormState extends State<_EntryForm> {
     _saving = true;
     try {
       await _write(store, cents);
+      HapticFeedback.lightImpact();
       await _rememberDefaults();
       if (context.mounted) Navigator.of(context).pop();
     } catch (_) {
@@ -612,7 +613,7 @@ class _EntryFormState extends State<_EntryForm> {
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: c.tertiaryContainer, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: c.tertiaryContainer, borderRadius: BorderRadius.circular(16)),
       child: Row(
         children: [
           Icon(Icons.auto_awesome, color: c.onTertiaryContainer, size: 20),
@@ -709,13 +710,16 @@ class _EntryFormState extends State<_EntryForm> {
 
   Widget _keyButton(String label) {
     final isBackspace = label == '⌫';
+    final c = Theme.of(context).colorScheme;
+    // plain grey keys; dark mode needs one step lighter to read as keys at all
+    final keyColor = Theme.of(context).brightness == Brightness.dark ? c.surfaceContainerHigh : c.surfaceContainer;
     return SizedBox(
-      height: 64,
+      height: 60,
       child: Material(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: .5),
-        borderRadius: BorderRadius.circular(14),
+        color: keyColor,
+        borderRadius: BorderRadius.circular(18),
         child: InkWell(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(18),
           onTap: () {
             HapticFeedback.selectionClick();
             isBackspace ? _backspace() : _appendDigit(label);
@@ -741,7 +745,10 @@ class _EntryFormState extends State<_EntryForm> {
             c.name,
             iconOf(c.icon),
             selected: _category == c.id,
-            onTap: () => _touch(() => _category = c.id),
+            onTap: () {
+              HapticFeedback.selectionClick();
+              _touch(() => _category = c.id);
+            },
           ),
         _categoryTile(
           'New',
@@ -758,29 +765,30 @@ class _EntryFormState extends State<_EntryForm> {
 
   Widget _categoryTile(String name, IconData icon, {required bool selected, required VoidCallback onTap}) {
     final c = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: 76,
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: selected ? Border.all(color: c.primary, width: 2) : null,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconBubble(icon),
-            const SizedBox(height: 6),
-            Text(
-              name,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
+    final label = Theme.of(context).textTheme.bodySmall;
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: 76,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconBubble(icon, size: 44, selected: selected),
+              const SizedBox(height: 6),
+              Text(
+                name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: selected ? label?.copyWith(color: c.onSurface, fontWeight: FontWeight.w600) : label,
+              ),
+            ],
+          ),
         ),
       ),
     );

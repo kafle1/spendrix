@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:io' show File;
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -230,71 +230,103 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
               : LayoutBuilder(
                   builder: (context, box) => ListView.builder(
                     reverse: true,
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                     itemCount: _chat.length,
                     itemBuilder: (context, i) => _bubble(_chat[_chat.length - 1 - i], box.maxWidth * .85, store),
                   ),
                 ),
         ),
-        SafeArea(top: false, child: _recording ? _recordingStrip() : _inputBar(ai)),
+        SafeArea(top: false, child: _composer(_recording ? _recordingStrip() : _inputBar(ai))),
       ],
+    );
+  }
+
+  // one rounded box pinned at the bottom, like the Claude app
+  Widget _composer(Widget child) {
+    final c = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+      child: AnimatedSize(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        alignment: Alignment.bottomCenter,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: c.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: c.outlineVariant),
+          ),
+          child: child,
+        ),
+      ),
     );
   }
 
   Widget _inputBar(Assistant ai) {
     final canMedia = !kIsWeb;
     final canSend = _input.text.trim().isNotEmpty;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          if (canMedia && _picker.supportsImageSource(ImageSource.camera))
-            IconButton(
-              tooltip: 'Take a photo of a receipt',
-              icon: const Icon(Icons.photo_camera_outlined),
-              onPressed: ai.busy ? null : () => _pickPhoto(ImageSource.camera),
-            ),
-          if (canMedia)
-            IconButton(
-              tooltip: 'Choose a photo',
-              icon: const Icon(Icons.photo_library_outlined),
-              onPressed: ai.busy ? null : () => _pickPhoto(ImageSource.gallery),
-            ),
-          Expanded(
-            child: TextField(
-              controller: _input,
-              minLines: 1,
-              maxLines: 4,
-              textInputAction: TextInputAction.send,
-              textCapitalization: TextCapitalization.sentences,
-              onChanged: (_) => setState(() {}),
-              onSubmitted: (_) => _send(_input.text),
-              decoration: const InputDecoration(
-                hintText: 'Ask, or type "spent 250 on lunch"',
-                isDense: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(24))),
-              ),
-            ),
+    final c = Theme.of(context).colorScheme;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TextField(
+          controller: _input,
+          minLines: 1,
+          maxLines: 5,
+          textInputAction: TextInputAction.send,
+          textCapitalization: TextCapitalization.sentences,
+          onChanged: (_) => setState(() {}),
+          onSubmitted: (_) => _send(_input.text),
+          decoration: const InputDecoration(
+            hintText: 'Ask, or type "spent 250 on lunch"',
+            filled: false,
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.fromLTRB(20, 16, 20, 4),
           ),
-          const SizedBox(width: 8),
-          if (_answer != null)
-            IconButton.filledTonal(tooltip: 'Stop', icon: const Icon(Icons.stop), onPressed: ai.stop)
-          else if (ai.busy)
-            const Padding(
-              padding: EdgeInsets.all(12),
-              child: SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-            )
-          else if (canMedia && !canSend)
-            IconButton.filled(tooltip: 'Speak', icon: const Icon(Icons.mic), onPressed: _startRecording)
-          else
-            IconButton.filled(
-              tooltip: 'Send',
-              icon: const Icon(Icons.send),
-              onPressed: canSend ? () => _send(_input.text) : null,
-            ),
-        ],
-      ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(6, 0, 6, 6),
+          child: Row(
+            children: [
+              if (canMedia && _picker.supportsImageSource(ImageSource.camera))
+                IconButton(
+                  tooltip: 'Take a photo of a receipt',
+                  icon: const Icon(Icons.photo_camera_outlined),
+                  color: c.onSurfaceVariant,
+                  onPressed: ai.busy ? null : () => _pickPhoto(ImageSource.camera),
+                ),
+              if (canMedia)
+                IconButton(
+                  tooltip: 'Choose a photo',
+                  icon: const Icon(Icons.photo_library_outlined),
+                  color: c.onSurfaceVariant,
+                  onPressed: ai.busy ? null : () => _pickPhoto(ImageSource.gallery),
+                ),
+              const Spacer(),
+              if (_answer != null)
+                IconButton.filledTonal(tooltip: 'Stop', icon: const Icon(Icons.stop), onPressed: ai.stop)
+              else if (ai.busy)
+                const Padding(
+                  padding: EdgeInsets.all(14),
+                  child: SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                )
+              else if (canMedia && !canSend)
+                IconButton(
+                  tooltip: 'Speak',
+                  icon: const Icon(Icons.mic_none),
+                  color: c.onSurfaceVariant,
+                  onPressed: _startRecording,
+                )
+              else
+                IconButton.filled(
+                  tooltip: 'Send',
+                  icon: const Icon(Icons.arrow_upward),
+                  onPressed: canSend ? () => _send(_input.text) : null,
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -302,7 +334,7 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
     final t = Theme.of(context).textTheme;
     final secs = _clock.elapsed.inSeconds, m = secs ~/ 60, s = secs % 60;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 8, 8),
+      padding: const EdgeInsets.fromLTRB(20, 6, 6, 6),
       child: Row(
         children: [
           Icon(Icons.fiber_manual_record, color: Theme.of(context).colorScheme.error, size: 14),
@@ -326,10 +358,8 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
         Text('Ask me about your money', style: t.titleMedium, textAlign: TextAlign.center),
         const SizedBox(height: 8),
         Text(
-          kIsWeb
-              ? 'I only use the entries in this app, and it all stays on this device.'
-              : 'I only use the entries in this app, and it all stays on this device. '
-                    'Speak, snap a receipt, or type.',
+          'I only use the entries in this app, and it all stays on this device.'
+          '${kIsWeb ? '' : ' Speak, snap a receipt, or type.'}',
           style: t.bodyMedium,
           textAlign: TextAlign.center,
         ),
@@ -349,57 +379,87 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
 
   Widget _bubble(_Line line, double maxWidth, Store store) {
     final c = Theme.of(context).colorScheme;
-    final (bg, fg) = line.error
-        ? (c.errorContainer, c.onErrorContainer)
-        : line.mine
-        ? (c.primaryContainer, c.onPrimaryContainer)
-        : (c.surfaceContainerHighest, c.onSurface);
+    final t = Theme.of(context).textTheme;
     final draft = line.draft;
     final photo = line.photo;
-    return Align(
-      alignment: line.mine ? Alignment.centerRight : Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxWidth),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Column(
-            crossAxisAlignment: line.mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-            children: [
-              DecoratedBox(
-                decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(18)),
-                // the reply keeps the photo only to save it with the draft
-                child: photo != null && line.mine
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: Image.memory(photo, width: 160, height: 160, fit: BoxFit.cover),
-                      )
-                    : Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        child: line.text.isEmpty
-                            ? SizedBox.square(
-                                dimension: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: fg),
-                              )
-                            : Row(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (line.fromMic) ...[Icon(Icons.mic, size: 14, color: fg), const SizedBox(width: 6)],
-                                  Flexible(
-                                    child: Text(line.text, style: TextStyle(color: fg)),
-                                  ),
-                                ],
+    final Widget body;
+    if (line.mine) {
+      // your own message: a light grey bubble on the right
+      final (bg, fg) = line.error ? (c.errorContainer, c.onErrorContainer) : (c.surfaceContainerHigh, c.onSurface);
+      body = Align(
+        alignment: Alignment.centerRight,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: DecoratedBox(
+            decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+            child: photo != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.memory(photo, width: 160, height: 160, fit: BoxFit.cover),
+                  )
+                : Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    child: line.text.isEmpty
+                        ? SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2, color: fg))
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (line.fromMic) ...[
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 3),
+                                  child: Icon(Icons.mic, size: 14, color: fg),
+                                ),
+                                const SizedBox(width: 6),
+                              ],
+                              Flexible(
+                                child: Text(line.text, style: t.bodyLarge?.copyWith(color: fg)),
                               ),
-                      ),
-              ),
-              if (draft != null) _draftCard(line, store),
-              if (line.act != null) _actCard(line, store),
-            ],
+                            ],
+                          ),
+                  ),
           ),
         ),
-      ),
+      );
+    } else {
+      // the reply: plain text across the full width, no bubble
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (line.text.isEmpty)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: SizedBox.square(
+                  dimension: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: c.onSurfaceVariant),
+                ),
+              ),
+            )
+          else
+            SelectableText(line.text, style: t.bodyLarge?.copyWith(color: line.error ? c.error : null, height: 1.5)),
+          if (draft != null) _draftCard(line, store),
+          if (line.act != null) _actCard(line, store),
+        ],
+      );
+    }
+    return Padding(
+      padding: EdgeInsets.only(top: line.mine ? 16 : 10, bottom: 2),
+      child: body,
     );
   }
+
+  Widget _doneRow(String label) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Row(
+      children: [
+        Icon(Icons.check_circle, size: 16, color: Theme.of(context).colorScheme.primary),
+        const SizedBox(width: 6),
+        Text(label, style: Theme.of(context).textTheme.labelMedium),
+      ],
+    ),
+  );
 
   Widget _draftCard(_Line line, Store store) {
     final draft = line.draft!;
@@ -411,9 +471,9 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
     final withPerson = e.kind == Kind.gave || e.kind == Kind.got;
     final transfer = e.kind == Kind.transfer;
     return Card(
-      margin: const EdgeInsets.only(top: 8),
+      margin: const EdgeInsets.only(top: 12),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -459,17 +519,7 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
               ],
             ),
             const SizedBox(height: 12),
-            if (saved != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Icon(Icons.check_circle, size: 16, color: Theme.of(context).colorScheme.primary),
-                    const SizedBox(width: 6),
-                    Text('Saved', style: t.labelMedium),
-                  ],
-                ),
-              ),
+            if (saved != null) _doneRow('Saved'),
             Row(
               children: saved == null
                   ? [
@@ -486,7 +536,13 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
                     ]
                   : [
                       Expanded(
-                        child: OutlinedButton(onPressed: () => store.remove([e.id]), child: const Text('Undo')),
+                        child: OutlinedButton(
+                          onPressed: () {
+                            HapticFeedback.lightImpact();
+                            store.remove([e.id]);
+                          },
+                          child: const Text('Undo'),
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -517,9 +573,9 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
     };
     final repeat = act.task == Task.repeat ? act.save.first as Recurring : null;
     return Card(
-      margin: const EdgeInsets.only(top: 8),
+      margin: const EdgeInsets.only(top: 12),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -539,17 +595,7 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
               ],
             ),
             const SizedBox(height: 12),
-            if (line.done)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Icon(Icons.check_circle, size: 16, color: c.primary),
-                    const SizedBox(width: 6),
-                    Text('Done', style: t.labelMedium),
-                  ],
-                ),
-              ),
+            if (line.done) _doneRow('Done'),
             Row(
               children: [
                 if (repeat != null) ...[
@@ -587,6 +633,7 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
   Future<void> _runAct(_Line line, Store store, {bool undo = false}) async {
     // flip first so a double tap can't run it twice
     setState(() => line.done = !undo);
+    HapticFeedback.lightImpact();
     try {
       await (undo ? line.act!.undo(store) : line.act!.apply(store));
       if (undo) {
@@ -619,6 +666,7 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
     }
     final entry = draft.copyWith(account: account, photo: line.photo != null);
     await store.save(entry);
+    HapticFeedback.lightImpact();
     if (line.photo != null) await store.setPhoto(entry.id, line.photo);
     track('entry_added', {'kind': entry.kind.name, 'via': line.photo != null ? 'receipt' : 'ai'});
   }

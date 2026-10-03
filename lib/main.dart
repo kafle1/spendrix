@@ -220,7 +220,12 @@ class Shell extends StatelessWidget {
     valueListenable: currentTab,
     builder: (context, tab, _) {
       final wide = MediaQuery.sizeOf(context).width >= 800;
-      final body = IndexedStack(index: tab, children: _pages);
+      final body = _FadeStack(index: tab, children: _pages);
+      void pick(int i) {
+        if (i != tab) HapticFeedback.selectionClick();
+        currentTab.value = i;
+      }
+
       return CallbackShortcuts(
         bindings: {
           const SingleActivator(LogicalKeyboardKey.keyN, control: true): () => openEntry(context),
@@ -240,7 +245,7 @@ class Shell extends StatelessWidget {
                       children: [
                         NavigationRail(
                           selectedIndex: tab,
-                          onDestinationSelected: (i) => currentTab.value = i,
+                          onDestinationSelected: pick,
                           labelType: NavigationRailLabelType.all,
                           groupAlignment: -.85,
                           destinations: [
@@ -259,12 +264,18 @@ class Shell extends StatelessWidget {
                   : body,
               bottomNavigationBar: wide
                   ? null
-                  : NavigationBar(
-                      selectedIndex: tab,
-                      onDestinationSelected: (i) => currentTab.value = i,
-                      destinations: [
-                        for (final (icon, selected, label) in _tabs)
-                          NavigationDestination(icon: Icon(icon), selectedIcon: Icon(selected), label: label),
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Divider(),
+                        NavigationBar(
+                          selectedIndex: tab,
+                          onDestinationSelected: pick,
+                          destinations: [
+                            for (final (icon, selected, label) in _tabs)
+                              NavigationDestination(icon: Icon(icon), selectedIcon: Icon(selected), label: label),
+                          ],
+                        ),
                       ],
                     ),
             ),
@@ -272,5 +283,40 @@ class Shell extends StatelessWidget {
         ),
       );
     },
+  );
+}
+
+/// An IndexedStack that fades the new tab in, so every tab keeps its state and scroll position.
+class _FadeStack extends StatefulWidget {
+  const _FadeStack({required this.index, required this.children});
+
+  final int index;
+  final List<Widget> children;
+
+  @override
+  State<_FadeStack> createState() => _FadeStackState();
+}
+
+class _FadeStackState extends State<_FadeStack> with SingleTickerProviderStateMixin {
+  late final _fade = AnimationController(vsync: this, duration: const Duration(milliseconds: 220), value: 1);
+  late final _curve = CurvedAnimation(parent: _fade, curve: Curves.easeOut);
+
+  @override
+  void didUpdateWidget(_FadeStack old) {
+    super.didUpdateWidget(old);
+    if (old.index != widget.index) _fade.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _curve.dispose();
+    _fade.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FadeTransition(
+    opacity: _curve,
+    child: IndexedStack(index: widget.index, children: widget.children),
   );
 }

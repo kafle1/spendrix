@@ -60,17 +60,23 @@ class HomeScreen extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
             children: [
-              ValueListenableBuilder(valueListenable: update, builder: (context, u, _) => _updateCard(context, u)),
+              const UpdateCard(),
               const OldDataCard(),
+              const SizedBox(height: 8),
               Text('Total balance', style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
               const SizedBox(height: 4),
-              Money(store.total, style: t.displaySmall?.copyWith(fontWeight: FontWeight.w700)),
+              Money(store.total, style: t.displaySmall?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -.5)),
               const SizedBox(height: 20),
-              if (hasEntries) _monthCard(context, store, spent) else _firstRunCard(context),
-              const SizedBox(height: 20),
+              if (hasEntries) _monthSummary(context, store, spent) else _firstRunCard(context),
+              const SizedBox(height: 24),
               _accountsRow(context, store),
-              if (showOwed) ...[const SizedBox(height: 16), _owedRow(context, store, owedToYou, youOwe)],
-              if (hasEntries) ...[const SizedBox(height: 20), _recentSection(context, recent)],
+              if (showOwed) ...[const SizedBox(height: 8), _owedRow(context, store, owedToYou, youOwe)],
+              if (hasEntries) ...[
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 8),
+                _recentSection(context, recent),
+              ],
               // asked once, after the first entry, so a brand-new user isn't hit with it on the first screen
               if (hasEntries)
                 ValueListenableBuilder(
@@ -92,46 +98,53 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-Widget _monthCard(BuildContext context, Store store, int spent) {
+Widget _monthSummary(BuildContext context, Store store, int spent) {
   final budget = store.settings.budget;
   final over = budget != null && spent > budget;
   final c = Theme.of(context).colorScheme;
   final t = Theme.of(context).textTheme;
-  return Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
         children: [
-          Text('Spent this month', style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
-          const SizedBox(height: 4),
-          Money(spent, style: t.headlineSmall),
-          if (budget != null) ...[
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: LinearProgressIndicator(
-                value: (spent / budget).clamp(0, 1).toDouble(),
-                minHeight: 8,
-                backgroundColor: c.surfaceContainerHighest,
-                color: over ? c.error : c.primary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              over ? '${store.fmt(spent - budget)} over budget' : '${store.fmt(budget - spent)} left',
-              style: t.bodyMedium?.copyWith(
-                color: over ? c.error : c.onSurfaceVariant,
-                fontWeight: over ? FontWeight.w600 : null,
-              ),
-            ),
-          ] else ...[
-            const SizedBox(height: 4),
-            TextButton(onPressed: () => openSettings(context), child: const Text('Set a monthly budget')),
-          ],
+          Flexible(
+            child: Text('Spent this month', style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
+          ),
+          const SizedBox(width: 12),
+          Flexible(child: Money(spent, style: t.titleMedium)),
         ],
       ),
-    ),
+      if (budget != null) ...[
+        const SizedBox(height: 10),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: LinearProgressIndicator(
+            value: (spent / budget).clamp(0, 1).toDouble(),
+            minHeight: 6,
+            color: over ? c.error : c.primary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          over ? '${store.fmt(spent - budget)} over budget' : '${store.fmt(budget - spent)} left',
+          style: t.bodyMedium?.copyWith(
+            color: over ? c.error : c.onSurfaceVariant,
+            fontWeight: over ? FontWeight.w600 : null,
+          ),
+        ),
+      ] else
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 4)),
+            onPressed: () => openSettings(context),
+            child: const Text('Set a monthly budget'),
+          ),
+        ),
+    ],
   );
 }
 
@@ -203,24 +216,23 @@ Widget _accountsRow(BuildContext context, Store store) {
             padding: const EdgeInsets.only(right: 10),
             child: _AccountCard(account: a, balance: store.balance(a.id)),
           ),
-        InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () => editAccount(context),
-          child: Container(
-            width: 120,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              border: Border.all(color: c.outlineVariant),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.add, color: c.primary),
-                const SizedBox(height: 6),
-                Text('Add account', textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
-              ],
+        Card(
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => editAccount(context),
+            child: Container(
+              width: 120,
+              constraints: const BoxConstraints(minHeight: 104),
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add, color: c.primary),
+                  const SizedBox(height: 6),
+                  Text('Add account', textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
+                ],
+              ),
             ),
           ),
         ),
@@ -236,87 +248,76 @@ class _AccountCard extends StatelessWidget {
   final int balance;
 
   @override
-  Widget build(BuildContext context) => InkWell(
-    borderRadius: BorderRadius.circular(16),
-    onTap: () => Navigator.push(
-      context,
-      MaterialPageRoute(
-        settings: const RouteSettings(name: 'account'),
-        builder: (_) => ActivityScreen(account: account.id),
-      ),
-    ),
-    child: Container(
-      width: 130,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          IconBubble(iconOf(account.icon), size: 32),
-          const SizedBox(height: 8),
-          Text(
-            account.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          Money(balance, style: Theme.of(context).textTheme.titleMedium),
-        ],
-      ),
-    ),
-  );
-}
-
-Widget _updateCard(BuildContext context, ({String version, String url})? u) => u == null
-    ? const SizedBox.shrink()
-    : Padding(
-        padding: const EdgeInsets.only(bottom: 16),
-        child: Card(
-          child: ListTile(
-            leading: const Icon(Icons.system_update_outlined),
-            title: Text('Spendrix ${u.version} is out'),
-            subtitle: const Text('Tap to download it, then open the file to install. Your data stays.'),
-            trailing: IconButton(
-              icon: const Icon(Icons.close),
-              tooltip: 'Not now',
-              onPressed: () => update.value = null,
-            ),
-            onTap: () async {
-              if (!await openUpdate(u.url) && context.mounted) toast(context, "Couldn't open the browser");
-            },
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    final t = Theme.of(context).textTheme;
+    return Material(
+      color: c.surfaceContainer,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            settings: const RouteSettings(name: 'account'),
+            builder: (_) => ActivityScreen(account: account.id),
           ),
         ),
-      );
+        child: Container(
+          width: 136,
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(iconOf(account.icon), size: 20, color: c.onSurfaceVariant),
+              const SizedBox(height: 12),
+              Text(
+                account.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
+              ),
+              Money(balance, style: t.titleMedium),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
-Widget _owedRow(BuildContext context, Store store, int owedToYou, int youOwe) => Card(
-  child: ListTile(
-    leading: const Icon(Icons.people_outline),
-    title: Text(
-      'People owe you ${store.fmt(owedToYou)} · You owe ${store.fmt(youOwe)}',
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
-    ),
-    trailing: const Icon(Icons.chevron_right),
-    onTap: () => currentTab.value = 4,
+Widget _owedRow(BuildContext context, Store store, int owedToYou, int youOwe) => ListTile(
+  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+  leading: const IconBubble(Icons.people_outline),
+  title: Text(
+    [
+      if (owedToYou != 0) 'People owe you ${store.fmt(owedToYou)}',
+      if (youOwe != 0) 'You owe ${store.fmt(youOwe)}',
+    ].join(' · '),
+    maxLines: 2,
+    overflow: TextOverflow.ellipsis,
   ),
+  trailing: const Icon(Icons.chevron_right),
+  onTap: () => currentTab.value = 4,
 );
 
 Widget _recentSection(BuildContext context, List<Entry> recent) => Column(
   crossAxisAlignment: CrossAxisAlignment.start,
   children: [
-    Padding(
-      padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text('Recent', style: Theme.of(context).textTheme.titleMedium),
-          TextButton(onPressed: () => currentTab.value = 1, child: const Text('See all')),
-        ],
+    sectionHeader(
+      context,
+      'Recent',
+      action: TextButton(onPressed: () => currentTab.value = 1, child: const Text('See all')),
+    ),
+    // rows sit flush with the headings, and the list eases to its new height when one is added or deleted
+    ListTileTheme.merge(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+      child: AnimatedSize(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        alignment: Alignment.topCenter,
+        child: Column(children: [for (final e in recent) EntryTile(e, key: ValueKey(e.id), showDate: true)]),
       ),
     ),
-    Card(child: Column(children: [for (final e in recent) EntryTile(e, showDate: true)])),
   ],
 );
