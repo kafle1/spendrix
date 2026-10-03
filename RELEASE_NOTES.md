@@ -1,5 +1,12 @@
 Spendrix is a private money diary. It works offline and keeps everything on your device.
 
+**New in 2.3**
+- A lighter look. White pages, fewer boxes, and green only where you tap. Dark mode is a plain dark grey.
+- Ask looks like a chat: your messages on the right, answers as plain text, one box for typing, camera and voice.
+- Smoother everywhere. Tabs fade into each other and keep their place, and saving or deleting gives a small buzz.
+- Updates come inside the app. On Android, tap Update and then Install. On Windows and Linux it updates and reopens by itself. On a Mac it downloads the new version and opens it for you to drag into Applications. The browser app shows a Refresh button.
+- This is the last update you install by hand. From now on, Spendrix tells you and does it for you.
+
 **New in 2.2**
 - Sync now signs in with Google. No password to remember. Your entries are still locked on your device before they leave, and the key is kept in a hidden Spendrix folder in your own Google Drive, so a new device finds it by itself.
 - Used sync before? Update Spendrix on a device that still syncs and tap **Sync now uses Google** there. Then sign in with Google on your other devices.
@@ -26,7 +33,7 @@ Spendrix is a private money diary. It works offline and keeps everything on your
 **Which file do I download?**
 - Android: `Spendrix-android.apk`
 - Android, if you first installed Spendrix 1.3, 2.0.0 or 2.0.1: `Spendrix-android-for-1.3-and-2.0.apk`
-- iPhone: `Spendrix-iphone.ipa`, install it with AltStore or Sideloadly
+- iPhone: open https://spendrix.web.app/app in Safari and Add to Home Screen, or install `Spendrix-iphone.ipa` with Sideloadly
 - Mac: `Spendrix-macos.dmg`
 - Windows: `Spendrix-windows.zip`, unzip it and run `spendrix.exe`
 - Linux: `Spendrix-linux-x64.tar.gz`, extract it and run `./spendrix`

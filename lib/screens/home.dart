@@ -60,7 +60,7 @@ class HomeScreen extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
             children: [
-              ValueListenableBuilder(valueListenable: update, builder: (context, u, _) => _updateCard(context, u)),
+              const UpdateCard(),
               const OldDataCard(),
               const SizedBox(height: 8),
               Text('Total balance', style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
@@ -293,27 +293,6 @@ class _AccountCard extends StatelessWidget {
     );
   }
 }
-
-Widget _updateCard(BuildContext context, ({String version, String url})? u) => u == null
-    ? const SizedBox.shrink()
-    : Padding(
-        padding: const EdgeInsets.only(bottom: 16),
-        child: Card(
-          child: ListTile(
-            leading: const Icon(Icons.system_update_outlined),
-            title: Text('Spendrix ${u.version} is out'),
-            subtitle: const Text('Tap to download it, then open the file to install. Your data stays.'),
-            trailing: IconButton(
-              icon: const Icon(Icons.close),
-              tooltip: 'Not now',
-              onPressed: () => update.value = null,
-            ),
-            onTap: () async {
-              if (!await openUpdate(u.url) && context.mounted) toast(context, "Couldn't open the browser");
-            },
-          ),
-        ),
-      );
 
 Widget _owedRow(BuildContext context, Store store, int owedToYou, int youOwe) => ListTile(
   contentPadding: const EdgeInsets.symmetric(horizontal: 4),
