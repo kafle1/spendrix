@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- the folder update.dart downloads the apk into, inside getTemporaryDirectory (the cache dir) -->
+<paths>
+    <cache-path name="update" path="spendrix-update/" />
+</paths>
