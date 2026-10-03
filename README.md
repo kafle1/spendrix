@@ -6,12 +6,11 @@
 
 **A private money diary that never leaves your device.**
 
-Type, speak in Nepali or English, or snap a receipt. A helper running on your own phone or computer writes the entry for you. No account, no ads, works offline.
+Type it, say it, or snap a receipt. A helper running on your own phone or computer writes the entry for you. No account, no ads, works offline.
 
 [![Latest release](https://img.shields.io/github/v/release/kafle1/spendrix?style=flat-square&color=0E7C66&label=release)](https://github.com/kafle1/spendrix/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/kafle1/spendrix/total?style=flat-square&color=0E7C66)](https://github.com/kafle1/spendrix/releases)
 ![Platforms](https://img.shields.io/badge/Android%20·%20iPhone%20·%20Mac%20·%20Windows%20·%20Linux%20·%20Web-4FBFA5?style=flat-square)
-![Made in Nepal](https://img.shields.io/badge/made%20in-Nepal-DC143C?style=flat-square)
 
 [**Website**](https://spendrix.web.app) · [**Open in browser**](https://spendrix.web.app/app/) · [**Download**](#download) · [**Guide**](GUIDE.md) · [**Privacy**](https://spendrix.web.app/privacy/)
 
