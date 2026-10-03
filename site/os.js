@@ -10,6 +10,6 @@
   if (!row || !btn) return;
   row.classList.add('you');
   btn.querySelector('span').textContent = btn.dataset[os];
-  // the ipa is useless without the sideload steps, so iPhone goes to its row instead
+  // an unsigned ipa won't install from safari, so iPhone goes to its row for the home screen steps
   btn.href = os === 'iphone' ? '#dl-iphone' : row.querySelector('.get').href;
 })();

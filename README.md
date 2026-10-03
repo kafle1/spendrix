@@ -27,7 +27,7 @@ Type it, say it, or snap a receipt. A helper running on your own phone or comput
 | | Device | File | How to install |
 |---|---|---|---|
 | 🤖 | **Android** | [`Spendrix-android.apk`](https://github.com/kafle1/spendrix/releases/latest/download/Spendrix-android.apk) | Open it on your phone and allow the install |
-| 🍎 | **iPhone** | [`Spendrix-iphone.ipa`](https://github.com/kafle1/spendrix/releases/latest/download/Spendrix-iphone.ipa) | Sideload with AltStore or Sideloadly until it's on the App Store |
+| 🍎 | **iPhone** | [`Spendrix-iphone.ipa`](https://github.com/kafle1/spendrix/releases/latest/download/Spendrix-iphone.ipa) | Not on the App Store yet. Open [the web app](https://spendrix.web.app/app/) in Safari and Add to Home Screen, or sideload the file with Sideloadly |
 | 💻 | **Mac** | [`Spendrix-macos.dmg`](https://github.com/kafle1/spendrix/releases/latest/download/Spendrix-macos.dmg) | Drag to Applications. It isn't signed yet, so the first open is blocked. Go to System Settings, Privacy & Security, and click Open Anyway |
 | 🪟 | **Windows** | [`Spendrix-windows.zip`](https://github.com/kafle1/spendrix/releases/latest/download/Spendrix-windows.zip) | Unzip and run `spendrix.exe`. It isn't signed yet, so Windows says it protected your PC the first time. Click More info, then Run anyway |
 | 🐧 | **Linux** | [`Spendrix-linux-x64.tar.gz`](https://github.com/kafle1/spendrix/releases/latest/download/Spendrix-linux-x64.tar.gz) | Extract and run `./spendrix` |
