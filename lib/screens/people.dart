@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../models.dart';
 import '../store.dart';
+import '../theme.dart';
 import '../widgets.dart';
 import 'entry_form.dart';
 
@@ -66,8 +67,10 @@ class _PeopleScreenState extends State<PeopleScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('People')),
+      // one list, so the totals scroll away instead of squeezing the names on a short screen
       body: Narrow(
-        child: Column(
+        child: ListView(
+          padding: const EdgeInsets.only(bottom: 88),
           children: [
             Padding(
               padding: const EdgeInsets.all(16),
@@ -101,26 +104,30 @@ class _PeopleScreenState extends State<PeopleScreen> {
                 child: TextField(
                   controller: _search,
                   onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.search),
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search),
                     hintText: 'Search people',
-                    border: OutlineInputBorder(
+                    border: const OutlineInputBorder(
                       borderRadius: BorderRadius.all(Radius.circular(28)),
                       borderSide: BorderSide.none,
                     ),
+                    suffixIcon: _search.text.isEmpty
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.close),
+                            tooltip: 'Clear search',
+                            onPressed: () => setState(_search.clear),
+                          ),
                   ),
                 ),
               ),
             const SizedBox(height: 8),
-            Expanded(
-              child: filtered.isEmpty
-                  ? Center(child: Text('No one matches "${_search.text.trim()}"'))
-                  : ListView.builder(
-                      padding: const EdgeInsets.only(bottom: 80),
-                      itemCount: filtered.length,
-                      itemBuilder: (context, i) => _personRow(context, store, filtered[i]),
-                    ),
-            ),
+            if (filtered.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(32),
+                child: Text('No one matches "${_search.text.trim()}"', textAlign: TextAlign.center),
+              ),
+            for (final p in filtered) _personRow(context, store, p),
           ],
         ),
       ),
@@ -133,19 +140,32 @@ class _PeopleScreenState extends State<PeopleScreen> {
   }
 }
 
-Widget _personRow(BuildContext context, Store store, Person p) => ListTile(
-  leading: const IconBubble(Icons.person_outline),
-  title: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-  subtitle: p.phone == null ? null : Text(p.phone!, maxLines: 1, overflow: TextOverflow.ellipsis),
-  trailing: Money(store.owed(p.id), colored: true, style: Theme.of(context).textTheme.titleMedium),
-  onTap: () => Navigator.push(
-    context,
-    MaterialPageRoute(
-      settings: const RouteSettings(name: 'person'),
-      builder: (_) => PersonScreen(personId: p.id),
+Widget _personRow(BuildContext context, Store store, Person p) {
+  final owed = store.owed(p.id);
+  // says which way the money goes, so the + and − need no guessing
+  final status = owed > 0
+      ? 'Owes you'
+      : owed < 0
+      ? 'You owe'
+      : 'Settled up';
+  final amount = Money(owed, colored: true, style: Theme.of(context).textTheme.titleMedium);
+  final big = largeText(context);
+  return ListTile(
+    leading: const IconBubble(Icons.person_outline),
+    title: Text(p.name, maxLines: big ? 2 : 1, overflow: TextOverflow.ellipsis),
+    subtitle: big
+        ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [amount, Text(status)])
+        : Text(status, maxLines: 1, overflow: TextOverflow.ellipsis),
+    trailing: big ? null : amount,
+    onTap: () => Navigator.push(
+      context,
+      MaterialPageRoute(
+        settings: const RouteSettings(name: 'person'),
+        builder: (_) => PersonScreen(personId: p.id),
+      ),
     ),
-  ),
-);
+  );
+}
 
 class PersonScreen extends StatelessWidget {
   const PersonScreen({super.key, required this.personId});
@@ -207,99 +227,111 @@ class PersonScreen extends StatelessWidget {
           ),
         ],
       ),
+      // one scrolling list, so the header can't overflow a landscape phone or a big font
       body: Narrow(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
               child: Column(
                 children: [
-                  const IconBubble(Icons.person_outline, size: 64),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+                    child: Column(
+                      children: [
+                        const IconBubble(Icons.person_outline, size: 64),
+                        const SizedBox(height: 12),
+                        Text(
+                          owed == 0
+                              ? 'All settled up'
+                              : owed > 0
+                              ? '${person.name} owes you'
+                              : 'You owe ${person.name}',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 4),
+                        Money(owed, colored: true, fit: true, style: Theme.of(context).textTheme.headlineMedium),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.tonalIcon(
+                            onPressed: () => openEntry(context, kind: Kind.gave, person: personId),
+                            icon: const Icon(Icons.arrow_upward),
+                            label: const Text('You gave'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: FilledButton.tonalIcon(
+                            onPressed: () => openEntry(context, kind: Kind.got, person: personId),
+                            icon: const Icon(Icons.arrow_downward),
+                            label: const Text('You got'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 12),
-                  Text(
-                    owed == 0
-                        ? 'All settled up'
-                        : owed > 0
-                        ? '${person.name} owes you'
-                        : 'You owe ${person.name}',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 4),
-                  Money(owed, colored: true, style: Theme.of(context).textTheme.headlineMedium),
+                  if (owed != 0)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => openEntry(
+                                context,
+                                entry: Entry(
+                                  id: newId(),
+                                  kind: owed > 0 ? Kind.got : Kind.gave,
+                                  amount: owed.abs(),
+                                  date: DateTime.now(),
+                                  account: '',
+                                  person: personId,
+                                ),
+                              ),
+                              child: const Text('Settle up'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => SharePlus.instance.share(
+                                ShareParams(
+                                  text: owed > 0
+                                      ? '${person.name}, a friendly reminder that you owe me ${store.fmt(owed)}.'
+                                      : 'Hi ${person.name}, just a note that I owe you ${store.fmt(-owed)}. Settling up soon.',
+                                ),
+                              ),
+                              icon: const Icon(Icons.share_outlined),
+                              label: const Text('Remind'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  const Divider(),
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: FilledButton.tonalIcon(
-                      onPressed: () => openEntry(context, kind: Kind.gave, person: personId),
-                      icon: const Icon(Icons.arrow_upward),
-                      label: const Text('You gave'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton.tonalIcon(
-                      onPressed: () => openEntry(context, kind: Kind.got, person: personId),
-                      icon: const Icon(Icons.arrow_downward),
-                      label: const Text('You got'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            if (owed != 0)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => openEntry(
-                          context,
-                          entry: Entry(
-                            id: newId(),
-                            kind: owed > 0 ? Kind.got : Kind.gave,
-                            amount: owed.abs(),
-                            date: DateTime.now(),
-                            account: '',
-                            person: personId,
-                          ),
-                        ),
-                        child: const Text('Settle up'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => SharePlus.instance.share(
-                          ShareParams(
-                            text: owed > 0
-                                ? '${person.name}, a friendly reminder that you owe me ${store.fmt(owed)}.'
-                                : 'Hi ${person.name}, just a note that I owe you ${store.fmt(-owed)}. Settling up soon.',
-                          ),
-                        ),
-                        icon: const Icon(Icons.share_outlined),
-                        label: const Text('Remind'),
-                      ),
-                    ),
-                  ],
+            if (history.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Empty(icon: Icons.receipt_long_outlined, title: 'No history yet'),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.only(bottom: 24),
+                sliver: SliverList.builder(
+                  itemCount: history.length,
+                  itemBuilder: (context, i) => EntryTile(history[i], showDate: true, showPerson: false),
                 ),
               ),
-            const SizedBox(height: 16),
-            const Divider(),
-            Expanded(
-              child: history.isEmpty
-                  ? const Empty(icon: Icons.receipt_long_outlined, title: 'No history yet')
-                  : ListView.builder(
-                      itemCount: history.length,
-                      itemBuilder: (context, i) => EntryTile(history[i], showDate: true),
-                    ),
-            ),
           ],
         ),
       ),
@@ -337,7 +369,8 @@ Future<Person?> editPerson(BuildContext context, [Person? person]) async {
                 maxLength: 40,
                 textCapitalization: TextCapitalization.words,
                 textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(labelText: 'Name'),
+                // the 40 limit only matters near the end, so hide the 0/40 counter
+                decoration: const InputDecoration(labelText: 'Name', counterText: ''),
                 validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter a name' : null,
               ),
               TextFormField(

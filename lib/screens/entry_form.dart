@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show compute, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -391,11 +393,34 @@ class _EntryFormState extends State<_EntryForm> {
     }
     if (_saving) return;
     _saving = true;
+    final messenger = ScaffoldMessenger.of(context);
+    final before = isEdit ? widget.entry : null;
+    final undoable = widget.repeat == null && (!isEdit || !_photoChanged);
     try {
-      await _write(store, cents);
+      final saved = await _write(store, cents);
       HapticFeedback.lightImpact();
-      await _rememberDefaults();
+      // the entry is already written, so a failed defaults write must not say "couldn't save" and invite a duplicate
+      unawaited(_rememberDefaults().catchError((Object _) {}));
       if (context.mounted) Navigator.of(context).pop();
+      // a new entry undoes by deleting it, an edit by putting the old one back; a changed photo can't be put back
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(isEdit ? 'Changes saved' : 'Saved'),
+            persist: false,
+            duration: const Duration(seconds: 4),
+            action: saved == null || !undoable
+                ? null
+                : SnackBarAction(
+                    label: 'Undo',
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      before == null ? store.remove([saved.id]) : store.save(before);
+                    },
+                  ),
+          ),
+        );
     } catch (_) {
       if (context.mounted) toast(context, "Couldn't save. Check free space and try again.");
     } finally {
@@ -403,7 +428,8 @@ class _EntryFormState extends State<_EntryForm> {
     }
   }
 
-  Future<void> _write(Store store, int cents) async {
+  /// saves the form; returns the entry it wrote, or null when it saved a repeat
+  Future<Entry?> _write(Store store, int cents) async {
     final category = _kind == Kind.expense || _kind == Kind.income ? _category : null;
     final to = _kind == Kind.transfer ? _toAccount : null;
     final person = _kind == Kind.gave || _kind == Kind.got ? _person : null;
@@ -429,7 +455,7 @@ class _EntryFormState extends State<_EntryForm> {
           active: editing.active,
         ),
       );
-      return;
+      return null;
     }
 
     if (!isEdit && _repeat != null) {
@@ -449,33 +475,33 @@ class _EntryFormState extends State<_EntryForm> {
           note: _noteController.text.trim(),
         ),
       );
-      return;
+      return null;
     }
 
     // photos stay on the device that took them, so an edit elsewhere must keep the flag it can't see
     final keepPhoto = isEdit && !_photoChanged;
     final id = widget.entry?.id ?? newId();
     final fxAmount = _fx == null ? null : parseCents(_amount);
-    await store.save(
-      Entry(
-        id: id,
-        kind: _kind,
-        amount: cents,
-        date: _date,
-        account: _account,
-        category: category,
-        to: to,
-        person: person,
-        note: _noteController.text.trim(),
-        photo: keepPhoto ? widget.entry!.photo : _photoBytes != null,
-        recurring: isEdit ? widget.entry!.recurring : null,
-        fxCur: fxAmount == null ? null : _fx,
-        fxAmount: fxAmount,
-        fxHome: fxAmount == null ? null : cents,
-      ),
+    final entry = Entry(
+      id: id,
+      kind: _kind,
+      amount: cents,
+      date: _date,
+      account: _account,
+      category: category,
+      to: to,
+      person: person,
+      note: _noteController.text.trim(),
+      photo: keepPhoto ? widget.entry!.photo : _photoBytes != null,
+      recurring: isEdit ? widget.entry!.recurring : null,
+      fxCur: fxAmount == null ? null : _fx,
+      fxAmount: fxAmount,
+      fxHome: fxAmount == null ? null : cents,
     );
+    await store.save(entry);
     if (!keepPhoto) await store.setPhoto(id, _photoBytes);
     if (!isEdit) track('entry_added', {'kind': _kind.name, 'via': _guessed ? 'ai' : 'manual'});
+    return entry;
   }
 
   @override
@@ -532,64 +558,79 @@ class _EntryFormState extends State<_EntryForm> {
               width: 560,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                child: Column(
-                  children: [
-                    if (_guessed) _guessedBanner(),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _kindToggle(),
-                            const SizedBox(height: 20),
-                            _amountDisplay(store),
-                            const SizedBox(height: 20),
-                            if (_kind == Kind.expense || _kind == Kind.income) ...[
-                              _sectionLabel('Category'),
-                              _categoryGrid(store),
-                              const SizedBox(height: 16),
-                            ],
-                            if (_kind == Kind.gave || _kind == Kind.got) ...[
-                              _peopleToggle(),
-                              const SizedBox(height: 12),
-                              _sectionLabel('Person'),
-                              _personPicker(store),
-                              const SizedBox(height: 16),
-                            ],
-                            _sectionLabel(_kind == Kind.transfer ? 'From' : 'Account'),
-                            _accountChips(store, selected: _account, onSelect: (id) => _touch(() => _account = id)),
-                            if (_kind == Kind.transfer) ...[
-                              const SizedBox(height: 12),
-                              _sectionLabel('To'),
-                              _accountChips(
-                                store,
-                                selected: _toAccount,
-                                exclude: _account,
-                                onSelect: (id) => _touch(() => _toAccount = id),
-                              ),
-                            ],
-                            const SizedBox(height: 16),
-                            _sectionLabel('Date'),
-                            _dateRow(),
-                            const SizedBox(height: 8),
-                            _moreSection(store),
-                          ],
+                child: LayoutBuilder(
+                  builder: (context, box) {
+                    // the keypad stays pinned while there's room for it; on a short or rotated screen it scrolls with the rest
+                    final pinned = box.maxHeight >= (largeText(context) ? 680 : 520);
+                    final keyHeight = box.maxHeight >= 700 ? 60.0 : 52.0;
+                    final keypad = keyboardOpen ? null : _keypad(keyHeight);
+                    return Column(
+                      children: [
+                        Expanded(
+                          child: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                if (_guessed) _guessedBanner(),
+                                _kindToggle(),
+                                const SizedBox(height: 16),
+                                _amountDisplay(store),
+                                const SizedBox(height: 8),
+                                // where and when, right under the amount so they never hide below the fold
+                                _detailsRow(store),
+                                if (!pinned && keypad != null) ...[const SizedBox(height: 16), keypad],
+                                const SizedBox(height: 20),
+                                if (_kind == Kind.expense || _kind == Kind.income) ...[
+                                  _sectionLabel('Category'),
+                                  _categoryGrid(store),
+                                  const SizedBox(height: 16),
+                                ],
+                                if (_kind == Kind.gave || _kind == Kind.got) ...[
+                                  _peopleToggle(),
+                                  const SizedBox(height: 12),
+                                  _sectionLabel('Person'),
+                                  _personPicker(store),
+                                  const SizedBox(height: 16),
+                                ],
+                                if (_kind == Kind.transfer) ...[
+                                  _sectionLabel('From'),
+                                  _accountChips(
+                                    store,
+                                    selected: _account,
+                                    onSelect: (id) => _touch(() => _account = id),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _sectionLabel('To'),
+                                  _accountChips(
+                                    store,
+                                    selected: _toAccount,
+                                    exclude: _account,
+                                    onSelect: (id) => _touch(() => _toAccount = id),
+                                  ),
+                                  const SizedBox(height: 16),
+                                ],
+                                _moreSection(store),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    if (_error != null)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                      ),
-                    const SizedBox(height: 8),
-                    if (!keyboardOpen) _keypad(),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(onPressed: () => _save(context, store), child: const Text('Save')),
-                    ),
-                  ],
+                        if (_error != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Semantics(
+                              liveRegion: true,
+                              child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                            ),
+                          ),
+                        if (pinned && keypad != null) ...[const SizedBox(height: 12), keypad],
+                        const SizedBox(height: 4),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(onPressed: () => _save(context, store), child: const Text('Save')),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -631,43 +672,53 @@ class _EntryFormState extends State<_EntryForm> {
 
   Widget _kindToggle() {
     final selected = _segmentOf(_kind);
-    // shrinks on narrow phones and big text sizes instead of scrolling half out of view
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      child: SegmentedButton<_Segment>(
-        segments: const [
-          ButtonSegment(value: _Segment.expense, label: Text('Money out')),
-          ButtonSegment(value: _Segment.income, label: Text('Money in')),
-          ButtonSegment(value: _Segment.transfer, label: Text('Transfer')),
-          ButtonSegment(value: _Segment.people, label: Text('People')),
-        ],
-        selected: {selected},
-        showSelectedIcon: false,
-        onSelectionChanged: (set) {
-          final newSeg = set.first;
-          _touch(() {
-            if (newSeg != selected) _category = null;
-            _kind = switch (newSeg) {
-              _Segment.expense => Kind.expense,
-              _Segment.income => Kind.income,
-              _Segment.transfer => Kind.transfer,
-              _Segment.people => _kind == Kind.gave || _kind == Kind.got ? _kind : Kind.gave,
-            };
-          });
-        },
-      ),
+    // full width with four equal parts; only a label that doesn't fit shrinks, so each part stays 48px tall to tap
+    ButtonSegment<_Segment> segment(_Segment value, String label) => ButtonSegment(
+      value: value,
+      label: FittedBox(fit: BoxFit.scaleDown, child: Text(label, maxLines: 1)),
+    );
+    return SegmentedButton<_Segment>(
+      expandedInsets: EdgeInsets.zero,
+      segments: [
+        segment(_Segment.expense, 'Money out'),
+        segment(_Segment.income, 'Money in'),
+        segment(_Segment.transfer, 'Transfer'),
+        segment(_Segment.people, 'People'),
+      ],
+      selected: {selected},
+      showSelectedIcon: false,
+      onSelectionChanged: (set) {
+        final newSeg = set.first;
+        _touch(() {
+          if (newSeg != selected) _category = null;
+          _kind = switch (newSeg) {
+            _Segment.expense => Kind.expense,
+            _Segment.income => Kind.income,
+            _Segment.transfer => Kind.transfer,
+            _Segment.people => _kind == Kind.gave || _kind == Kind.got ? _kind : Kind.gave,
+          };
+        });
+      },
     );
   }
 
   Widget _amountDisplay(Store store) {
-    final color = _kind == Kind.transfer ? null : moneyColor(context, _kind.sign);
+    // grey until something is typed, so an empty form doesn't shout a red zero
+    final empty = (parseCents(_amount) ?? 0) == 0;
+    final color = empty
+        ? Theme.of(context).colorScheme.onSurfaceVariant
+        : _kind == Kind.transfer
+        ? null
+        : moneyColor(context, _kind.sign);
     final big = Center(
-      child: Text(
-        typedMoney(_amount, _fx == null ? store.currency : currencyOf(_fx!).besides(store.currency)),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: Theme.of(context).textTheme.displaySmall
-            ?.copyWith(fontWeight: FontWeight.w700, color: color, fontFeatures: const [FontFeature.tabularFigures()]),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          typedMoney(_amount, _fx == null ? store.currency : currencyOf(_fx!).besides(store.currency)),
+          maxLines: 1,
+          style: Theme.of(context).textTheme.displaySmall
+              ?.copyWith(fontWeight: FontWeight.w700, color: color, fontFeatures: const [FontFeature.tabularFigures()]),
+        ),
       ),
     );
     final typed = _fx == null ? null : parseCents(_amount);
@@ -685,36 +736,43 @@ class _EntryFormState extends State<_EntryForm> {
     );
   }
 
-  Widget _keypad() {
+  Widget _keypad(double keyHeight) {
     const rows = [
       ['1', '2', '3'],
       ['4', '5', '6'],
       ['7', '8', '9'],
       ['.', '0', '⌫'],
     ];
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (final row in rows)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              children: [
-                for (final k in row) ...[Expanded(child: _keyButton(k)), if (k != row.last) const SizedBox(width: 8)],
-              ],
+    // digits are already big; past 1.3x they'd spill out of the keys
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.3,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final row in rows)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  for (final k in row) ...[
+                    Expanded(child: _keyButton(k, keyHeight)),
+                    if (k != row.last) const SizedBox(width: 8),
+                  ],
+                ],
+              ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _keyButton(String label) {
+  Widget _keyButton(String label, double height) {
     final isBackspace = label == '⌫';
     final c = Theme.of(context).colorScheme;
     // plain grey keys; dark mode needs one step lighter to read as keys at all
     final keyColor = Theme.of(context).brightness == Brightness.dark ? c.surfaceContainerHigh : c.surfaceContainer;
     return SizedBox(
-      height: 60,
+      height: height,
       child: Material(
         color: keyColor,
         borderRadius: BorderRadius.circular(18),
@@ -726,7 +784,7 @@ class _EntryFormState extends State<_EntryForm> {
           },
           child: Center(
             child: isBackspace
-                ? const Icon(Icons.backspace_outlined)
+                ? const Icon(Icons.backspace_outlined, semanticLabel: 'Delete last digit')
                 : Text(label, style: Theme.of(context).textTheme.headlineSmall),
           ),
         ),
@@ -735,7 +793,21 @@ class _EntryFormState extends State<_EntryForm> {
   }
 
   Widget _categoryGrid(Store store) {
-    final cats = store.categoriesFor(_kind);
+    // most used in the last 100 entries of this kind first, ties keep their usual order
+    final uses = <String, int>{};
+    var seen = 0;
+    for (final e in store.entries) {
+      if (e.kind != _kind || e.category == null) continue;
+      uses[e.category!] = (uses[e.category!] ?? 0) + 1;
+      if (++seen >= 100) break;
+    }
+    final base = store.categoriesFor(_kind);
+    final order = {for (final (i, c) in base.indexed) c.id: i};
+    final cats = [...base]
+      ..sort((a, b) {
+        final byUse = (uses[b.id] ?? 0).compareTo(uses[a.id] ?? 0);
+        return byUse != 0 ? byUse : order[a.id]!.compareTo(order[b.id]!);
+      });
     return Wrap(
       spacing: 12,
       runSpacing: 12,
@@ -897,40 +969,124 @@ class _EntryFormState extends State<_EntryForm> {
     if (_end != null && _end!.isBefore(dayOf(d))) _end = null;
   });
 
-  Widget _dateRow() {
-    final editingRepeat = widget.repeat != null;
+  Future<void> _pickDate() async {
     final today = dayOf(DateTime.now());
-    final yesterday = today.subtract(const Duration(days: 1));
-    final day = dayOf(_date);
-    final isToday = day == today;
-    final isYesterday = day == yesterday;
     // a far-out repeat's next date can sit past the usual year-ahead cap
     final farFuture = DateTime.now().add(const Duration(days: 365));
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: widget.repeat != null ? today : DateTime(2000),
+      lastDate: _date.isAfter(farFuture) ? _date : farFuture,
+    );
+    if (picked != null && mounted) _setDate(_keepTime(picked));
+  }
+
+  /// the account and the day as two small buttons, so both show without scrolling and change in two taps
+  Widget _detailsRow(Store store) {
+    final today = dayOf(DateTime.now());
+    final account = store.account(_account);
     return Wrap(
+      alignment: WrapAlignment.center,
       spacing: 8,
+      runSpacing: 8,
       children: [
-        ChoiceChip(label: const Text('Today'), selected: isToday, onSelected: (_) => _setDate(_keepTime(today))),
-        // a repeat can never be moved into the past, so hide the one shortcut that would do that
-        if (!editingRepeat)
-          ChoiceChip(
-            label: const Text('Yesterday'),
-            selected: isYesterday,
-            onSelected: (_) => _setDate(_keepTime(yesterday)),
+        // a transfer picks both accounts in full below
+        if (_kind != Kind.transfer)
+          ActionChip(
+            tooltip: 'Account',
+            avatar: Icon(iconOf(account?.icon), size: 18),
+            label: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    account?.name ?? (_account.isEmpty ? 'Add an account' : 'Deleted account'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const Icon(Icons.arrow_drop_down, size: 18),
+              ],
+            ),
+            onPressed: () => _pickAccount(store),
           ),
-        ActionChip(
-          label: Text(!isToday && !isYesterday ? dayLabel(_date) : 'Pick date'),
-          onPressed: () async {
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: _date,
-              firstDate: editingRepeat ? today : DateTime(2000),
-              lastDate: _date.isAfter(farFuture) ? _date : farFuture,
-            );
-            if (picked != null && mounted) _setDate(_keepTime(picked));
-          },
+        MenuAnchor(
+          builder: (context, menu, _) => ActionChip(
+            tooltip: 'Date',
+            avatar: const Icon(Icons.event_outlined, size: 18),
+            label: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(child: Text(dayLabel(_date), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                const Icon(Icons.arrow_drop_down, size: 18),
+              ],
+            ),
+            onPressed: () => menu.isOpen ? menu.close() : menu.open(),
+          ),
+          menuChildren: [
+            MenuItemButton(onPressed: () => _setDate(_keepTime(today)), child: const Text('Today')),
+            // a repeat can never be moved into the past, so hide the one shortcut that would do that
+            if (widget.repeat == null)
+              MenuItemButton(
+                onPressed: () => _setDate(_keepTime(today.subtract(const Duration(days: 1)))),
+                child: const Text('Yesterday'),
+              ),
+            MenuItemButton(onPressed: _pickDate, child: const Text('Pick a date')),
+          ],
         ),
       ],
     );
+  }
+
+  Future<void> _pickAccount(Store store) async {
+    if (store.accounts.isEmpty) {
+      final made = await editAccount(context);
+      if (made != null && mounted) _touch(() => _account = made.id);
+      return;
+    }
+    const addNew = '+new';
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) => SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                _kind == Kind.income || _kind == Kind.got ? 'Into which account?' : 'From which account?',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            for (final a in store.accounts)
+              ListTile(
+                leading: IconBubble(iconOf(a.icon), selected: a.id == _account),
+                title: Text(a.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                trailing: Money(store.balance(a.id), style: Theme.of(context).textTheme.bodyLarge),
+                selected: a.id == _account,
+                onTap: () => Navigator.pop(context, a.id),
+              ),
+            ListTile(
+              leading: const IconBubble(Icons.add),
+              title: const Text('New account'),
+              onTap: () => Navigator.pop(context, addNew),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    if (picked == addNew) {
+      final made = await editAccount(context);
+      if (made != null && mounted) _touch(() => _account = made.id);
+      return;
+    }
+    _touch(() => _account = picked);
   }
 
   Widget _moreSection(Store store) {
@@ -942,7 +1098,8 @@ class _EntryFormState extends State<_EntryForm> {
           child: TextButton.icon(
             onPressed: () => setState(() => _moreExpanded = !_moreExpanded),
             icon: Icon(_moreExpanded ? Icons.expand_less : Icons.expand_more),
-            label: Text(_moreExpanded ? 'Less' : 'More'),
+            // says what's inside, so nobody has to open it to find the note box
+            label: Text(_moreExpanded ? 'Less' : 'Note, photo and more'),
           ),
         ),
         if (_moreExpanded) ...[
@@ -1068,28 +1225,37 @@ class _EntryFormState extends State<_EntryForm> {
 
   Widget _photoPreview() {
     final bytes = _photoBytes!;
+    // the padding keeps the whole 48px remove button inside the stack, where taps still land
     return Stack(
-      clipBehavior: Clip.none,
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: GestureDetector(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                settings: const RouteSettings(name: 'photo'),
-                builder: (_) => _PhotoViewer(bytes),
+        Padding(
+          padding: const EdgeInsets.only(top: 12, right: 12),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  settings: const RouteSettings(name: 'photo'),
+                  builder: (_) => _PhotoViewer(bytes),
+                ),
+              ),
+              child: Semantics(
+                label: 'Receipt photo, tap to open',
+                image: true,
+                child: Image.memory(bytes, width: 88, height: 88, fit: BoxFit.cover),
               ),
             ),
-            child: Image.memory(bytes, width: 88, height: 88, fit: BoxFit.cover),
           ),
         ),
         Positioned(
-          right: -8,
-          top: -8,
+          right: 0,
+          top: 0,
           child: IconButton.filled(
+            tooltip: 'Remove photo',
             icon: const Icon(Icons.close, size: 16),
             constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
             padding: EdgeInsets.zero,
+            style: IconButton.styleFrom(tapTargetSize: MaterialTapTargetSize.padded),
             onPressed: () => _touch(() => _setPhoto(null)),
           ),
         ),

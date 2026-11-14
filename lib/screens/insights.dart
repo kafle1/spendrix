@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '../format.dart';
 import '../stats.dart';
 import '../store.dart';
+import '../theme.dart';
 import '../widgets.dart';
 import 'activity.dart';
 import 'entry_form.dart';
@@ -60,12 +61,20 @@ class _InsightsScreenState extends State<InsightsScreen> {
                     icon: const Icon(Icons.chevron_left),
                     tooltip: 'Previous month',
                   ),
-                  SizedBox(
-                    width: 160,
-                    child: Text(
-                      monthLabel(_month),
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.titleMedium,
+                  // a minimum width keeps the arrows still between months; big fonts may still grow it
+                  Flexible(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minWidth: 160),
+                      child: Semantics(
+                        liveRegion: true,
+                        child: Text(
+                          monthLabel(_month),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ),
                     ),
                   ),
                   IconButton(
@@ -109,7 +118,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                         ..._gap,
                         _budgets(context, store, from, to),
                         ..._gap,
-                        _trend(context, store, _month),
+                        _trend(context, store, _month, (m) => setState(() => _month = m)),
                       ],
                     ),
             ),
@@ -174,7 +183,8 @@ Widget _donut(BuildContext context, Store store, DateTime from, DateTime to, int
         e.value,
         _palette[i % _palette.length],
       ),
-    if (rest > 0) _Slice(null, 'Other', Icons.more_horiz, rest, _otherColor),
+    // not "Other", which is also a starter category and would show up twice
+    if (rest > 0) _Slice(null, 'Everything else', Icons.more_horiz, rest, _otherColor),
   ];
 
   return Padding(
@@ -222,9 +232,16 @@ Widget _donut(BuildContext context, Store store, DateTime from, DateTime to, int
 }
 
 Widget _legendRow(BuildContext context, Store store, DateTime month, _Slice s, int total) {
-  final pct = total == 0 ? 0 : (s.amount * 100 / total).round();
+  final share = total == 0 ? 0 : (s.amount * 100 / total).round();
+  final big = largeText(context);
+  // tabular figures, right-aligned, so the percent and amount columns line up row to row
+  final pct = Text(
+    '$share%',
+    textAlign: TextAlign.end,
+    style: Theme.of(context).textTheme.bodySmall?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+  );
   return InkWell(
-    // Other and Uncategorized have no single category to filter by
+    // Everything else and Uncategorized have no single category to filter by
     onTap: s.id == null
         ? null
         : () => Navigator.push(
@@ -248,10 +265,27 @@ Widget _legendRow(BuildContext context, Store store, DateTime month, _Slice s, i
           const SizedBox(width: 12),
           IconBubble(s.icon, size: 32),
           const SizedBox(width: 12),
-          Expanded(child: Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis)),
-          Text('$pct%', style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(width: 12),
-          Text(store.fmt(s.amount)),
+          Expanded(
+            child: big
+                // with a very large font the name gets the whole line and the numbers go under it
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(s.name, maxLines: 2, overflow: TextOverflow.ellipsis),
+                      Wrap(spacing: 12, children: [pct, Money(s.amount)]),
+                    ],
+                  )
+                : Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+          if (!big) ...[
+            const SizedBox(width: 8),
+            pct,
+            const SizedBox(width: 12),
+            ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 88),
+              child: Align(alignment: AlignmentDirectional.centerEnd, widthFactor: 1, child: Money(s.amount)),
+            ),
+          ],
         ],
       ),
     ),
@@ -267,11 +301,17 @@ Widget _budgets(BuildContext context, Store store, DateTime from, DateTime to) {
   if (overall == null && catBudgets.isEmpty) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Expanded(child: Text('Set budgets in Settings')),
-          const SizedBox(width: 12),
-          OutlinedButton(onPressed: () => openSettings(context), child: const Text('Settings')),
+          sectionHeader(context, 'Budgets'),
+          Text(
+            'Set a monthly budget to see how much is left as you spend.',
+            style: Theme.of(context).textTheme.bodyMedium
+                ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton(onPressed: () => openSettings(context), child: const Text('Set a budget')),
         ],
       ),
     );
@@ -330,11 +370,15 @@ Widget _budgetBar(BuildContext context, Store store, String label, IconData icon
 
 const _monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-Widget _trend(BuildContext context, Store store, DateTime month) {
+Widget _trend(BuildContext context, Store store, DateTime month, ValueChanged<DateTime> onPick) {
   final points = [for (var i = 5; i >= 0; i--) _addMonths(month, -i)];
   final spentByMonth = [for (final m in points) store.spent(m, _addMonths(m, 1))];
   final maxSpent = spentByMonth.fold(0, (a, b) => a > b ? a : b);
   final c = Theme.of(context).colorScheme;
+  final small = Theme.of(context).textTheme.bodySmall;
+  // short labels like 31K over each bar, so the chart reads without tapping
+  final compact = NumberFormat.compact();
+  final thisMonth = _startOfMonth(DateTime.now());
 
   return Padding(
     padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -355,7 +399,23 @@ Widget _trend(BuildContext context, Store store, DateTime month) {
               titlesData: FlTitlesData(
                 leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                topTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 22,
+                    getTitlesWidget: (value, meta) {
+                      final i = value.toInt();
+                      if (i < 0 || i >= spentByMonth.length || spentByMonth[i] == 0) return const SizedBox.shrink();
+                      return SideTitleWidget(
+                        meta: meta,
+                        child: Text(
+                          compact.format(spentByMonth[i] / 100),
+                          style: small?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+                        ),
+                      );
+                    },
+                  ),
+                ),
                 bottomTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
@@ -365,13 +425,24 @@ Widget _trend(BuildContext context, Store store, DateTime month) {
                       if (i < 0 || i >= points.length) return const SizedBox.shrink();
                       return SideTitleWidget(
                         meta: meta,
-                        child: Text(_monthNames[points[i].month - 1], style: Theme.of(context).textTheme.bodySmall),
+                        child: Text(
+                          _monthNames[points[i].month - 1],
+                          style: i == points.length - 1
+                              ? small?.copyWith(color: c.onSurface, fontWeight: FontWeight.w600)
+                              : small,
+                        ),
                       );
                     },
                   ),
                 ),
               ),
               barTouchData: BarTouchData(
+                // tapping a bar opens that month, never one still to come
+                touchCallback: (event, response) {
+                  final i = response?.spot?.touchedBarGroupIndex;
+                  if (event is! FlTapUpEvent || i == null || i < 0 || i >= points.length) return;
+                  if (!points[i].isAfter(thisMonth)) onPick(points[i]);
+                },
                 touchTooltipData: BarTouchTooltipData(
                   getTooltipItem: (group, groupIndex, rod, rodIndex) => BarTooltipItem(
                     store.fmt(rod.toY.round()),

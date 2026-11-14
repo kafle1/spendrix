@@ -68,9 +68,12 @@ String typedMoney(String typed, Currency cur) {
   return '${cur.prefix}${(cur.indian ? _indian : _western)[0].format(whole)}${dot < 0 ? '' : typed.substring(dot)}';
 }
 
-/// "1,234.50" or "1234.5" -> 123450. Returns null for anything that isn't a positive amount.
+/// "1,234.50", "1234.5" or "1234,5" -> 123450. Returns null for anything that isn't a positive amount.
 int? parseCents(String text) {
-  final clean = text.replaceAll(RegExp(r'[,\s]'), '');
+  var clean = text.replaceAll(RegExp(r'\s'), '');
+  // a keyboard that types "12,50" means 12.50; grouping never leaves 1 or 2 digits after a comma
+  if (!clean.contains('.')) clean = clean.replaceFirstMapped(RegExp(r',(\d{1,2})$'), (m) => '.${m[1]}');
+  clean = clean.replaceAll(',', '');
   if (!RegExp(r'^\d{0,12}(\.\d{0,2})?$').hasMatch(clean) || clean.isEmpty || clean == '.') {
     return null;
   }

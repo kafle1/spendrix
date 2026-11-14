@@ -66,7 +66,8 @@ class Item {
 
 String _str(Object? v, [String fallback = '']) => v is String ? v : fallback;
 String? _opt(Object? v) => v is String && v.isNotEmpty ? v : null;
-int _int(Object? v) => v is num ? v.toInt() : 0;
+// a non-finite number would throw in toInt and blank every screen
+int _int(Object? v) => v is num && v.isFinite ? v.toInt() : 0;
 DateTime _date(Object? v) => (v is String ? DateTime.tryParse(v) : null) ?? DateTime.now();
 DateTime? _day(Object? v) => switch (v is String ? DateTime.tryParse(v) : null) {
   final d? => dayOf(d),
@@ -97,7 +98,7 @@ class Settings extends Model {
   Map<String, dynamic> toData() => {'currency': currency, 'budget': budget};
 }
 
-int? _positive(Object? v) => v is num && v > 0 ? v.toInt() : null;
+int? _positive(Object? v) => v is num && v.isFinite && v > 0 ? v.toInt() : null;
 
 class Account extends Model {
   const Account({required String id, required this.name, this.icon = 'cash', this.start = 0, this.archived = false})

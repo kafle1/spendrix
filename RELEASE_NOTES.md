@@ -1,5 +1,15 @@
 Spendrix is a private money diary. It works offline and keeps everything on your device.
 
+**New in 2.4**
+- Adding is quicker. The account and date sit right under the amount, and the categories you use most come first.
+- Undo after you save. If you saved by mistake, tap Undo on the message.
+- Typing 12,50 on a keyboard with a comma now saves 12.50, not 1,250.
+- Big text sizes work properly. Amounts shrink to fit instead of getting cut off, and Save stays on screen when the phone is sideways.
+- Activity groups entries by month, and People says who owes who on every row.
+- Insights shows each month's total on the bars. Tap a bar to open that month.
+- One damaged entry can no longer stop the app from opening. It is skipped and everything else shows.
+- If Spendrix is already open in another window, it now says so instead of showing a blank screen.
+
 **New in 2.3**
 - A lighter look. White pages, fewer boxes, and green only where you tap. Dark mode is a plain dark grey.
 - Ask looks like a chat: your messages on the right, answers as plain text, one box for typing, camera and voice.

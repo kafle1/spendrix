@@ -10,6 +10,13 @@ Future<void> setThemeMode(ThemeMode m) async {
   await prefs.setString('theme', m.name);
 }
 
+/// one duration and curve for every small change on screen, so motion feels the same everywhere
+const motion = Duration(milliseconds: 200);
+const motionCurve = Curves.easeOut;
+
+/// true when the person has turned their font size way up, so rows stack instead of truncating
+bool largeText(BuildContext context) => MediaQuery.textScalerOf(context).scale(16) >= 24;
+
 /// money in / money out colors, readable on both light and dark surfaces
 Color moneyColor(BuildContext context, int signed) {
   final dark = Theme.of(context).brightness == Brightness.dark;
@@ -163,6 +170,8 @@ ThemeData buildTheme(Brightness brightness) {
     ),
     segmentedButtonTheme: SegmentedButtonThemeData(
       style: SegmentedButton.styleFrom(
+        // the default padding leaves too little room for four labels on a 360px phone
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         side: BorderSide(color: scheme.outlineVariant),
         selectedBackgroundColor: scheme.secondaryContainer,
         selectedForegroundColor: scheme.onSecondaryContainer,

@@ -5,6 +5,7 @@ import '../models.dart';
 import '../stats.dart';
 import '../store.dart';
 import '../sync.dart';
+import '../theme.dart';
 import '../legacy.dart';
 import '../update.dart';
 import '../widgets.dart';
@@ -65,7 +66,11 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 8),
               Text('Total balance', style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
               const SizedBox(height: 4),
-              Money(store.total, style: t.displaySmall?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -.5)),
+              Money(
+                store.total,
+                fit: true,
+                style: t.displaySmall?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -.5),
+              ),
               const SizedBox(height: 20),
               if (hasEntries) _monthSummary(context, store, spent) else _firstRunCard(context),
               const SizedBox(height: 24),
@@ -106,15 +111,13 @@ Widget _monthSummary(BuildContext context, Store store, int spent) {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
+      // wraps the amount under the label with big fonts instead of cutting it off
+      Wrap(
+        spacing: 12,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          Flexible(
-            child: Text('Spent this month', style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
-          ),
-          const SizedBox(width: 12),
-          Flexible(child: Money(spent, style: t.titleMedium)),
+          Text('Spent this month', style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
+          Money(spent, style: t.titleMedium),
         ],
       ),
       if (budget != null) ...[
@@ -156,17 +159,17 @@ Widget _firstRunCard(BuildContext context) {
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          Icon(Icons.auto_awesome_outlined, size: 40, color: c.primary),
+          Icon(Icons.auto_awesome_outlined, size: 40, color: c.onSurfaceVariant),
           const SizedBox(height: 12),
           Text('Add your first entry', style: t.titleMedium, textAlign: TextAlign.center),
           const SizedBox(height: 8),
           Text(
-            'Use the + button below, snap a receipt in Ask, or turn on sync in Settings.',
+            'Type an amount, or snap a receipt in Ask. Already use Spendrix on another device? Turn on sync in Settings.',
             style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
-          FilledButton(onPressed: () => openEntry(context), child: const Text('Add your first entry')),
+          FilledButton.icon(onPressed: () => openEntry(context), icon: const Icon(Icons.add), label: const Text('Add')),
         ],
       ),
     ),
@@ -273,11 +276,11 @@ class _AccountCard extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 account.name,
-                maxLines: 1,
+                maxLines: largeText(context) ? 2 : 1,
                 overflow: TextOverflow.ellipsis,
                 style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
               ),
-              Money(balance, style: t.titleMedium),
+              Money(balance, fit: true, style: t.titleMedium),
             ],
           ),
         ),
@@ -313,8 +316,8 @@ Widget _recentSection(BuildContext context, List<Entry> recent) => Column(
     ListTileTheme.merge(
       contentPadding: const EdgeInsets.symmetric(horizontal: 4),
       child: AnimatedSize(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOut,
+        duration: motion,
+        curve: motionCurve,
         alignment: Alignment.topCenter,
         child: Column(children: [for (final e in recent) EntryTile(e, key: ValueKey(e.id), showDate: true)]),
       ),

@@ -18,6 +18,12 @@ enum _Filter {
   final String label;
 }
 
+/// a month heading in the flattened list, shown once the list reaches an earlier month
+class _Month {
+  const _Month(this.month);
+  final DateTime month;
+}
+
 /// one row of the flattened, grouped list
 class _Day {
   const _Day(this.date, this.total);
@@ -137,7 +143,12 @@ class _ActivityScreenState extends State<ActivityScreen> {
       (groups[dayOf(e.date)] ??= []).add(e);
     }
     final rows = <Object>[];
+    final now = DateTime.now();
+    DateTime? lastMonth = DateTime(now.year, now.month);
     for (final g in groups.entries) {
+      final month = DateTime(g.key.year, g.key.month);
+      if (month != lastMonth) rows.add(_Month(month));
+      lastMonth = month;
       rows.add(_Day(g.key, g.value.fold(0, (s, e) => s + e.signed)));
       rows.addAll(g.value);
     }
@@ -148,97 +159,115 @@ class _ActivityScreenState extends State<ActivityScreen> {
       if (e.kind == Kind.expense || e.kind == Kind.gave) moneyOut += e.amount;
     }
 
+    final hasEntries = store.entries.isNotEmpty;
+    // opened from an account or a category, the title says which
+    final title = !pushed
+        ? 'Activity'
+        : widget.account != null
+        ? store.account(widget.account)?.name ?? 'Activity'
+        : widget.category != null
+        ? store.category(widget.category)?.name ?? 'Activity'
+        : 'Activity';
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Activity')),
+      appBar: AppBar(title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis)),
       body: SafeArea(
         child: Narrow(
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: TextField(
-                  controller: _searchCtrl,
-                  onChanged: (_) => setState(() {}),
-                  decoration: InputDecoration(
-                    hintText: 'Search',
-                    border: const OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(28)),
-                      borderSide: BorderSide.none,
+              // search and filters mean nothing until there's something to search
+              if (hasEntries) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: TextField(
+                    controller: _searchCtrl,
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      hintText: 'Search',
+                      border: const OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(28)),
+                        borderSide: BorderSide.none,
+                      ),
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _searchCtrl.text.isEmpty
+                          ? null
+                          : IconButton(
+                              icon: const Icon(Icons.close),
+                              tooltip: 'Clear search',
+                              onPressed: () => setState(_searchCtrl.clear),
+                            ),
                     ),
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _searchCtrl.text.isEmpty
-                        ? null
-                        : IconButton(
-                            icon: const Icon(Icons.close),
-                            tooltip: 'Clear search',
-                            onPressed: () => setState(_searchCtrl.clear),
-                          ),
                   ),
                 ),
-              ),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: [
-                    for (final f in _Filter.values)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ChoiceChip(
-                          label: Text(f.label),
-                          selected: _filter == f,
-                          onSelected: (_) => setState(() => _filter = f),
-                        ),
-                      ),
-                    if (_category != null)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: InputChip(
-                          label: Text(store.category(_category)?.name ?? 'Uncategorized'),
-                          onDeleted: () => setState(() => _category = null),
-                        ),
-                      ),
-                    if (_account != null)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: InputChip(
-                          label: Text(store.account(_account)?.name ?? 'Deleted account'),
-                          onDeleted: () => setState(() => _account = null),
-                        ),
-                      ),
-                    if (_month != null)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: InputChip(
-                          label: Text(monthLabel(_month!)),
-                          onDeleted: () => setState(() => _month = null),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              if (store.entries.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Row(
                     children: [
-                      Flexible(
-                        child: Text(
-                          '${filtered.length} ${filtered.length == 1 ? 'entry' : 'entries'}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: t.bodySmall?.copyWith(color: c.onSurfaceVariant),
+                      for (final f in _Filter.values)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(f.label),
+                            selected: _filter == f,
+                            onSelected: (_) => setState(() => _filter = f),
+                          ),
                         ),
-                      ),
-                      const Spacer(),
-                      Flexible(child: Money(moneyIn, colored: true, style: t.bodySmall)),
-                      const SizedBox(width: 12),
-                      Flexible(child: Money(-moneyOut, colored: true, style: t.bodySmall)),
+                      if (_category != null)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: InputChip(
+                            label: Text(store.category(_category)?.name ?? 'Uncategorized'),
+                            onDeleted: () => setState(() => _category = null),
+                          ),
+                        ),
+                      if (_account != null)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: InputChip(
+                            label: Text(store.account(_account)?.name ?? 'Deleted account'),
+                            onDeleted: () => setState(() => _account = null),
+                          ),
+                        ),
+                      if (_month != null)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: InputChip(
+                            label: Text(monthLabel(_month!)),
+                            onDeleted: () => setState(() => _month = null),
+                          ),
+                        ),
                     ],
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  // a wrap, so big fonts push the totals to a second line instead of cutting them off
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      spacing: 12,
+                      runSpacing: 4,
+                      children: [
+                        Text(
+                          '${filtered.length} ${filtered.length == 1 ? 'entry' : 'entries'}',
+                          style: t.bodySmall?.copyWith(color: c.onSurfaceVariant),
+                        ),
+                        Wrap(
+                          spacing: 12,
+                          children: [
+                            Money(moneyIn, colored: true, style: t.bodySmall),
+                            Money(-moneyOut, colored: true, style: t.bodySmall),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
               Expanded(
-                child: store.entries.isEmpty
+                child: !hasEntries
                     ? Empty(
                         icon: Icons.receipt_long_outlined,
                         title: 'Nothing here yet',
@@ -261,19 +290,30 @@ class _ActivityScreenState extends State<ActivityScreen> {
                         itemCount: rows.length,
                         itemBuilder: (context, i) {
                           final row = rows[i];
+                          if (row is _Month) {
+                            return Padding(
+                              padding: EdgeInsets.fromLTRB(16, i == 0 ? 8 : 28, 16, 0),
+                              child: Semantics(header: true, child: Text(monthLabel(row.month), style: t.titleMedium)),
+                            );
+                          }
                           if (row is _Day) {
                             return Padding(
-                              padding: EdgeInsets.fromLTRB(16, i == 0 ? 8 : 20, 16, 4),
+                              padding: EdgeInsets.fromLTRB(16, i == 0 || rows[i - 1] is _Month ? 8 : 20, 16, 4),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    dayLabel(row.date),
-                                    style: t.labelLarge?.copyWith(
-                                      color: c.onSurfaceVariant,
-                                      fontWeight: FontWeight.w600,
+                                  Expanded(
+                                    child: Semantics(
+                                      header: true,
+                                      child: Text(
+                                        dayLabel(row.date),
+                                        style: t.labelLarge?.copyWith(
+                                          color: c.onSurfaceVariant,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
                                     ),
                                   ),
+                                  const SizedBox(width: 12),
                                   Money(row.total, colored: true, style: t.labelLarge),
                                 ],
                               ),

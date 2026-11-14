@@ -20,7 +20,7 @@ Tap **Add** on Home. Type the amount on the keypad, pick **Money out** or **Mone
 
 - **Transfer** moves money between your own accounts, like cash to bank. Both balances change, but it doesn't count as spending.
 - **People** records money you lent someone or borrowed from them.
-- **More** lets you add a note, attach a receipt photo or make it repeat.
+- **Note, photo and more** lets you add a note, attach a receipt photo or make it repeat.
 
 Tap any entry in Activity to change or delete it. Search and the filters at the top narrow the list down.
 
@@ -60,7 +60,7 @@ Set a monthly budget and a limit for any category in Settings. Home then shows h
 
 ## Repeating bills
 
-For rent, salary or a phone bill, open **More** when adding and set **Repeat**. Pick how often, like every 2 weeks or every 3 months, and an end date if it stops. Spendrix adds it on each due date, the next time you open the app.
+For rent, salary or a phone bill, open **Note, photo and more** when adding and set **Repeat**. Pick how often, like every 2 weeks or every 3 months, and an end date if it stops. Spendrix adds it on each due date, the next time you open the app.
 
 Your repeats are listed in Settings. Tap one to change it, or switch it off to pause it.
 
