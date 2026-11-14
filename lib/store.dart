@@ -125,6 +125,9 @@ class Store extends ChangeNotifier {
   Entry? entry(String? id) => _byId[id] is Entry ? _byId[id] as Entry : null;
   Recurring? recurringOf(String? id) => _byId[id] is Recurring ? _byId[id] as Recurring : null;
 
+  /// the saved copy of a record as it is now, null once deleted
+  Model? current(Model m) => m is Settings ? settings : _byId[m.id];
+
   /// where new money goes when nothing says otherwise: the last account used, else the first
   String? get defaultAccount {
     final last = prefs.getString('lastAccount');

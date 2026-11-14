@@ -40,6 +40,12 @@ class Act {
   final List<Model> save, before;
   final Entry? drop;
 
+  /// whether a record this card replaces was edited or deleted after the card appeared
+  bool stale(Store store) => [...before, ?drop].any((m) {
+    final now = store.current(m);
+    return now == null || jsonEncode(now.toData()) != jsonEncode(m.toData());
+  });
+
   Future<void> apply(Store store) async {
     // save() also adds a new repeat's entries that are due
     for (final m in save) {

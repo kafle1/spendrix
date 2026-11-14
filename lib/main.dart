@@ -292,6 +292,14 @@ class Shell extends StatelessWidget {
                       ],
                     )
                   : body,
+              // lives on the shell so the saved and deleted messages, shown here, push it up instead of covering it
+              floatingActionButton: tab <= 1
+                  ? FloatingActionButton.extended(
+                      onPressed: () => openEntry(context),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add'),
+                    )
+                  : null,
               bottomNavigationBar: wide
                   ? null
                   : Column(

@@ -1,5 +1,9 @@
 Spendrix is a private money diary. It works offline and keeps everything on your device.
 
+**Fixed in 2.4.1**
+- The Saved and Deleted messages no longer sit on top of the Add button.
+- If you edit an entry after Ask suggested a change to it, Ask no longer puts the old version back. It asks you to try again.
+
 **New in 2.4**
 - Adding is quicker. The account and date sit right under the amount, and the categories you use most come first.
 - Undo after you save. If you saved by mistake, tap Undo on the message.

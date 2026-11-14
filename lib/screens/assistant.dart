@@ -631,6 +631,11 @@ class _AssistantScreenState extends State<AssistantScreen> with WidgetsBindingOb
   }
 
   Future<void> _runAct(_Line line, Store store, {bool undo = false}) async {
+    // applying an old card would quietly put back what the user has since changed
+    if (!undo && line.act!.stale(store)) {
+      toast(context, 'That changed since I suggested this. Ask me again.');
+      return;
+    }
     // flip first so a double tap can't run it twice
     setState(() => line.done = !undo);
     HapticFeedback.lightImpact();
