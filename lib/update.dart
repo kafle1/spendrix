@@ -104,15 +104,31 @@ void _show(String key, String version) {
 
 void _say(String? note) => _job.value = (busy: false, progress: null, note: note);
 
-/// Whether version [a] is above [b], comparing 2.0.10 above 2.0.9.
+/// Whether version [a] is above [b]: 2.0.10 above 2.0.9, and 2.4.0 above 2.4.0-beta.1. A build number (+12) never counts.
 bool _newer(String a, String b) {
-  List<int> parts(String v) => [for (final p in v.split(RegExp('[+-]')).first.split('.')) int.tryParse(p) ?? 0];
-  final x = parts(a), y = parts(b);
-  for (var i = 0; i < max(x.length, y.length); i++) {
-    final d = (i < x.length ? x[i] : 0) - (i < y.length ? y[i] : 0);
+  ({List<int> core, List<String>? pre}) parse(String v) {
+    final s = v.trim().replaceFirst(RegExp('^[vV]'), '').split('+').first;
+    final dash = s.indexOf('-');
+    return (
+      core: [for (final p in (dash < 0 ? s : s.substring(0, dash)).split('.')) int.tryParse(p) ?? 0],
+      pre: dash < 0 ? null : s.substring(dash + 1).split('.'),
+    );
+  }
+
+  final x = parse(a), y = parse(b);
+  for (var i = 0; i < max(x.core.length, y.core.length); i++) {
+    final d = (i < x.core.length ? x.core[i] : 0) - (i < y.core.length ? y.core[i] : 0);
     if (d != 0) return d > 0;
   }
-  return false;
+  // a release is above its own betas, so someone on 2.4.0-beta.1 still gets 2.4.0
+  final p = x.pre, q = y.pre;
+  if (p == null || q == null) return p == null && q != null;
+  for (var i = 0; i < min(p.length, q.length); i++) {
+    final m = int.tryParse(p[i]), n = int.tryParse(q[i]);
+    final d = m != null && n != null ? m - n : (m != null ? -1 : (n != null ? 1 : p[i].compareTo(q[i])));
+    if (d != 0) return d > 0;
+  }
+  return p.length > q.length;
 }
 
 /// The release file that installs over this copy. On Android that means the same app id.

@@ -12,7 +12,25 @@ env:
   FLUTTER_VERSION: 3.47.5
 
 jobs:
+  # a tag that isn't the pubspec version ships an app that keeps offering itself as an update
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with: { persist-credentials: false }
+      - env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          DESKTOP_SECRET: ${{ secrets.GOOGLE_DESKTOP_SECRET }}
+        run: |
+          v=$(sed -n 's/^version: *\([^+ ]*\).*/\1/p' pubspec.yaml)
+          [ "v$v" = "$GITHUB_REF_NAME" ] || { echo "::error::tag $GITHUB_REF_NAME but pubspec.yaml says $v"; exit 1; }
+          for s in KEYSTORE KEY_PASSWORD DESKTOP_SECRET; do
+            [ -n "$(printenv $s)" ] || { echo "::error::repository secret for $s is missing"; exit 1; }
+          done
+
   android:
+    needs: check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -43,6 +61,7 @@ jobs:
         with: { name: android, path: out/* }
 
   ios:
+    needs: check
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
@@ -59,6 +78,7 @@ jobs:
         with: { name: ios, path: out/* }
 
   macos:
+    needs: check
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
@@ -73,6 +93,7 @@ jobs:
         with: { name: macos, path: out/* }
 
   windows:
+    needs: check
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
@@ -91,6 +112,7 @@ jobs:
         with: { name: windows, path: out/* }
 
   linux:
+    needs: check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -115,6 +137,9 @@ jobs:
         with: { persist-credentials: false }
       - uses: actions/download-artifact@v5
         with: { path: out, merge-multiple: true }
-      - run: gh release create "$GITHUB_REF_NAME" out/* --title "Spendrix ${GITHUB_REF_NAME#v}" --notes-file RELEASE_NOTES.md
+      # a tag like v2.4.0-beta.1 stays a pre-release, so the app's releases/latest check never offers it to everyone
+      - run: |
+          pre=; case "$GITHUB_REF_NAME" in *-*) pre=--prerelease;; esac
+          gh release create "$GITHUB_REF_NAME" out/* --title "Spendrix ${GITHUB_REF_NAME#v}" --notes-file RELEASE_NOTES.md $pre
         env:
           GH_TOKEN: ${{ github.token }}
