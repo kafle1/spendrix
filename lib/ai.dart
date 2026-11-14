@@ -825,9 +825,9 @@ class Assistant extends ChangeNotifier with WidgetsBindingObserver {
 
   Entry? _draft(Map<String, dynamic> j, int? amount) {
     if (amount == null) return null;
-    final kind =
-        const {'income': Kind.income, 'gave': Kind.gave, 'got': Kind.got}[_text(j['kind']).toLowerCase()] ??
-        Kind.expense;
+    // the model sometimes puts the kind where "add" goes: {"do":"gave"}
+    const kinds = {'income': Kind.income, 'gave': Kind.gave, 'got': Kind.got};
+    final kind = kinds[_text(j['kind']).toLowerCase()] ?? kinds[_text(j['do']).toLowerCase()] ?? Kind.expense;
     final withPerson = kind == Kind.gave || kind == Kind.got;
     final who = withPerson ? _text(j['person']) : '';
     final person = _named(store.people, (p) => p.name, who);
@@ -868,6 +868,7 @@ class Assistant extends ChangeNotifier with WidgetsBindingObserver {
     final month = DateTime(now.year, now.month), next = DateTime(now.year, now.month + 1);
     final last = DateTime(now.year, now.month - 1);
     final cur = store.currency;
+    final day = DateFormat('yyyy-MM-dd'), yesterday = DateTime(now.year, now.month, now.day - 1);
     String m(int cents) => store.fmt(cents);
     String name(String? category) => store.category(category)?.name ?? 'Uncategorized';
     String names(Kind kind) => store.categoriesFor(kind).take(30).map((c) => c.name).join(', ');
@@ -875,7 +876,7 @@ class Assistant extends ChangeNotifier with WidgetsBindingObserver {
     final b = StringBuffer()
       ..writeln(
         'You are the money helper in Spendrix, a private money diary app. '
-        'Today is ${DateFormat('EEEE, d MMMM y').format(now)}.',
+        'Today is ${DateFormat('EEEE, d MMMM y').format(now)}, yesterday was ${day.format(yesterday)}.',
       )
       ..writeln(
         'Answer in 1 to 3 short sentences of plain text, no markdown. Use only the facts below. '
@@ -890,10 +891,17 @@ class Assistant extends ChangeNotifier with WidgetsBindingObserver {
         )
         ..writeln(
           'Money spent, received, given to or got from someone: {"do":"add","kind":"expense","amount":250,'
-          '"currency":"","category":"Food","person":"","note":"lunch","date":"${DateFormat('yyyy-MM-dd').format(now)}"}',
+          '"currency":"","category":"Food","person":"","note":"lunch","date":"${day.format(now)}"}',
+        )
+        // each line below fixed requests the model got wrong; reword one and the others can break, so re-measure
+        ..writeln(
+          "A few words and a number, like tea 60 or chiya 60, is money spent even when you don't know the word: "
+          'keep the word as the note.',
         )
         ..writeln(
-          'kind is expense, income, gave or got. amount is a plain number from their message. '
+          'kind is expense, income, gave or got. gave is money lent or given to a person, got is money a person '
+          "gave you or paid back, and both need the person's name. With no person it is expense or income. "
+          'amount is a plain number from their message. '
           'currency is a 3-letter code only when they name another currency, like 20 dollars (USD), else "". '
           'category is one of the category names below, matching Nepali words by meaning (khana is Food), or "". '
           'person is only for gave and got. date is today unless they say another day. '
@@ -901,22 +909,38 @@ class Assistant extends ChangeNotifier with WidgetsBindingObserver {
           '"n":2 for every 2 months, and "until":"YYYY-MM-DD" only if they say when it ends.',
         )
         ..writeln(
+          'In Nepali, in either script, hijo is yesterday, tire or kharcha is spent, talab or aayo is income, '
+          'lai ... diye is gave, bata ... paye is got.',
+        )
+        ..writeln(
+          'Lent Ram 2000 yesterday: {"do":"add","kind":"gave","amount":2000,"currency":"","category":"",'
+          '"person":"Ram","note":"","date":"${day.format(yesterday)}"}',
+        )
+        ..writeln(
+          '20 euros taxi: {"do":"add","kind":"expense","amount":20,"currency":"EUR","category":"Transport",'
+          '"person":"","note":"taxi","date":"${day.format(now)}"}',
+        )
+        ..writeln(
           'Netflix 1200 every month: {"do":"add","kind":"expense","amount":1200,"currency":"","category":"",'
           '"person":"","note":"Netflix","every":"month"}',
         )
         ..writeln('Move money between accounts: {"do":"move","amount":5000,"from":"Cash","to":"Bank"}')
         ..writeln(
+          "The app finds the entry itself, so never say you can't see it. "
           'Delete an entry: {"do":"delete","find":""}. Change one: {"do":"change","find":"","amount":0,'
           '"category":"","note":""}, filling only what they want changed. find is a word from its note, '
-          'category or person, or "" for the one they just added.',
+          'category or person, or "" for the one they just added. '
+          'Make the last entry 300: {"do":"change","find":"","amount":300}',
         )
         ..writeln('Settle up with someone: {"do":"settle","person":"Ram"}')
-        ..writeln('Monthly budget: {"do":"budget","amount":20000,"category":""}. Amount 0 removes it.')
+        ..writeln(
+          'A budget, only when they say budget: {"do":"budget","amount":20000,"category":""}. Amount 0 removes it.',
+        )
         ..writeln(
           'Add a person, account or category by name, never for money with an amount: {"do":"new","person":"Hari"}, '
           '{"do":"new","account":"eSewa"}, {"do":"new","category":"Pets","kind":"expense"}',
         )
-        ..writeln('Stop something that repeats: {"do":"stop","find":"Netflix"}');
+        ..writeln('Stop or cancel something that repeats: {"do":"stop","find":"Netflix"}');
     }
     b
       ..writeln()
@@ -926,12 +950,12 @@ class Assistant extends ChangeNotifier with WidgetsBindingObserver {
     b
       ..writeln('Money out today: ${m(store.spent(today, tomorrow))}.')
       ..writeln(
-        'This month (${monthLabel(month)}) so far: money out ${m(store.spent(month, next))}, '
-        'money in ${m(store.earned(month, next))}.',
+        'This month (${monthLabel(month)}) so far: spent ${m(store.spent(month, next))}, '
+        'earned ${m(store.earned(month, next))}.',
       )
       ..writeln(
-        'Last month (${monthLabel(last)}): money out ${m(store.spent(last, month))}, '
-        'money in ${m(store.earned(last, month))}.',
+        'Last month (${monthLabel(last)}): spent ${m(store.spent(last, month))}, '
+        'earned ${m(store.earned(last, month))}.',
       );
 
     final top = store.byCategory(month, next).take(5).map((e) => '${name(e.key)} ${m(e.value)}');
@@ -1073,7 +1097,9 @@ int? _cents(Object? v) {
   final m = RegExp(r'\d[\d.,]*').firstMatch(v);
   if (m == null) return null;
   // a minus before the digits, or an exponent right after, means it isn't a plain amount
-  if (RegExp(r'[-−]\s*$').hasMatch(v.substring(0, m.start)) || RegExp(r'^[eE]').hasMatch(v.substring(m.end))) return null;
+  if (RegExp(r'[-−]\s*$').hasMatch(v.substring(0, m.start)) || RegExp(r'^[eE]').hasMatch(v.substring(m.end))) {
+    return null;
+  }
   var s = m.group(0)!;
   // "1.234,50": a comma before the last two digits is the decimal point
   if (RegExp(r',\d{2}$').hasMatch(s)) s = s.replaceAll('.', '').replaceFirst(RegExp(r',(?=\d{2}$)'), '.');
