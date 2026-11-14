@@ -94,11 +94,6 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => openEntry(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Add'),
-      ),
     );
   }
 }
