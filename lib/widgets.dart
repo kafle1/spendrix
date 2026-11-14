@@ -50,14 +50,23 @@ IconData iconOf(String? name) => icons[name] ?? Icons.category_outlined;
 
 /// a labeled value in a row of stats, e.g. "You'll get / Rs 500"
 Widget statColumn(BuildContext context, String label, Widget value, {TextStyle? valueStyle}) => Expanded(
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Text(label, style: Theme.of(context).textTheme.bodySmall),
-      const SizedBox(height: 4),
-      DefaultTextStyle.merge(style: valueStyle ?? Theme.of(context).textTheme.titleMedium, child: value),
-    ],
+  // a gap on the end side, so two shrunken numbers never touch
+  child: Padding(
+    padding: const EdgeInsetsDirectional.only(end: 12),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: 4),
+        // big totals and big font sizes shrink the number instead of cutting it off
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: AlignmentDirectional.centerStart,
+          child: DefaultTextStyle.merge(style: valueStyle ?? Theme.of(context).textTheme.titleMedium, child: value),
+        ),
+      ],
+    ),
   ),
 );
 
@@ -66,26 +75,29 @@ final currentTab = ValueNotifier(0);
 
 /// An amount in the user's currency, with tabular digits so columns line up.
 /// With [colored], money in is green with "+" and money out red with "−".
+/// With [fit], a number too wide for its space shrinks instead of ending in "...".
 class Money extends StatelessWidget {
-  const Money(this.cents, {super.key, this.style, this.colored = false});
+  const Money(this.cents, {super.key, this.style, this.colored = false, this.fit = false});
 
   final int cents;
   final TextStyle? style;
-  final bool colored;
+  final bool colored, fit;
 
   @override
   Widget build(BuildContext context) {
     final cur = context.select<Store, Currency>((s) => s.currency);
     final base = style ?? DefaultTextStyle.of(context).style;
-    return Text(
+    final text = Text(
       money(cents, cur, sign: colored),
       style: base.copyWith(
         fontFeatures: const [FontFeature.tabularFigures()],
         color: colored ? moneyColor(context, cents) : null,
       ),
       maxLines: 1,
-      overflow: TextOverflow.ellipsis,
+      overflow: fit ? TextOverflow.visible : TextOverflow.ellipsis,
     );
+    if (!fit) return text;
+    return FittedBox(fit: BoxFit.scaleDown, alignment: AlignmentDirectional.centerStart, child: text);
   }
 }
 
@@ -101,8 +113,8 @@ class IconBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = Theme.of(context).colorScheme;
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOut,
+      duration: motion,
+      curve: motionCurve,
       width: size,
       height: size,
       decoration: BoxDecoration(color: selected ? c.primary : c.surfaceContainerHigh, shape: BoxShape.circle),
@@ -127,10 +139,13 @@ Widget sectionHeader(BuildContext context, String title, {Widget? action}) => Pa
 
 /// One row of history. Tap opens it for editing.
 class EntryTile extends StatelessWidget {
-  const EntryTile(this.entry, {super.key, this.showDate = false});
+  const EntryTile(this.entry, {super.key, this.showDate = false, this.showPerson = true});
 
   final Entry entry;
   final bool showDate;
+
+  /// off on a person's own page, where their name on every row says nothing new
+  final bool showPerson;
 
   @override
   Widget build(BuildContext context) {
@@ -139,6 +154,7 @@ class EntryTile extends StatelessWidget {
     String accountName(String? id) => store.account(id)?.name ?? 'Deleted account';
     final (IconData icon, String title, String detail) = switch (e.kind) {
       Kind.transfer => (Icons.swap_horiz, 'Transfer', '${accountName(e.account)} → ${accountName(e.to)}'),
+      Kind.gave || Kind.got when !showPerson => (Icons.person_outline, e.kind.label, accountName(e.account)),
       Kind.gave || Kind.got => (
         Icons.person_outline,
         store.person(e.person)?.name ?? 'Someone',
@@ -150,29 +166,48 @@ class EntryTile extends StatelessWidget {
         accountName(e.account),
       ),
     };
+    // the date goes first, so a long note can't push it out of sight
     final subtitle = [
+      if (showDate) dayLabel(e.date),
       ?e.paidIn(store.currency),
       if (e.note.isNotEmpty) e.note,
-      if (showDate) dayLabel(e.date),
       detail,
     ].join(' · ');
-    return ListTile(
-      leading: IconBubble(icon),
-      title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (e.recurring != null) const Icon(Icons.repeat, size: 16, semanticLabel: 'Repeats'),
-          if (e.photo) const Icon(Icons.image_outlined, size: 16, semanticLabel: 'Has a photo'),
-          const SizedBox(width: 6),
-          Money(
+    final amount = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (e.recurring != null) const Icon(Icons.repeat, size: 16, semanticLabel: 'Repeats'),
+        if (e.photo) const Icon(Icons.image_outlined, size: 16, semanticLabel: 'Has a photo'),
+        if (e.recurring != null || e.photo) const SizedBox(width: 6),
+        Flexible(
+          child: Money(
             e.kind == Kind.transfer ? e.amount : e.signed,
             colored: e.kind != Kind.transfer,
             style: Theme.of(context).textTheme.titleMedium,
           ),
-        ],
-      ),
+        ),
+      ],
+    );
+    // with a very large font there's no room for name and amount side by side, so the amount moves under the name
+    if (largeText(context)) {
+      return ListTile(
+        leading: IconBubble(icon),
+        title: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            amount,
+            Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
+          ],
+        ),
+        onTap: () => openEntry(context, entry: e),
+      );
+    }
+    return ListTile(
+      leading: IconBubble(icon),
+      title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+      trailing: amount,
       onTap: () => openEntry(context, entry: e),
     );
   }
@@ -196,7 +231,7 @@ class Empty extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 56, color: Theme.of(context).colorScheme.primary),
+            Icon(icon, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
             const SizedBox(height: 16),
             Text(title, style: t.titleMedium, textAlign: TextAlign.center),
             if (body != null) ...[

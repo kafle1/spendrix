@@ -75,7 +75,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 leading: IconBubble(iconOf(a.icon)),
                 title: Text(a.name, maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: a.archived ? const Text('Archived') : null,
-                trailing: Money(store.balance(a.id)),
+                trailing: Money(store.balance(a.id), style: t.bodyLarge),
                 onTap: () => editAccount(context, a),
               ),
             ListTile(
@@ -87,7 +87,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             for (final kind in const [Kind.expense, Kind.income]) ...[
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: Text(kind.label, style: t.labelLarge),
+                child: Text(
+                  kind.label,
+                  style: t.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
               ),
               for (final c in store.categoriesFor(kind))
                 ListTile(
@@ -107,7 +110,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const ListTile(
                 leading: Icon(Icons.repeat),
                 title: Text('Nothing repeats yet'),
-                subtitle: Text('Set Repeat in More when adding an entry.'),
+                subtitle: Text('Set Repeat under Note, photo and more when adding an entry.'),
               ),
             for (final r in store.recurring) _repeatTile(store, r),
             const _Header('Appearance'),
@@ -216,9 +219,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Use Spendrix on your phone and computer. Sign in with Google, and your entries are locked '
-            'with a private key that only your devices and a hidden folder in your Google Drive hold, '
-            'so nobody else can read them, not even us.',
+            'Use Spendrix on your phone and computer. Your entries are locked on this device before '
+            'they leave, so nobody else can read them, not even us.',
           ),
           const SizedBox(height: 16),
           FilledButton(onPressed: () => showAccountSheet(context), child: const Text('Continue with Google')),
@@ -751,7 +753,8 @@ class _Header extends StatelessWidget {
       header: true,
       child: Text(
         text,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(color: Theme.of(context).colorScheme.primary),
+        // grey, not green: green is kept for things you can tap
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
       ),
     ),
   );

@@ -10,7 +10,7 @@ class GuideScreen extends StatelessWidget {
     (
       Icons.add_circle_outline,
       'Adding money in and out',
-      'Tap + and type the amount. Pick Money out or Money in, choose a category, and save. '
+      'Tap Add and type the amount. Pick Money out or Money in, choose a category, and save. '
           'Tap any entry later to change or delete it.',
     ),
     (
@@ -28,7 +28,7 @@ class GuideScreen extends StatelessWidget {
     (
       Icons.repeat,
       'Repeating entries',
-      'For rent, salary or bills, open More when adding an entry and set Repeat. '
+      'For rent, salary or bills, open Note, photo and more when adding an entry, and set Repeat. '
           "Spendrix adds each one when it's due, the next time you open the app. Pause or delete it in Settings.",
     ),
     (
@@ -60,7 +60,7 @@ class GuideScreen extends StatelessWidget {
     (
       Icons.fingerprint,
       'App lock',
-      'Turn on App lock in Settings to ask for your fingerprint, face or phone PIN when Spendrix opens. '
+      'Turn on Lock with fingerprint or PIN in Settings to ask for your fingerprint, face or phone PIN when Spendrix opens. '
           "It locks again after you've been away for 30 seconds.",
     ),
   ];
