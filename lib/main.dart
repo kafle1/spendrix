@@ -25,8 +25,16 @@ import 'widgets.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  prefs = await SharedPreferencesWithCache.create(cacheOptions: const SharedPreferencesWithCacheOptions());
-  final store = await Store.open();
+  final Store store;
+  try {
+    prefs = await SharedPreferencesWithCache.create(cacheOptions: const SharedPreferencesWithCacheOptions());
+    store = await Store.open();
+  } catch (e) {
+    // a locked or unreadable data file (often a second window on a computer) would otherwise leave a blank window
+    debugPrint('store open failed: $e');
+    runApp(const _OpenFailed());
+    return;
+  }
   startStats(
     () => {
       'entries': bucket(store.entries.length),
@@ -53,6 +61,28 @@ Future<void> main() async {
     ),
   );
   unawaited(checkForUpdate());
+}
+
+class _OpenFailed extends StatelessWidget {
+  const _OpenFailed();
+
+  @override
+  Widget build(BuildContext context) => const MaterialApp(
+    title: 'Spendrix',
+    debugShowCheckedModeBanner: false,
+    home: Scaffold(
+      body: Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: Text(
+            "Spendrix couldn't open your data. It's still safe on this device.\n\n"
+            'If Spendrix is open in another window, close it. Then close this one and open Spendrix again.',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class App extends StatelessWidget {

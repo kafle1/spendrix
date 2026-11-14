@@ -188,22 +188,27 @@ class Store extends ChangeNotifier {
     for (final i in _items.values) {
       if (i.deleted) continue;
       final Model m;
-      switch (i.type) {
-        case 'settings':
-          s = Settings.from(i);
-          continue;
-        case 'account':
-          allAccounts.add(m = Account.from(i));
-        case 'category':
-          categories.add(m = Category.from(i));
-        case 'person':
-          people.add(m = Person.from(i));
-        case 'entry':
-          entries.add(m = Entry.from(i));
-        case 'recurring':
-          recurring.add(m = Recurring.from(i));
-        default:
-          continue;
+      try {
+        switch (i.type) {
+          case 'settings':
+            s = Settings.from(i);
+            continue;
+          case 'account':
+            allAccounts.add(m = Account.from(i));
+          case 'category':
+            categories.add(m = Category.from(i));
+          case 'person':
+            people.add(m = Person.from(i));
+          case 'entry':
+            entries.add(m = Entry.from(i));
+          case 'recurring':
+            recurring.add(m = Recurring.from(i));
+          default:
+            continue;
+        }
+      } catch (_) {
+        // one record this build can't read is skipped, so the rest of the app still opens
+        continue;
       }
       _byId[m.id] = m;
     }
@@ -544,8 +549,8 @@ class Store extends ChangeNotifier {
 
   String csv() {
     String cell(String s) {
-      // a leading = + - @ would run as a formula in Excel
-      final safe = RegExp(r'^[=+\-@]').hasMatch(s) ? "'$s" : s;
+      // a leading = + - @ tab or return would run as a formula in Excel
+      final safe = RegExp(r'^[=+\-@\t\r]').hasMatch(s) ? "'$s" : s;
       return RegExp(r'[",\n\r]').hasMatch(safe) ? '"${safe.replaceAll('"', '""')}"' : safe;
     }
 

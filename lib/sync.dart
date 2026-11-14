@@ -257,6 +257,8 @@ class Sync extends ChangeNotifier {
   /// Check [keyInDrive] after it to warn when the key only lives here.
   Future<void> start(Login l) async {
     final a = l.account!;
+    // without the key nothing can be locked, so nothing may start pushing
+    if (a.key.length != 32) throw const SyncError("This device doesn't have the sync key yet. Enter it to go on.", Problem.key);
     a.inDrive = l.inDrive || await _driveKeep(a, l.google.drive);
     if (!store.hasOwnData) await store.yieldSettings();
     await store.markAllDirty();
@@ -305,15 +307,19 @@ class Sync extends ChangeNotifier {
   Future<void> signOut({required bool removeData}) async {
     // stops a long first pull at the next page instead of waiting it out
     _closing = true;
-    await _running;
-    _closing = false;
-    // the key may live nowhere else, so keep it for this account's next sign-in here, even when data goes
-    if (_session case final s? when s.key.isNotEmpty) await prefs.setString('key-${s.uid}', base64Url.encode(s.key));
-    _session = null;
-    problem = null;
-    lastSync = null;
-    await prefs.remove('sync');
-    if (removeData) await store.wipe();
+    // held until the end: a sync starting in one of the gaps below would pull the account back in after the wipe
+    try {
+      await _running;
+      // the key may live nowhere else, so keep it for this account's next sign-in here, even when data goes
+      if (_session case final s? when s.key.isNotEmpty) await prefs.setString('key-${s.uid}', base64Url.encode(s.key));
+      _session = null;
+      problem = null;
+      lastSync = null;
+      await prefs.remove('sync');
+      if (removeData) await store.wipe();
+    } finally {
+      _closing = false;
+    }
     notifyListeners();
   }
 
