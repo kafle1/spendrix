@@ -9,7 +9,8 @@
 <link rel="alternate" hreflang="en" href="https://spendrix.web.app/">
 <link rel="alternate" hreflang="ne" href="https://spendrix.web.app/ne/">
 <link rel="alternate" hreflang="x-default" href="https://spendrix.web.app/">
-<meta name="theme-color" content="#062F27">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="/favicon.png" type="image/png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preload" href="/fonts/mukta-700-deva.woff2" as="font" type="font/woff2" crossorigin>
@@ -38,7 +39,7 @@
 {"@type":"Question","name":"मेरो हिसाब कहाँ बस्छ?","acceptedAnswer":{"@type":"Answer","text":"तपाईंकै डिभाइसमा। सिंक खोल्नुभयो भने पनि हिसाब पठाउनुअघि डिभाइसमै लक हुन्छ, र त्यसको साँचो तपाईंका डिभाइसमा मात्र हुन्छ।"}},
 {"@type":"Question","name":"फोन हरायो भने के हुन्छ?","acceptedAnswer":{"@type":"Answer","text":"सिंक खोल्नुहोस्, वा Settings बाट बेलाबेलामा फाइलमा ब्याकअप लिनुहोस्। यसो गर्नुभयो भने नयाँ फोनमा सबै हिसाब फिर्ता आउँछ।"}},
 {"@type":"Question","name":"Play Store मा किन छैन?","acceptedAnswer":{"@type":"Answer","text":"अहिलेसम्म राखिएको छैन। त्यतिन्जेल GitHub बाट फाइल लिनुहोस्। त्यहाँको हरेक संस्करण सार्वजनिक कोडबाटै बनाइन्छ।"}},
-{"@type":"Question","name":"अपडेट कसरी गर्ने?","acceptedAnswer":{"@type":"Answer","text":"नयाँ संस्करण आएपछि Home मा एउटा कार्ड देखिन्छ। नयाँ फाइल पुरानो एपमाथि नै इन्स्टल गर्नुहोस्। पहिले अनइन्स्टल नगर्नुहोस्, नत्र हिसाब मेटिन्छ।"}},
+{"@type":"Question","name":"अपडेट कसरी गर्ने?","acceptedAnswer":{"@type":"Answer","text":"नयाँ संस्करण आएपछि Home मा एउटा कार्ड देखिन्छ। Update थिच्नुहोस्, बाँकी काम एपले आफैं गर्छ। Mac मा नयाँ संस्करण डाउनलोड हुन्छ, त्यसलाई Applications मा तान्नुहोस्। पहिले अनइन्स्टल नगर्नुहोस्, नत्र हिसाब मेटिन्छ।"}},
 {"@type":"Question","name":"नेपालीमा चल्छ?","acceptedAnswer":{"@type":"Answer","text":"AI सहायकले नेपाली र अंग्रेजी दुवै बुझ्छ, टाइप गरे पनि बोले पनि। एपका स्क्रिन अहिले अंग्रेजीमा छन्, र रकम सुरुदेखि नै नेपाली रुपैयाँमा हुन्छ।"}},
 {"@type":"Question","name":"AI सहायक कुन डिभाइसमा चल्छ?","acceptedAnswer":{"@type":"Answer","text":"धेरैजसो ६४-बिट Android फोन, iPhone, Apple chip भएका Mac, र ६४-बिट Windows र Linux कम्प्युटरमा चल्छ। ब्राउजरमा Chrome वा Edge चाहिन्छ। ६ GB भन्दा कम मेमोरी भएका फोनमा ढिलो हुन सक्छ। AI बिना पनि बाँकी सबै चल्छ।"}},
 {"@type":"Question","name":"पहिले ब्राउजरमा चलाउँथेँ, मेरो हिसाब कहाँ गयो?","acceptedAnswer":{"@type":"Answer","text":"कतै गएको छैन। वेब एप अब spendrix.web.app/app/ मा सरेको छ। उही ब्राउजरमा खोल्नुहोस्, तपाईंको हिसाब त्यहीँ छ।"}}
@@ -46,13 +47,18 @@
 </script>
 </head>
 <body id="top">
-<header class="hero">
-  <div class="wrap">
-    <nav class="top" aria-label="मुख्य">
+<header class="bar"><div class="wrap">
+  <nav class="top" aria-label="मुख्य">
       <a class="brand" href="#top"><img src="/img/icon-64.png" alt="" width="34" height="34">Spendrix</a>
       <a href="/#top" hreflang="en" lang="en">English</a>
-      <a href="/app/">ब्राउजरमा खोल्नुहोस्</a>
+      <a href="/app/" class="open">ब्राउजरमा खोल्नुहोस्</a>
+      <a class="btn" href="#download">डाउनलोड</a>
     </nav>
+</div></header>
+
+<main>
+<section class="hero">
+  <div class="wrap">
     <div class="hero-in">
       <div>
         <h1>हरेक रुपैयाँको हिसाब, सेकेन्डमै।</h1>
@@ -61,17 +67,21 @@
           <a class="btn" id="get" href="#download" data-android="Android मा डाउनलोड गर्नुहोस्" data-iphone="iPhone मा लिनुहोस्" data-macos="Mac मा डाउनलोड गर्नुहोस्" data-windows="Windows मा डाउनलोड गर्नुहोस्" data-linux="Linux मा डाउनलोड गर्नुहोस्"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0 5-5m-5 5-5-5M5 20h14"/></svg><span>डाउनलोड गर्नुहोस्</span></a>
           <a class="alt" href="/app/">वा ब्राउजरमै खोल्नुहोस्</a>
         </div>
-        <p class="note">नि:शुल्क। खाता चाहिँदैन। विज्ञापन छैन। <a href="#download" style="color:inherit">अरू डिभाइस</a></p>
+        <p class="note">नि:शुल्क। खाता चाहिँदैन। विज्ञापन छैन। <a href="#download">अरू डिभाइस</a></p>
       </div>
-      <div class="hero-phone"><div class="phone"><img src="/img/home.webp" alt="Spendrix को Home स्क्रिन, कुल ब्यालेन्स, यो महिनाको खर्च, खाता र पछिल्ला हिसाब सहित" width="720" height="1558" fetchpriority="high"></div></div>
+      <form class="try" id="try" autocomplete="off" data-blank="हिसाब" data-income="तलब salary" data-cats='{"खाना":"चिया खाजा खाना कफी मम chiya khaja khana","यातायात":"ट्याक्सी बस पेट्रोल taxi bus","बिल":"भाडा बिल बिजुली नेट"}'>
+        <label for="try-in">यहीँ चलाएर हेर्नुहोस्। के मा खर्च भयो, लेख्नुहोस्।</label>
+        <div class="try-row"><input id="try-in" placeholder="खाजा १५०" maxlength="40" enterkeyhint="done"><button class="btn" type="submit">थप्नुहोस्</button></div>
+        <p class="try-eg">वा एउटा थिच्नुहोस्: <button type="button">चिया ३०</button><button type="button">बस २५</button><button type="button">तलब ४५०००</button></p>
+        <p class="try-hint" role="alert" hidden>रकम पनि लेख्नुहोस्, जस्तै "चिया ३०"।</p>
+        <div class="try-total"><span>आज</span><output id="try-sum" for="try-in"></output></div>
+        <ol class="try-list" id="try-list" aria-live="polite">
+          <li data-v="-350"><span><b>ट्याक्सी</b><small>यातायात</small></span><i>−350</i></li>
+          <li data-v="-60"><span><b>चिया</b><small>खाना</small></span><i>−60</i></li>
+        </ol>
+        <p class="try-note">यो बाकस नमुना मात्र हो। यहाँ लेखेको कुरा कतै सेभ हुँदैन, कतै पठाइँदैन। एपमा बोलेर वा बिलको फोटो खिचेर पनि लेखाउन सकिन्छ।</p>
+      </form>
     </div>
-  </div>
-</header>
-
-<main>
-<section class="sec video" id="video" hidden aria-label="भिडियो">
-  <div class="wrap">
-    <video controls playsinline preload="metadata" poster="/media/promo-poster.jpg" onloadedmetadata="this.closest('section').hidden=false"><source src="/media/promo.mp4" type="video/mp4"></video>
   </div>
 </section>
 
@@ -82,6 +92,7 @@
     <div class="shots">
       <figure><div class="phone"><img src="/img/home.webp" alt="यो महिनाको हिसाब देखाउने Home स्क्रिन" width="720" height="1558" loading="lazy"></div><figcaption><b>Home</b>यो महिना कति बाँकी छ, एकै नजरमा।</figcaption></figure>
       <figure><div class="phone"><img src="/img/add.webp" alt="अंक थिचेर नयाँ खर्च थप्दै" width="720" height="1558" loading="lazy"></div><figcaption><b>Add</b>रकम लेख्नुहोस्, शीर्षक छान्नुहोस्, सेभ गर्नुहोस्। सकियो।</figcaption></figure>
+      <figure><div class="phone"><img src="/img/activity.webp" alt="दिन अनुसार सबै हिसाब देखाउने Activity स्क्रिन" width="720" height="1558" loading="lazy"></div><figcaption><b>Activity</b>हरेक हिसाब, दिन अनुसार। खोज्न र छान्न मिल्छ।</figcaption></figure>
       <figure><div class="phone"><img src="/img/insights.webp" alt="शीर्षक अनुसार खर्चको चार्ट" width="720" height="1558" loading="lazy"></div><figcaption><b>Insights</b>हरेक महिना पैसा कहाँ गयो, चार्टमै हेर्नुहोस्।</figcaption></figure>
       <figure><div class="phone"><img src="/img/people.webp" alt="कसले दिनुपर्ने र कसलाई दिनुपर्ने भन्ने सूची" width="720" height="1558" loading="lazy"></div><figcaption><b>People</b>कसले तपाईंलाई दिनुपर्ने, तपाईंले कसलाई दिनुपर्ने, र कहिले चुक्ता भयो।</figcaption></figure>
     </div>
@@ -100,8 +111,6 @@
   <div class="wrap ai-in">
     <div>
       <h2>नेपालीमा भन्नुहोस्, एपले आफैं लेख्छ।</h2>
-      <p class="say" aria-hidden="true">बिजुली बिल ११००</p>
-      <div class="card" aria-hidden="true" lang="en"><span>Draft entry</span><strong>Electricity bill</strong><em>Rs 1,100</em><i><u>Save</u><u>Edit</u></i></div>
       <p class="lead">यो सहायक तपाईंकै फोन वा कम्प्युटरमा चल्छ। डिभाइस अनुसार २ देखि ४ GB एक पटक डाउनलोड गरेपछि इन्टरनेट नभए पनि काम गर्छ। तपाईंको आवाज, फोटो र हिसाब डिभाइस बाहिर जाँदैन।</p>
       <ul class="ways">
         <li><b>टाइप गर्नुहोस्।</b> "chiya 60", "salary 50000", "Ram lai 2000 sapati".</li>
@@ -109,7 +118,7 @@
         <li><b>फोटो खिच्नुहोस्।</b> बिलको फोटोबाट रकम, मिति र पसलको नाम आफैं भरिन्छ।</li>
         <li><b>सोध्नुहोस्।</b> "यो महिना खानामा कति खर्च भयो?" वा "मलाई कसले पैसा दिन बाँकी छ?"</li>
       </ul>
-      <p class="small muted" style="margin-top:24px">तपाईंले Save नथिचेसम्म केही सेभ हुँदैन, र Undo ले फेरि पहिलेकै जस्तो बनाउँछ। ब्राउजरमा सहायकसँग च्याट मात्र हुन्छ, आवाज र फोटोको लागि एप चाहिन्छ। ६ GB भन्दा कम मेमोरी भएका फोनमा ढिलो चल्न सक्छ।</p>
+      <p class="small muted try-note">तपाईंले Save नथिचेसम्म केही सेभ हुँदैन, र Undo ले फेरि पहिलेकै जस्तो बनाउँछ। ब्राउजरमा सहायकसँग च्याट मात्र हुन्छ, आवाज र फोटोको लागि एप चाहिन्छ। ६ GB भन्दा कम मेमोरी भएका फोनमा ढिलो चल्न सक्छ।</p>
     </div>
     <div class="ai-phone"><div class="phone"><img src="/img/ai.webp" alt="फोनमै चल्ने सहायकबारे बताउने Ask ट्याब" width="720" height="1558" loading="lazy"></div></div>
   </div>
@@ -127,10 +136,10 @@
   </div>
 </section>
 
-<section class="sec" id="download" style="padding-top:0">
+<section class="sec" id="download">
   <div class="wrap">
     <h2>Spendrix लिनुहोस्</h2>
-    <p class="lead">सबै डिभाइसमा नि:शुल्क। अपडेट गर्दा नयाँ फाइल पुरानो एपमाथि नै इन्स्टल गर्नुहोस्। पहिले अनइन्स्टल नगर्नुहोस्, नत्र हिसाब पनि जान्छ।</p>
+    <p class="lead">सबै डिभाइसमा नि:शुल्क। एक पटक इन्स्टल गर्नुहोस्। त्यसपछि नयाँ संस्करण एपभित्रै आउँछ।</p>
     <ul class="dl">
       <li id="dl-android"><h3>Android</h3><p>फोनमा फाइल खोल्नुहोस् र इन्स्टल गर्न अनुमति दिनुहोस्।</p><a class="get" href="https://github.com/kafle1/spendrix/releases/latest/download/Spendrix-android.apk">.apk डाउनलोड</a>
         <p class="old">पहिले Spendrix 1.3, 2.0.0 वा 2.0.1 इन्स्टल गर्नुभएको थियो? एक पटक <a href="https://github.com/kafle1/spendrix/releases/latest/download/Spendrix-android-for-1.3-and-2.0.apk">यो अर्को फाइल</a> लिनुहोस्। यो ती संस्करणका लागि मात्र हो।</p></li>
@@ -141,11 +150,11 @@
       <li id="dl-linux"><h3>Linux</h3><p>Extract गरेर <code>./spendrix</code> चलाउनुहोस्। ६४-बिट Intel वा AMD को लागि।</p><a class="get" href="https://github.com/kafle1/spendrix/releases/latest/download/Spendrix-linux-x64.tar.gz">.tar.gz डाउनलोड</a></li>
       <li id="dl-web"><h3>ब्राउजर</h3><p>केही इन्स्टल गर्नु पर्दैन। AI सहायकको लागि Chrome वा Edge चाहिन्छ।</p><a class="get" href="/app/">एप खोल्नुहोस्</a></li>
     </ul>
-    <p class="small muted" style="margin-top:20px">सबै संस्करण र तिनका नोट <a href="https://github.com/kafle1/spendrix/releases">GitHub releases</a> मा छन्।</p>
+    <p class="small muted try-note">सबै संस्करण र तिनका नोट <a href="https://github.com/kafle1/spendrix/releases">GitHub releases</a> मा छन्।</p>
   </div>
 </section>
 
-<section class="sec" id="faq" style="padding-top:0">
+<section class="sec" id="faq">
   <div class="wrap faq">
     <h2>प्रश्नहरू</h2>
     <details><summary>Spendrix साँच्चै नि:शुल्क हो?</summary><p>हो। पैसा तिर्नुपर्ने कुनै प्लान छैन, विज्ञापन पनि छैन।</p></details>
@@ -153,7 +162,7 @@
     <details><summary>मेरो हिसाब कहाँ बस्छ?</summary><p>तपाईंकै डिभाइसमा। सिंक खोल्नुभयो भने पनि हिसाब पठाउनुअघि डिभाइसमै लक हुन्छ, र त्यसको साँचो तपाईंका डिभाइसमा मात्र हुन्छ।</p></details>
     <details><summary>फोन हरायो भने के हुन्छ?</summary><p>सिंक खोल्नुहोस्, वा Settings बाट बेलाबेलामा फाइलमा ब्याकअप लिनुहोस्। यसो गर्नुभयो भने नयाँ फोनमा सबै हिसाब फिर्ता आउँछ।</p></details>
     <details><summary>Play Store मा किन छैन?</summary><p>अहिलेसम्म राखिएको छैन। त्यतिन्जेल GitHub बाट फाइल लिनुहोस्। त्यहाँको हरेक संस्करण सार्वजनिक कोडबाटै बनाइन्छ।</p></details>
-    <details><summary>अपडेट कसरी गर्ने?</summary><p>नयाँ संस्करण आएपछि Home मा एउटा कार्ड देखिन्छ। नयाँ फाइल पुरानो एपमाथि नै इन्स्टल गर्नुहोस्। पहिले अनइन्स्टल नगर्नुहोस्, नत्र हिसाब मेटिन्छ।</p></details>
+    <details><summary>अपडेट कसरी गर्ने?</summary><p>नयाँ संस्करण आएपछि Home मा एउटा कार्ड देखिन्छ। Update थिच्नुहोस्, बाँकी काम एपले आफैं गर्छ। Mac मा नयाँ संस्करण डाउनलोड हुन्छ, त्यसलाई Applications मा तान्नुहोस्। पहिले अनइन्स्टल नगर्नुहोस्, नत्र हिसाब मेटिन्छ।</p></details>
     <details><summary>नेपालीमा चल्छ?</summary><p>AI सहायकले नेपाली र अंग्रेजी दुवै बुझ्छ, टाइप गरे पनि बोले पनि। एपका स्क्रिन अहिले अंग्रेजीमा छन्, र रकम सुरुदेखि नै नेपाली रुपैयाँमा हुन्छ।</p></details>
     <details><summary>AI सहायक कुन डिभाइसमा चल्छ?</summary><p>धेरैजसो ६४-बिट Android फोन, iPhone, Apple chip भएका Mac, र ६४-बिट Windows र Linux कम्प्युटरमा चल्छ। ब्राउजरमा Chrome वा Edge चाहिन्छ। ६ GB भन्दा कम मेमोरी भएका फोनमा ढिलो हुन सक्छ। AI बिना पनि बाँकी सबै चल्छ।</p></details>
     <details><summary>पहिले ब्राउजरमा चलाउँथेँ, मेरो हिसाब कहाँ गयो?</summary><p>कतै गएको छैन। वेब एप अब <a href="/app/">spendrix.web.app/app/</a> मा सरेको छ। उही ब्राउजरमा खोल्नुहोस्, तपाईंको हिसाब त्यहीँ छ।</p></details>

@@ -11,7 +11,8 @@
 <link rel="alternate" hreflang="en" href="https://spendrix.web.app/">
 <link rel="alternate" hreflang="ne" href="https://spendrix.web.app/ne/">
 <link rel="alternate" hreflang="x-default" href="https://spendrix.web.app/">
-<meta name="theme-color" content="#062F27">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="/favicon.png" type="image/png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preload" href="/fonts/mukta-700-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -34,14 +35,13 @@
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[
 {"@type":"SoftwareApplication","name":"Spendrix","url":"https://spendrix.web.app/","applicationCategory":"FinanceApplication","operatingSystem":"Android, iOS, macOS, Windows, Linux, Web","description":"A free, private money diary and expense tracker. Add money in and out in seconds, track who owes you, and use an on-device helper that understands voice in many languages and receipt photos. Works offline.","image":"https://spendrix.web.app/og.png","inLanguage":["en","ne"],"downloadUrl":"https://github.com/kafle1/spendrix/releases/latest","author":{"@type":"Person","name":"Niraj Kafle","url":"https://github.com/kafle1"},"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}},
-{"@type":"VideoObject","name":"Spendrix in 40 seconds","description":"Add spending in seconds, just say what you spent, see where your money went and who owes whom. Works offline and stays on your phone.","thumbnailUrl":"https://spendrix.web.app/media/promo-poster.jpg","contentUrl":"https://spendrix.web.app/media/promo.mp4","uploadDate":"2026-10-01","duration":"PT41S"},
 {"@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"Is Spendrix really free?","acceptedAnswer":{"@type":"Answer","text":"Yes. There's no paid plan and no ads."}},
 {"@type":"Question","name":"Do I need the internet?","acceptedAnswer":{"@type":"Answer","text":"No. Everything works offline. You only need the internet to download the AI helper once, and to sync if you turn it on."}},
 {"@type":"Question","name":"Where is my data kept?","acceptedAnswer":{"@type":"Answer","text":"On your device. If you turn on sync, your entries are locked on your device before they leave, and only your devices hold the key."}},
 {"@type":"Question","name":"What if I lose my phone?","acceptedAnswer":{"@type":"Answer","text":"Turn on sync, or back up to a file from Settings now and then. Either way you can bring everything back on a new phone."}},
 {"@type":"Question","name":"Why isn't it on the Play Store?","acceptedAnswer":{"@type":"Answer","text":"Not yet. Until then you install the file from GitHub. Every release there is built from the public code."}},
-{"@type":"Question","name":"How do I update?","acceptedAnswer":{"@type":"Answer","text":"Spendrix shows a card on Home when a new version is out. Install the new file over the old app. Don't uninstall first, that deletes your data."}},
+{"@type":"Question","name":"How do I update?","acceptedAnswer":{"@type":"Answer","text":"Spendrix shows a card on Home when a new version is out. Tap Update and it does the rest. On a Mac it downloads the new version for you to drag into Applications. Don't uninstall first, that deletes your data."}},
 {"@type":"Question","name":"Which languages does it understand?","acceptedAnswer":{"@type":"Answer","text":"The AI helper understands many languages, typed or spoken, including English and Nepali. The app's screens are in English for now."}},
 {"@type":"Question","name":"Which devices can run the AI helper?","acceptedAnswer":{"@type":"Answer","text":"Most 64-bit Android phones, iPhones, Macs with Apple chips, and 64-bit Windows and Linux PCs. In a browser it needs Chrome or Edge. Phones with less than 6 GB of memory may be slow. Everything else in Spendrix works without it."}},
 {"@type":"Question","name":"I used Spendrix in my browser before. Where did my entries go?","acceptedAnswer":{"@type":"Answer","text":"Nowhere. The web app moved to spendrix.web.app/app/. Open it in the same browser and your entries are right there."}}
@@ -49,13 +49,18 @@
 </script>
 </head>
 <body id="top">
-<header class="hero">
-  <div class="wrap">
-    <nav class="top" aria-label="Main">
+<header class="bar"><div class="wrap">
+  <nav class="top" aria-label="Main">
       <a class="brand" href="#top"><img src="/img/icon-64.png" alt="" width="34" height="34">Spendrix</a>
       <a href="/ne/" hreflang="ne" lang="ne">नेपाली</a>
-      <a href="/app/">Open in browser</a>
+      <a href="/app/" class="open">Open in browser</a>
+      <a class="btn" href="#download">Download</a>
     </nav>
+</div></header>
+
+<main>
+<section class="hero">
+  <div class="wrap">
     <div class="hero-in">
       <div>
         <h1>Every expense, noted in seconds.</h1>
@@ -64,17 +69,21 @@
           <a class="btn" id="get" href="#download" data-android="Download for Android" data-iphone="Get it for iPhone" data-macos="Download for Mac" data-windows="Download for Windows" data-linux="Download for Linux"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0 5-5m-5 5-5-5M5 20h14"/></svg><span>Download Spendrix</span></a>
           <a class="alt" href="/app/">Or open it in your browser</a>
         </div>
-        <p class="note">Free. No account needed. No ads. <a href="#download" style="color:inherit">Other devices</a></p>
+        <p class="note">Free. No account needed. No ads. <a href="#download">Other devices</a></p>
       </div>
-      <div class="hero-phone"><div class="phone"><img src="/img/home.webp" alt="Spendrix home screen with the total balance, this month's spending, accounts and recent entries" width="720" height="1558" fetchpriority="high"></div></div>
+      <form class="try" id="try" autocomplete="off" data-blank="Entry" data-income="salary bonus refund got received" data-cats='{"Food":"tea coffee lunch dinner breakfast pizza snack food","Transport":"taxi bus uber train fuel petrol","Bills":"rent bill electricity internet phone","Groceries":"milk groceries vegetables"}'>
+        <label for="try-in">Try it. Type what you spent.</label>
+        <div class="try-row"><input id="try-in" placeholder="lunch 450" maxlength="40" enterkeyhint="done"><button class="btn" type="submit">Add</button></div>
+        <p class="try-eg">Or tap one: <button type="button">coffee 4.50</button><button type="button">bus 30</button><button type="button">salary 3200</button></p>
+        <p class="try-hint" role="alert" hidden>Add an amount, like "tea 60".</p>
+        <div class="try-total"><span>Today</span><output id="try-sum" for="try-in"></output></div>
+        <ol class="try-list" id="try-list" aria-live="polite">
+          <li data-v="-350"><span><b>Taxi</b><small>Transport</small></span><i>−350</i></li>
+          <li data-v="-60"><span><b>Tea</b><small>Food</small></span><i>−60</i></li>
+        </ol>
+        <p class="try-note">This box is a demo. Nothing you type here is saved or sent. In the app you can also say it, or snap the bill.</p>
+      </form>
     </div>
-  </div>
-</header>
-
-<main>
-<section class="sec video" id="video" hidden aria-label="Promo video">
-  <div class="wrap">
-    <video controls playsinline preload="metadata" poster="/media/promo-poster.jpg" onloadedmetadata="this.closest('section').hidden=false"><source src="/media/promo.mp4" type="video/mp4"></video>
   </div>
 </section>
 
@@ -85,6 +94,7 @@
     <div class="shots">
       <figure><div class="phone"><img src="/img/home.webp" alt="Home screen with this month's totals" width="720" height="1558" loading="lazy"></div><figcaption><b>Home</b>See what's left this month at a glance.</figcaption></figure>
       <figure><div class="phone"><img src="/img/add.webp" alt="Adding an entry with the number keypad" width="720" height="1558" loading="lazy"></div><figcaption><b>Add</b>Type the amount, pick a category, save. That's it.</figcaption></figure>
+      <figure><div class="phone"><img src="/img/activity.webp" alt="Activity screen listing entries day by day with search and filters" width="720" height="1558" loading="lazy"></div><figcaption><b>Activity</b>Every entry, day by day. Search it or filter it.</figcaption></figure>
       <figure><div class="phone"><img src="/img/insights.webp" alt="Insights screen with a chart by category" width="720" height="1558" loading="lazy"></div><figcaption><b>Insights</b>A chart for each month shows where the money went.</figcaption></figure>
       <figure><div class="phone"><img src="/img/people.webp" alt="People screen listing who owes you and whom you owe" width="720" height="1558" loading="lazy"></div><figcaption><b>People</b>Who owes you, whom you owe, and when it's settled.</figcaption></figure>
     </div>
@@ -102,9 +112,7 @@
 <section class="sec ai" id="ai">
   <div class="wrap ai-in">
     <div>
-      <h2>Just say it. It writes the entry.</h2>
-      <p class="say" aria-hidden="true">taxi 350</p>
-      <div class="card" aria-hidden="true"><span>Draft entry</span><strong>Taxi</strong><em>350</em><i><u>Save</u><u>Edit</u></i></div>
+      <h2>Type it, say it, or snap the bill.</h2>
       <p class="lead">The helper runs on your own phone or computer. Download it once, 2 to 4 GB depending on the device, and it works with no internet. Your voice, photos and entries never leave the device.</p>
       <ul class="ways">
         <li><b>Type it.</b> "tea 60", "salary 50000", "lent Ram 2000".</li>
@@ -112,7 +120,7 @@
         <li><b>Snap it.</b> Take a photo of a bill. It fills in the amount, date and shop.</li>
         <li><b>Ask it.</b> "How much did I spend on food this month?" or "Who owes me money?"</li>
       </ul>
-      <p class="small muted" style="margin-top:24px">Nothing is saved until you tap Save, and Undo puts it back. In a browser the helper can chat, but voice and photos need the app. Phones with less than 6 GB of memory may be slow.</p>
+      <p class="small muted try-note">Nothing is saved until you tap Save, and Undo puts it back. In a browser the helper can chat, but voice and photos need the app. Phones with less than 6 GB of memory may be slow.</p>
     </div>
     <div class="ai-phone"><div class="phone"><img src="/img/ai.webp" alt="The Ask tab explaining the on-device helper before its one-time download" width="720" height="1558" loading="lazy"></div></div>
   </div>
@@ -130,10 +138,10 @@
   </div>
 </section>
 
-<section class="sec" id="download" style="padding-top:0">
+<section class="sec" id="download">
   <div class="wrap">
     <h2>Get Spendrix</h2>
-    <p class="lead">Free on every device. To update, install the new file over the old app. Don't uninstall first, or your data goes with it.</p>
+    <p class="lead">Free on every device. You install it once. After that, new versions arrive inside the app.</p>
     <ul class="dl">
       <li id="dl-android"><h3>Android</h3><p>Open the file on your phone and allow the install.</p><a class="get" href="https://github.com/kafle1/spendrix/releases/latest/download/Spendrix-android.apk">Download .apk</a>
         <p class="old">Installed Spendrix 1.3, 2.0.0 or 2.0.1 before? Take <a href="https://github.com/kafle1/spendrix/releases/latest/download/Spendrix-android-for-1.3-and-2.0.apk">this other file</a> once instead. It's only for those versions.</p></li>
@@ -144,11 +152,11 @@
       <li id="dl-linux"><h3>Linux</h3><p>Extract it and run <code>./spendrix</code>. For 64-bit Intel or AMD.</p><a class="get" href="https://github.com/kafle1/spendrix/releases/latest/download/Spendrix-linux-x64.tar.gz">Download .tar.gz</a></li>
       <li id="dl-web"><h3>Browser</h3><p>Nothing to install. The AI helper needs Chrome or Edge.</p><a class="get" href="/app/">Open app</a></li>
     </ul>
-    <p class="small muted" style="margin-top:20px">Every version and its notes are on <a href="https://github.com/kafle1/spendrix/releases">GitHub releases</a>.</p>
+    <p class="small muted try-note">Every version and its notes are on <a href="https://github.com/kafle1/spendrix/releases">GitHub releases</a>.</p>
   </div>
 </section>
 
-<section class="sec" id="faq" style="padding-top:0">
+<section class="sec" id="faq">
   <div class="wrap faq">
     <h2>Questions</h2>
     <details><summary>Is Spendrix really free?</summary><p>Yes. There's no paid plan and no ads.</p></details>
@@ -156,7 +164,7 @@
     <details><summary>Where is my data kept?</summary><p>On your device. If you turn on sync, your entries are locked on your device before they leave, and only your devices hold the key.</p></details>
     <details><summary>What if I lose my phone?</summary><p>Turn on sync, or back up to a file from Settings now and then. Either way you can bring everything back on a new phone.</p></details>
     <details><summary>Why isn't it on the Play Store?</summary><p>Not yet. Until then you install the file from GitHub. Every release there is built from the public code.</p></details>
-    <details><summary>How do I update?</summary><p>Spendrix shows a card on Home when a new version is out. Install the new file over the old app. Don't uninstall first, that deletes your data.</p></details>
+    <details><summary>How do I update?</summary><p>Spendrix shows a card on Home when a new version is out. Tap Update and it does the rest. On a Mac it downloads the new version for you to drag into Applications. Don't uninstall first, that deletes your data.</p></details>
     <details><summary>Which languages does it understand?</summary><p>The AI helper understands many languages, typed or spoken, including English and Nepali. The app's screens are in English for now.</p></details>
     <details><summary>Which devices can run the AI helper?</summary><p>Most 64-bit Android phones, iPhones, Macs with Apple chips, and 64-bit Windows and Linux PCs. In a browser it needs Chrome or Edge. Phones with less than 6 GB of memory may be slow. Everything else in Spendrix works without it.</p></details>
     <details><summary>I used Spendrix in my browser before. Where did my entries go?</summary><p>Nowhere. The web app moved to <a href="/app/">spendrix.web.app/app/</a>. Open it in the same browser and your entries are right there.</p></details>
