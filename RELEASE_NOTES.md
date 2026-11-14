@@ -4,7 +4,7 @@ Spendrix is a private money diary. It works offline and keeps everything on your
 - Ask understands more of what you type. Short notes like "chiya 60" or "momo 180" become entries, even with a word it doesn't know.
 - Lending and paying back land under the right person: "lent Sam 300", "Maya paid me back 40", "Ram lai 2000 diye".
 - Another currency works in a short note, like "20 euros taxi".
-- "Yesterday" and "hijo" set the right date, and "make the last entry 300" changes the entry.
+- "Make the last entry 300" changes the entry you just added.
 - Ask answers "how much did I earn last month?" from your numbers.
 
 **Fixed in 2.4.1**
