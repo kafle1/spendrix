@@ -105,7 +105,11 @@ class Assistant extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   @override
-  void didHaveMemoryPressure() => _rest(now: true);
+  void didHaveMemoryPressure() {
+    // mid-answer it can't let go yet, so it does once the answer ends
+    if (_busy) _squeezed = true;
+    _rest(now: true);
+  }
 
   // browsers only get text, where the small one is plenty
   static const _e2b = (
@@ -141,7 +145,9 @@ class Assistant extends ChangeNotifier with WidgetsBindingObserver {
   AiStatus _status = AiStatus.checking;
   double _progress = 0;
   String? _error;
-  bool _busy = false, _stopped = false, _installed = false;
+  bool _busy = false, _stopped = false, _installed = false, _squeezed = false;
+  // what "Try again" redoes when the failure wasn't a download or a load
+  Future<void> Function()? _redo;
   CancelToken? _download;
   Timer? _idle;
   Future<void>? _boot, _started, _closing;
@@ -168,6 +174,7 @@ class Assistant extends ChangeNotifier with WidgetsBindingObserver {
   String? get error => _error;
 
   void _set(AiStatus s, [String? error]) {
+    if (s != AiStatus.failed) _redo = null;
     _status = s;
     _error = error;
     notifyListeners();
@@ -197,6 +204,11 @@ class Assistant extends ChangeNotifier with WidgetsBindingObserver {
       _installed = have.isNotEmpty;
       if (_installed) _m = have.first;
     } catch (_) {
+      // without the check it can't know a model is already here, and a download would fetch a second one
+      _redo = () async {
+        _set(AiStatus.checking);
+        await _check();
+      };
       _set(AiStatus.failed, _startError);
       return;
     }
@@ -268,7 +280,8 @@ class Assistant extends ChangeNotifier with WidgetsBindingObserver {
           AiStatus.failed,
           e is DownloadException && e.error is NetworkError
               ? 'The download stopped. Check your internet and try again.'
-              : 'The download failed. Try again in a bit.',
+              : 'The download failed. Make sure your device has ${(_m.size / 1e9).toStringAsFixed(1)} GB free, '
+                    'then try again.',
         );
       }
     } finally {
@@ -281,6 +294,9 @@ class Assistant extends ChangeNotifier with WidgetsBindingObserver {
 
   /// after a failure: download again, or load the model again
   Future<void> retry() async {
+    final redo = _redo;
+    _redo = null;
+    if (redo != null) return redo();
     if (!_installed) return download();
     _set(AiStatus.installed);
     try {
@@ -317,6 +333,8 @@ class Assistant extends ChangeNotifier with WidgetsBindingObserver {
       _m = await _pick();
       _set(AiStatus.missing);
     } catch (_) {
+      // "Try again" should finish the removal, not load the model back in
+      _redo = remove;
       _set(AiStatus.failed, "Couldn't remove the AI. Try again.");
     }
   }
@@ -382,7 +400,7 @@ class Assistant extends ChangeNotifier with WidgetsBindingObserver {
     final away =
         !kIsWeb &&
         const {AppLifecycleState.hidden, AppLifecycleState.paused}.contains(WidgetsBinding.instance.lifecycleState);
-    _idle = Timer(now || away ? Duration.zero : const Duration(minutes: 3), () {
+    _idle = Timer(now || away || _squeezed ? Duration.zero : const Duration(minutes: 3), () {
       if (!_busy && _model != null) unawaited(_drop());
     });
   }
@@ -391,6 +409,7 @@ class Assistant extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _drop() async {
     final model = _model;
     _model = null;
+    _squeezed = false;
     _status = AiStatus.installed;
     // a timed-out photo or voice read keeps running natively, and closing the model under it can crash
     try {
@@ -743,7 +762,11 @@ class Assistant extends ChangeNotifier with WidgetsBindingObserver {
       account: account,
       start: start,
       every: every,
-      n: j['n'] is num ? (j['n'] as num).toInt().clamp(1, 99) : 1,
+      // json can carry 1e400, which reads as infinity and makes toInt throw
+      n: switch (j['n']) {
+        final num v when v.isFinite => v.clamp(1, 99).toInt(),
+        _ => 1,
+      },
       end: until,
       category: e.category,
       person: e.person,
@@ -824,7 +847,9 @@ class Assistant extends ChangeNotifier with WidgetsBindingObserver {
     final c = currencies.where((c) => c.code == _text(code).toUpperCase()).firstOrNull;
     if (c == null || c.code == store.settings.currency) return e;
     final rate = store.rate(c.code);
-    final home = rate == null ? 0 : (e.amount * rate).round();
+    final converted = rate == null ? 0 : e.amount * rate;
+    // past the biggest amount the app takes, leave it 0 so the form asks
+    final home = converted.isFinite && converted <= _maxCents ? converted.round() : 0;
     return e.copyWith(amount: home, fxCur: c.code, fxAmount: e.amount, fxHome: home);
   }
 
@@ -964,6 +989,9 @@ class Assistant extends ChangeNotifier with WidgetsBindingObserver {
 
 const _noAnswer = "Sorry, I don't have an answer for that.";
 
+// 12 whole digits, the most parseCents reads
+const _maxCents = 99999999999999;
+
 String _text(Object? v) => v is String ? v.trim() : '';
 
 // "can you delete it?" is a request, "how much did I spend?" a question
@@ -1015,8 +1043,9 @@ String _icon(String name, String fallback) {
 String _digits(String s) =>
     String.fromCharCodes(s.codeUnits.map((c) => c >= 0x0966 && c <= 0x096F ? c - 0x0966 + 0x30 : c));
 
-// by runes so an emoji is never cut in half
-String _clip(String s, [int length = 100]) => String.fromCharCodes(s.trim().runes.take(length));
+// by runes so an emoji is never cut in half; one line, so a note can't pass as a new line of the prompt
+String _clip(String s, [int length = 100]) =>
+    String.fromCharCodes(s.replaceAll(RegExp(r'[\s\x00-\x1F\x7F]+'), ' ').trim().runes.take(length)).trim();
 
 Map<String, dynamic>? _json(String text) {
   final start = text.indexOf('{');
@@ -1038,7 +1067,7 @@ int? _cents(Object? v) {
   final m = RegExp(r'\d[\d.,]*').firstMatch(v);
   if (m == null) return null;
   // a minus before the digits, or an exponent right after, means it isn't a plain amount
-  if (RegExp(r'-\s*$').hasMatch(v.substring(0, m.start)) || RegExp(r'^[eE]').hasMatch(v.substring(m.end))) return null;
+  if (RegExp(r'[-−]\s*$').hasMatch(v.substring(0, m.start)) || RegExp(r'^[eE]').hasMatch(v.substring(m.end))) return null;
   var s = m.group(0)!;
   // "1.234,50": a comma before the last two digits is the decimal point
   if (RegExp(r',\d{2}$').hasMatch(s)) s = s.replaceAll('.', '').replaceFirst(RegExp(r',(?=\d{2}$)'), '.');
